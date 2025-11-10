@@ -1,0 +1,8 @@
+# Go
+bin/
+*.exe
+*.test
+*.out
+
+# IDE
+.vscode/
