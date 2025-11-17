@@ -1,4 +1,4 @@
-package models
+package entity
 
 import (
 	"time"
@@ -12,4 +12,8 @@ type ReviewVote struct {
 
 	ReviewID uint  `json:"review_id"`
 	Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
+
+	MemberID   uint   `json:"member_id"`  
+    Member     Member `gorm:"foreignKey:MemberID;references:ID"`
+
 }

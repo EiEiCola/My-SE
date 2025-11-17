@@ -2,7 +2,7 @@ package entity
 
 import (
 	"gorm.io/gorm"
-	"time"
+	
 )
 
 type ReviewImage struct {
@@ -11,8 +11,8 @@ type ReviewImage struct {
 	IsCover       bool   `json:"is_cover"`
 	SortOrder     int    `json:"sort_order"`
 
-	
-	ReviewID *uint  `json:"review_id"`
-	Review   Review  `json:"review"`
+	//FK review ไม่มี* เพราะตถ้าจะมีรูปยังไงก้ต้องมีไอดีรีวิว
+	ReviewID uint  `json:"review_id"`
+	Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
 
 }
