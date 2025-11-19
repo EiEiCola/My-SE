@@ -26,7 +26,5 @@ type Review struct {
 	Tags        []Tag        `gorm:"many2many:review_tags" json:"tags"`
     ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`
 
-	
-
 }
 
