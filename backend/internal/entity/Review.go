@@ -18,6 +18,15 @@ type Review struct {
     Member     Member `gorm:"foreignKey:MemberID;references:ID"`
 
 	//FK category
+	MainCategoryID *uint         `json:"main_category_id"`
+	MainCategory   MainCategory `gorm:"foreignKey:MainCategoryID;references:ID"`
+
+	SubCategoryL1ID *uint          `json:"sub_category_l1_id"`
+	SubCategoryL1   SubCategoryL1 `gorm:"foreignKey:SubCategoryL1ID;references:ID"`
+
+	SubCategoryL2ID *uint          `json:"sub_category_l2_id"`
+	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID"`
+
 
 
 	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID"`

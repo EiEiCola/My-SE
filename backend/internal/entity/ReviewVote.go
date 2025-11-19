@@ -10,6 +10,7 @@ type ReviewVote struct {
 	VoteType     string    `json:"vote_type"`
 	CreatedAt    time.Time `json:"created_at"`
 
+	
 	ReviewID uint  `json:"review_id"`
 	Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
 
