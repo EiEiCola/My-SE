@@ -6,9 +6,11 @@ type MemberPointBalance struct {
 
 gorm.Model
 
-TotalPoint 		string `json:"total_point"`
+MemberPointBalanceID	int		`json:"member_point_balance_id"`
 
-MemberID   uint   `json:"member_id"`  
-Member     Member `gorm:"foreignKey:MemberID;references:ID"`
+TotalPoint 				string `json:"total_point"`
+
+MemberID   				uint   `json:"member_id"`  
+Member     				Member `gorm:"foreignKey:MemberID;references:ID"`
 
 }

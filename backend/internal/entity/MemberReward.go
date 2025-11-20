@@ -6,7 +6,8 @@ type MemberReward struct {
 
 gorm.Model
 
-PointUsed 	string `json:"point_used"`
+MemberRewardID	int		`json:"member_reward_id"`
+PointUsed 	string 		`json:"point_used"`
 
 MemberAccountID   uint   `json:"member_account_id"`  
 MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`

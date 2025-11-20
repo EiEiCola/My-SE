@@ -6,6 +6,7 @@ type Role struct {
 
 gorm.Model
 
-RoleName string `json:"role_name"`
+RoleID		int	   `json:"role_id"`
+RoleName 	string `json:"role_name"`
 
 }
