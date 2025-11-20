@@ -4,7 +4,6 @@ import (
 	"time"
 	"gorm.io/gorm"
 )
-
 type ReviewVote struct {
 	gorm.Model
 	VoteType     string    `json:"vote_type"`
@@ -14,7 +13,4 @@ type ReviewVote struct {
 
 	MemberID   uint   `json:"member_id"`  
     Member     Member `gorm:"foreignKey:MemberID;references:ID"`
-
-
-
 }
