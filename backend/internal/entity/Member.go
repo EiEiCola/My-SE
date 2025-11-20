@@ -6,6 +6,7 @@ type Member struct {
 
 gorm.Model
 
+MemberID 	int `json:"member_id"`
 FirstName 	string `json:"first_name"`
 LastName 	string `json:"last_name"`
 Username	string	`json:"username"`
@@ -13,6 +14,8 @@ Email 		string `json:"email"`
 Dob		string	`json:"dob"`
 Bio		string	`json:"bio"`
 MemberPicture	string `json:"member_picture"`
+NationalID	string `json:"national_id"`
+StudentID	string `json:"student_id"`
  
 GenderID    uint   `json:"gender_id"`  
 Gender      Gender `gorm:"foreignKey:GenderID;references:ID"`

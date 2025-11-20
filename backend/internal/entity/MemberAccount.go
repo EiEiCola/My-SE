@@ -6,6 +6,7 @@ type MemberAccount struct {
 
 gorm.Model
 
+MemberAccountID 	int `json:"member_account_id"`
 Email 		string `json:"email"`
 Password 	string `json:"password"`
 
