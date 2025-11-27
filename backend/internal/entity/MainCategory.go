@@ -22,4 +22,5 @@ type MainCategory struct {
 
 	// Relations
 	SubCategoriesL1 []SubCategoryL1 `gorm:"foreignKey:MainCategoryID" json:"sub_categories_l1"`
+	Posts		    []Post          `gorm:"foreignKey:MainCategoryID" json:"posts"`
 }
