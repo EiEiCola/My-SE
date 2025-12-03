@@ -10,7 +10,7 @@ MemberID 	int `json:"member_id"`
 FirstName 	string `json:"first_name"`
 LastName 	string `json:"last_name"`
 Username	string	`json:"username"`
-Email 		string `json:"email"`
+// ตัด Email ออก ให้อยู่แค่ในตาราง MemberAccount 
 Dob		string	`json:"dob"`
 Bio		string	`json:"bio"`
 MemberPicture	string `json:"member_picture"`
