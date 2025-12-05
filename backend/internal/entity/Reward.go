@@ -8,7 +8,7 @@ gorm.Model
 
 RewardID		int	   `json:"reward_id"`
 RewardName 		string `json:"reward_name"`
-PointRequired 	string `json:"point_required"`
+PointRequired 	int `json:"point_required"`
 RewardPicture	string `json:"reward_picture"`	
 
 AdminID   uint   `json:"admin_id"`  

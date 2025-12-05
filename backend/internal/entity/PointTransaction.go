@@ -7,7 +7,7 @@ type PointTransaction struct {
 gorm.Model
 
 PointTransactionID	int	   `json:"point_transaction_id"`
-Point 				string `json:"point"`
+Point 				int `json:"point"`
 
 MemberAccountID   uint   `json:"member_account_id"`  
 MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`

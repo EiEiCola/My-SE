@@ -8,7 +8,7 @@ gorm.Model
 
 PointRuleID			int	   `json:"point_rule"`
 ActivityType 		string `json:"activity_type"`
-ActivityPoint 		string `json:"activity_point"`
-DailyLimit			string `json:"daily_limit"`
+ActivityPoint 		int `json:"activity_point"`
+DailyLimit			int`json:"daily_limit"`
 
 }
