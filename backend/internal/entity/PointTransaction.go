@@ -9,8 +9,8 @@ gorm.Model
 PointTransactionID	int	   `json:"point_transaction_id"`
 Point 				int `json:"point"`
 
-MemberAccountID   uint   `json:"member_account_id"`  
-MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`
+MemberID   				uint   `json:"member_id"`  
+Member     				Member `gorm:"foreignKey:MemberID;references:ID"`
 
 PointRuleID  uint   `json:"point_rule_id"`  
 PointRule    PointRule `gorm:"foreignKey:PointRuleID;references:ID"`
