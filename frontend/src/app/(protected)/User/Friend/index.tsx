@@ -1,0 +1,12 @@
+//friend
+import React from "react";
+
+const Friends: React.FC = () => {
+  return (
+     <main className="flex-1 overflow-y-auto bg-transparent">
+     <h1>เพื่อน</h1>
+     </main>
+  );
+};
+
+export default Friends;
