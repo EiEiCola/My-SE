@@ -6,7 +6,7 @@ type ActiveStatus struct {
 
 gorm.Model
 
-ActiveStatusID 	int `json:"active_status_id"`
-ActiveStatus 	string `json:"active_status"`
+ActiveStatusID 		int 	`json:"active_status_id"`
+ActiveStatusName 	string  `json:"active_status_name"`
 
 }
