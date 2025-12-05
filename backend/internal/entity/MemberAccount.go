@@ -11,6 +11,6 @@ Email 		string `json:"email"`
 Password 	string `json:"password"`
 
 RoleID    uint   `json:"role_id"`  
-Role      Role `gorm:"foreignKey:RoleID;references:ID"` 
+Role      Role 	`gorm:"foreignKey:RoleID;references:ID"` 
 
 }
