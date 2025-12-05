@@ -6,7 +6,7 @@ type Admin struct {
 
 gorm.Model
 
-Admin 		int    `json:"admin_id"`
+AdminID 	int    `json:"admin_id"`
 FirstName 	string `json:"first_name"`
 LastName 	string `json:"last_name"`
 Email 		string `json:"email" gorm:"unique"` 
