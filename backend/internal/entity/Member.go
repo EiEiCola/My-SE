@@ -7,9 +7,8 @@ import (
 )
 
 type Member struct {
-    gorm.Model
 
-	MemberID 	uint `json:"member_id"`
+    gorm.Model
 
     FirstName     string `json:"first_name"`
     LastName      string `json:"last_name"`
@@ -21,7 +20,8 @@ type Member struct {
     StudentID     string `json:"student_id" gorm:"unique"`
 
     // 1:1 กับ MemberAccount  
-    MemberAccount MemberAccount `gorm:"foreignKey:MemberID;references:ID"`
+    MemberAccount *MemberAccount `gorm:"foreignKey:MemberID;references:ID"`
+
 
     GenderID       uint        `json:"gender_id"`
     Gender         Gender       `gorm:"foreignKey:GenderID;references:ID"`
