@@ -6,9 +6,9 @@ type PointRule struct {
 
 gorm.Model
 
-PointRuleID			int	   `json:"point_rule"`
+PointRuleID			int	   `json:"point_rule_id"`
 ActivityType 		string `json:"activity_type"`
-ActivityPoint 		string `json:"activity_point"`
-DailyLimit			string `json:"daily_limit"`
+ActivityPoint 		int `json:"activity_point"`
+DailyLimit			int `json:"daily_limit"`
 
 }
