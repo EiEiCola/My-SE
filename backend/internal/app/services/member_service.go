@@ -2,6 +2,7 @@ package services
 
 import (
 
+     "time"
     "github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/entity"
 )
@@ -50,7 +51,14 @@ func (s *memberService) UpdateProfile(accountID uint, input UpdateProfileInput) 
     m.LastName = input.LastName
     m.Username = input.Username
     m.Bio = input.Bio
-    m.Dob = input.Dob
+
+    dobTime, err := time.Parse("2006-01-02", input.Dob) // input.Dob เป็น string
+    if err != nil {
+    // ถ้าใช้ gin อยู่ ตัวอย่างจัดการ error:
+    // c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dob format"})
+    // return
+}
+    m.Dob      = dobTime 
     m.GenderID = input.GenderID
 
     // บันทึกลงฐานข้อมูล

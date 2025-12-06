@@ -3,10 +3,8 @@ package entity
 import "gorm.io/gorm"
 
 type Role struct {
+    gorm.Model
 
-gorm.Model
-
-RoleID		int	   `json:"role_id"`
-RoleName 	string `json:"role_name"`
-
+    RoleID   int    `json:"role_id"`
+    RoleName string `json:"role_name"`
 }
