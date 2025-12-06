@@ -38,4 +38,8 @@ MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"
 
 	BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID" json:"blocks_as_blocker"`
 	BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID" json:"blocks_as_blocked"`
+
+	//Review relations
+	Reviews       []Review        `gorm:"foreignKey:MemberID" json:"reviews"`
+	ReviewVotes   []ReviewVote    `gorm:"foreignKey:MemberID" json:"review_votes"`
 }
