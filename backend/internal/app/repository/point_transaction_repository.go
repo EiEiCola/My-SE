@@ -1,45 +1,46 @@
 package repository
 
 import (
-	
-    "gorm.io/gorm"
-    "github.com/sut68/team12/backend/internal/entity"
+	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
 type PointTransactionRepository interface {
-    Create(tx *entity.PointTransaction) error
-    GetByMemberID(memberID uint) ([]entity.PointTransaction, error)
-    GetByRule(memberID uint, pointRuleID uint) ([]entity.PointTransaction, error)
+	CreatePointTransaction(tx *entity.PointTransaction) error
+	GetPointTransactionByMemberID(memberID uint) ([]entity.PointTransaction, error)
+	CountPointTransactionByRuleToday(memberID uint, pointRuleID uint, date string) (int64, error)
 }
 
 type pointTransactionRepository struct {
-    db *gorm.DB
+	db *gorm.DB
 }
 
 func NewPointTransactionRepository(db *gorm.DB) PointTransactionRepository {
-    return &pointTransactionRepository{db}
+	return &pointTransactionRepository{db: db}
 }
 
-func (r *pointTransactionRepository) Create(tx *entity.PointTransaction) error {
-    return r.db.Create(tx).Error
+func (r *pointTransactionRepository) CreatePointTransaction(tx *entity.PointTransaction) error {
+	return r.db.Create(tx).Error
 }
 
-func (r *pointTransactionRepository) GetByMemberID(memberID uint) ([]entity.PointTransaction, error) {
-    var transactions []entity.PointTransaction
-    err := r.db.
-        Where("member_id = ?", memberID).
-        Order("created_at DESC").
-        Find(&transactions).Error
+func (r *pointTransactionRepository) GetPointTransactionByMemberID(memberID uint) ([]entity.PointTransaction, error) {
+	var txs []entity.PointTransaction
 
-    return transactions, err
+	err := r.db.
+		Preload("PointRule").
+		Where("member_id = ?", memberID).
+		Order("created_at DESC").
+		Find(&txs).Error
+
+	return txs, err
 }
 
-func (r *pointTransactionRepository) GetByRule(memberID uint, pointRuleID uint) ([]entity.PointTransaction, error) {
-    var transactions []entity.PointTransaction
-    err := r.db.
-        Where("member_id = ? AND point_rule_id = ?", memberID, pointRuleID).
-        Order("created_at DESC").
-        Find(&transactions).Error
+func (r *pointTransactionRepository) CountPointTransactionByRuleToday(memberID uint, pointRuleID uint, date string) (int64, error) {
+	var count int64
 
-    return transactions, err
+	err := r.db.Model(&entity.PointTransaction{}).
+		Where("member_id = ? AND point_rule_id = ? AND DATE(created_at) = ?", memberID, pointRuleID, date).
+		Count(&count).Error
+
+	return count, err
 }
