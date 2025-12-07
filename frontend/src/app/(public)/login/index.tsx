@@ -136,8 +136,8 @@ function Login() {
             style={{
               backgroundColor: "#C42E0A",
               borderRadius: 10,
-              height: 45,
-              width: 150,
+              height: 40,
+              width: 110,
               fontWeight: 800,
               fontSize: 17,
               marginBottom: 25,
