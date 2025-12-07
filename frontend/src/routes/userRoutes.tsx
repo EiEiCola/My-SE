@@ -9,6 +9,7 @@ import Group from "../app/(protected)/User/Category";
 import Review from "../app/(protected)/User/Review";
 import Voting from "../app/(protected)/User/Voting";
 import Announcement from "../app/(protected)/User/Announcement";
+import AnnouncementDetail from "../app/(protected)/User/Announcement/AnnouncementDetail";
 import Report from "../app/(protected)/User/Report";
 import Post from "../app/(protected)/User/Post";
 
@@ -35,6 +36,8 @@ function UserRoutes() {
         <Route path="/User/Voting" element={<Voting />} />
 
         <Route path="/User/Announcement" element={<Announcement />} />
+
+        <Route path="/User/Announcement/:id" element={<AnnouncementDetail />} />
 
         <Route path="/User/Report" element={<Report />} />
 
