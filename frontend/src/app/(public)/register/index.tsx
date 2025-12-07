@@ -253,14 +253,14 @@ function Register() {
             style={{
               backgroundColor: "#C42E0A",
               borderRadius: 10,
-              width: 160,
-              height: 45,
+              width: 120,
+              height: 40,
               fontWeight: 700,
               fontSize: 16,
             }}
             onClick={handleRegister}
           >
-            REGISTER
+            Register
           </Button>
         </div>
 
