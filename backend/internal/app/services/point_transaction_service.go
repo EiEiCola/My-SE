@@ -33,7 +33,7 @@ func NewPointTransactionService(
 
 func (s *pointTransactionService) CreatePointTransaction(memberID uint, pointRuleID uint, refIDs map[string]uint) (*entity.PointTransaction, error) {
 	// โหลด PointRule
-	rule, err := s.pointRuleRepository.GetPointRuleByID(pointRuleID)
+	rule, err := s.pointRuleRepository.GetByID(pointRuleID)
 	if err != nil {
 		return nil, errors.New("point rule not found")
 	}
