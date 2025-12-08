@@ -1,45 +1,43 @@
 package entity
 
-import "gorm.io/gorm"
-import "time"
+import (
+
+    "gorm.io/gorm"
+    "time"
+)
 
 type Member struct {
-	
-	gorm.Model
 
-MemberID 	int `json:"member_id"`
-FirstName 	string `json:"first_name"`
-LastName 	string `json:"last_name"`
-Username	string	`json:"username"`
+    gorm.Model
 
-// ตัด Email ออก ให้อยู่แค่ในตาราง MemberAccount 
+    FirstName     string `json:"first_name"`
+    LastName      string `json:"last_name"`
+    Username      string `json:"username" gorm:"unique"`
+    Dob           time.Time `json:"dob"`
+    Bio           string `json:"bio"`
+    MemberPicture string `json:"member_picture"`
+    NationalID    string `json:"national_id"`
+    StudentID     string `json:"student_id" gorm:"unique"`
 
-Dob				time.Time	`json:"dob"`
-Bio				string		`json:"bio"`
-MemberPicture	string 		`json:"member_picture"`
-NationalID		string 		`json:"national_id"`
-StudentID		string 		`json:"student_id"`
+    // 1:1 กับ MemberAccount  
+    MemberAccount *MemberAccount `gorm:"foreignKey:MemberID;references:ID"`
 
 
-GenderID    uint   `json:"gender_id"`  
-Gender      Gender `gorm:"foreignKey:GenderID;references:ID"`
+    GenderID       uint        `json:"gender_id"`
+    Gender         Gender       `gorm:"foreignKey:GenderID;references:ID"`
 
-ActiveStatusID    uint   		`json:"active_status_id"`  
-ActiveStatus      ActiveStatus `gorm:"foreignKey:ActiveStatusID;references:ID"`
+    ActiveStatusID uint         `json:"active_status_id"`
+    ActiveStatus   ActiveStatus `gorm:"foreignKey:ActiveStatusID;references:ID"`
 
-MemberAccountID   uint   		`json:"member_account_id"`  
-MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`
+    SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
+    ReceivedRequests []RequesFriend `gorm:"foreignKey:ReciveMemID;references:ID"`
 
-	SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID" json:"sent_requests"`
-	ReceivedRequests []RequesFriend `gorm:"foreignKey:ReciveMemID;references:ID" json:"received_requests"`
+    RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID"`
+    RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID"`
 
-	RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID" json:"relations_as_user1"`
-	RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID" json:"relations_as_user2"`
+    BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
+    BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
 
-	BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID" json:"blocks_as_blocker"`
-	BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID" json:"blocks_as_blocked"`
-
-	//Review relations
-	Reviews       []Review        `gorm:"foreignKey:MemberID" json:"reviews"`
-	ReviewVotes   []ReviewVote    `gorm:"foreignKey:MemberID" json:"review_votes"`
+	Reviews      []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
+    ReviewVotes  []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
 }
