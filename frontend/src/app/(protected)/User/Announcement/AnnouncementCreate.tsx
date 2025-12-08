@@ -5,6 +5,7 @@ import "./AnnouncementCreate.css";
 const AnnouncementCreate: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
@@ -40,7 +41,11 @@ const AnnouncementCreate: React.FC = () => {
         throw new Error("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น");
       }
 
-      const payload = { title, description, content, image, date, endDate, status: "active" };
+      if (!category) {
+        throw new Error("กรุณาเลือกหมวดหมู่");
+      }
+
+      const payload = { title, category, description, content, image, date, endDate, status: "active" };
 
       // Example POST - adjust URL as needed (env or proxy)
       const res = await fetch(`/api/announcements`, {
@@ -77,6 +82,19 @@ const AnnouncementCreate: React.FC = () => {
             placeholder="ใส่หัวข้อประกาศ"
           />
 
+          <label className="form-label">หมวดหมู่</label>
+          <select
+            className="form-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">-- เลือกหมวดหมู่ --</option>
+            <option value="general">ทั่วไป</option>
+            <option value="activity">กิจกรรม</option>
+            <option value="scholarship">ทุนการศึกษา</option>
+            <option value="urgent">ด่วน</option>
+          </select>
+
           <label className="form-label">คำอธิบายสั้นๆ</label>
           <input
             className="form-input"
@@ -85,13 +103,23 @@ const AnnouncementCreate: React.FC = () => {
             placeholder="คำอธิบายสั้น ๆ"
           />
 
-          <label className="form-label">รูปภาพ (URL)</label>
-          <input
-            className="form-input"
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            placeholder="https://example.com/image.jpg"
-          />
+          <label className="form-label">รูปภาพปก</label>
+          <div className="file-upload-wrapper">
+            <input
+              type="file"
+              accept="image/*"
+              className="form-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // In real app: upload to server or read as dataURL
+                  // For now, just store file name or fake URL
+                  setImage(URL.createObjectURL(file));
+                }
+              }}
+            />
+            {image && <img src={image} alt="Preview" className="image-preview" />}
+          </div>
 
           <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
           <input
