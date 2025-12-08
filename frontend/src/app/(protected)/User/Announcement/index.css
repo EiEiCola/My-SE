@@ -40,6 +40,20 @@
   background-color: rgba(255, 122, 69, 0.1);
 }
 
+.create-btn {
+  padding: 8px 14px;
+  background-color: #ff7a45;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.create-btn:hover {
+  background-color: #e66a35;
+}
+
 .announcement-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

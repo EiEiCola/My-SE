@@ -135,12 +135,20 @@ const Announcement: React.FC = () => {
         <div className="announcement-header">
           <div className="header-top">
             <h1 className="announcement-title">ประกาศ</h1>
-            <button 
-              className="view-all-link"
-              onClick={handleViewAll}
-            >
-              VIEW ALL &gt;
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="create-btn"
+                onClick={() => navigate('/User/Announcement/create')}
+              >
+                + สร้างประกาศ
+              </button>
+              <button 
+                className="view-all-link"
+                onClick={handleViewAll}
+              >
+                VIEW ALL &gt;
+              </button>
+            </div>
           </div>
         </div>
 
