@@ -17,7 +17,7 @@ function Login() {
         password,
       });
 
-      const role = res.data.member_account.role_id;
+      const role = res.data?.member_account?.role_id;
 
       if (role === 1) navigate("/admin/dashboard");
       else navigate("/user/home");
@@ -65,7 +65,7 @@ function Login() {
             color: "#6D6D6D",
             marginBottom: 40,
             fontWeight: 600,
-            fontSize: 17
+            fontSize: 17,
           }}
         >
           Login to your account
@@ -73,7 +73,9 @@ function Login() {
 
         {/* EMAIL / STUDENT ID */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 25 }}>
-          <Text style={{ fontWeight: 600 , fontSize: 15}} >Email or Student ID</Text>
+          <Text style={{ fontWeight: 600, fontSize: 15 }}>
+            Email or Student ID
+          </Text>
           <Input
             placeholder="Enter your email or student ID"
             size="large"
@@ -89,7 +91,7 @@ function Login() {
 
         {/* PASSWORD */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 10 }}>
-          <Text style={{ fontWeight: 600 , fontSize: 15 }}>Password</Text>
+          <Text style={{ fontWeight: 600, fontSize: 15 }}>Password</Text>
 
           <Input.Password
             placeholder="Enter your password"
@@ -118,16 +120,17 @@ function Login() {
               fontWeight: 500,
               color: "#8E8E93",
               cursor: "pointer",
+              transition: "0.2s",
             }}
             onClick={() => navigate("/forgot-password")}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#C42E0A")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#6D6D6D")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#8E8E93")}
           >
             Forgot password ?
           </span>
         </div>
 
-        {/* LOGIN BUTTON — NOT FULL WIDTH */}
+        {/* LOGIN BUTTON */}
         <div style={{ display: "flex", justifyContent: "center" }}>
           <Button
             type="primary"
@@ -148,15 +151,16 @@ function Login() {
         </div>
 
         {/* REGISTER LINK */}
-        <div style={{ textAlign: "center", marginTop: 0 }}>
-          <Text style={{ fontWeight: 600 , color: "#8E8E93"}}>
+        <div style={{ textAlign: "center" }}>
+          <Text style={{ fontWeight: 600, color: "#8E8E93" }}>
             Don’t have an account ?{" "}
             <span
               style={{
                 color: "#C42E0A",
                 cursor: "pointer",
-                fontWeight: 450,
-                fontSize: 16
+                fontWeight: 500,
+                fontSize: 16,
+                transition: "0.2s",
               }}
               onClick={() => navigate("/register")}
             >
@@ -165,7 +169,7 @@ function Login() {
           </Text>
         </div>
 
-        {/* INLINE CSS FOR PASSWORD INPUT */}
+        {/* INLINE STYLE FIX FOR PASSWORD INPUT */}
         <style>
           {`
             .custom-password input {
