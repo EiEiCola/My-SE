@@ -21,7 +21,7 @@ func (r *PRSubmissionRepository) Create(sub *entity.PRSubmission) error {
 
 func (r *PRSubmissionRepository) GetByID(id int) (*entity.PRSubmission, error) {
 	var s entity.PRSubmission
-	err := r.DB.Preload("Media").Preload("Reviews").Where("pr_ID = ?", id).First(&s).Error
+	err := r.DB.Preload("Media").Preload("Reviews").Where("pr_id = ?", id).First(&s).Error
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +33,9 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 	var items []entity.PRSubmission
 	var total int64
 
-	db := r.DB.Model(&entity.PRSubmission{}).Where("m_ID = ?", memberID)
+	db := r.DB.Model(&entity.PRSubmission{}).Where("m_id = ?", memberID)
 	if statusID != nil {
-		db = db.Where("Status = ?", *statusID)
+		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
 		like := "%" + strings.ToLower(q) + "%"
@@ -47,7 +47,7 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("pr_ID desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
@@ -58,10 +58,10 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 
 	db := r.DB.Model(&entity.PRSubmission{})
 	if memberID != nil {
-		db = db.Where("m_ID = ?", *memberID)
+		db = db.Where("m_id = ?", *memberID)
 	}
 	if statusID != nil {
-		db = db.Where("Status = ?", *statusID)
+		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
 		like := "%" + strings.ToLower(q) + "%"
@@ -73,6 +73,6 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Preload("Reviews").Order("pr_ID desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("Reviews").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }

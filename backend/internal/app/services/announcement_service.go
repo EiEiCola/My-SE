@@ -21,6 +21,10 @@ func (s *AnnouncementService) ListAnnouncements(page, pageSize int, now time.Tim
 	return s.AnnRepo.ListPublished(page, pageSize, now, start, end)
 }
 
+func (s *AnnouncementService) ListAll(page, pageSize int) ([]entity.Announcement, int64, error) {
+	return s.AnnRepo.ListAll(page, pageSize)
+}
+
 // CreateFromSubmission creates an Announcement and associated media from a PRSubmission using the provided tx
 func (s *AnnouncementService) CreateFromSubmission(tx *gorm.DB, submission *entity.PRSubmission, createdByAdmin int) (*entity.Announcement, error) {
 	ann := &entity.Announcement{
