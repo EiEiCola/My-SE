@@ -1,6 +1,7 @@
 package services
 
 import (
+	"log"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -37,12 +38,17 @@ func (s *PRReviewService) ReviewSubmission(adminID int, submissionID int, status
 			return err
 		}
 
-		if err := tx.Model(&entity.PRSubmission{}).Where("pr_ID = ?", submissionID).Update("Status", statusID).Error; err != nil {
+		log.Println("Reviewing PR:", submissionID, "Status:", statusID)
+		if err := tx.Model(&entity.PRSubmission{}).Where("pr_id = ?", submissionID).Update("StatusID", statusID).Error; err != nil {
+			log.Println("Update Status Error:", err)
 			return err
 		}
 
 		if createAnnouncement {
+			log.Println("Creating Announcement for PR:", submissionID)
+			uid := uint(adminID)
 			ann := &entity.Announcement{
+				AdminID:        &uid,
 				PRSubmissionID: &sub.ID,
 				Title:          sub.Title,
 				Content:        sub.Content,
@@ -53,9 +59,12 @@ func (s *PRReviewService) ReviewSubmission(adminID int, submissionID int, status
 				UpdatedAt:      time.Now(),
 			}
 			if err := tx.Create(ann).Error; err != nil {
+				log.Println("Create Announcement Error:", err)
 				return err
 			}
+			log.Println("Announcement Created ID:", ann.ID)
 			for _, m := range sub.Media {
+				// ... media logic
 				am := entity.AnnouncementMedia{
 					AnnouncementID: ann.ID,
 					URL:            m.URL,
@@ -63,6 +72,7 @@ func (s *PRReviewService) ReviewSubmission(adminID int, submissionID int, status
 					IsCover:        m.IsCover,
 				}
 				if err := tx.Create(&am).Error; err != nil {
+					log.Println("Create Media Error:", err)
 					return err
 				}
 			}

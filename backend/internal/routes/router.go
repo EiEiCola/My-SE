@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 
 	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
+	member_controller "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
 )
@@ -23,14 +24,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	prService := services.NewPRSubmissionService(db, prSubmissionRepo)
 	prReviewService := services.NewPRReviewService(db, prSubmissionRepo, prReviewRepo, annRepo)
 
-	// Controllers
+	// Controller (Admin)
 	annController := controller.NewAdminAnnouncementController(annService)
 	prController := controller.NewAdminPRController(prService, prReviewService)
 
-	// Mock Authentication Middleware (puts admin_id=1 in context)
-	// In production, this would be a real auth middleware
-	mockAuth := func(c *gin.Context) {
+	// Controller (Member)
+	// Uses existing PRSubmissionController in member package
+	memberPRController := member_controller.NewPRSubmissionController(prService)
+
+	// Mock Authentication Middleware
+	mockAdminAuth := func(c *gin.Context) {
 		c.Set("admin_id", 1)
+		c.Next()
+	}
+	mockMemberAuth := func(c *gin.Context) {
+		c.Set("member_id", uint(1)) // Mock Member ID = 1
 		c.Next()
 	}
 
@@ -38,7 +46,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	api := r.Group("/api")
 	{
 		// Admin Routes
-		adminGroup := api.Group("/admin", mockAuth)
+		adminGroup := api.Group("/admin", mockAdminAuth)
 		{
 			// Announcements
 			adminGroup.GET("/announcements", annController.List)
@@ -47,9 +55,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			adminGroup.PUT("/announcements/:id", annController.Update)
 			adminGroup.DELETE("/announcements/:id", annController.Delete)
 
-			// PR Submissions
+			// PR Submissions (Admin View)
 			adminGroup.GET("/pr-submissions", prController.List)
 			adminGroup.POST("/pr-submissions/:id/review", prController.Review)
+		}
+
+		// Member Routes
+		memberGroup := api.Group("/members", mockMemberAuth)
+		{
+			// PR Submissions (Member Create/View Own)
+			memberGroup.POST("/pr-submissions", memberPRController.Create)
+			memberGroup.GET("/pr-submissions", memberPRController.List)
 		}
 	}
 }
