@@ -7,8 +7,7 @@ import (
 )
 
 type Post struct {
-	gorm.Model 
-	
+	gorm.Model
 	// FK
 	AuthorID uint `json:"author_id"`
 
@@ -39,6 +38,8 @@ type Post struct {
 	Images      []PostImage        `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"images"`
 	Attachments []PostAttachment   `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"attachments"`
 	Comments    []Comment          `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"comments"`
+
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }
 
 

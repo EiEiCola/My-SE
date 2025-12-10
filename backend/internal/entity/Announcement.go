@@ -14,8 +14,13 @@ type Announcement struct {
 	CreatedAt      time.Time `gorm:"column:CreatedAt" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:UpdatedAt" json:"updated_at"`
 	PinPriority    int       `gorm:"column:pin_Priority" json:"pin_priority"`
+	AdminID        *uint     `gorm:"column:admin_ID" json:"admin_id,omitempty"`
 
 	PRSubmission *PRSubmission       `gorm:"foreignKey:PRSubmissionID;references:ID" json:"pr_submission,omitempty"`
+	Admin        *Admin              `gorm:"foreignKey:AdminID;references:ID" json:"admin,omitempty"`
 	Status       AnnouncementStatus  `gorm:"foreignKey:StatusID;references:ID" json:"status,omitempty"`
 	Media        []AnnouncementMedia `gorm:"foreignKey:AnnouncementID;references:ID" json:"media,omitempty"`
+
+	// Polymorphic relation for Reports
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }
