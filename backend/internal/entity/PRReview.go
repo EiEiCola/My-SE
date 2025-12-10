@@ -1,14 +1,15 @@
 package entity
+
 import "time"
 
 type PRReview struct {
-	ID          int       `gorm:"column:rv_ID;primaryKey;autoIncrement"`
-	PRID        int       `gorm:"column:pr_ID"`
-	AdminID     int       `gorm:"column:admin_ID"` // ให้ตรงกับ Admin.ID (admin_id)
+	ID          int       `gorm:"column:rv_id;primaryKey;autoIncrement"`
+	PRID        int       `gorm:"column:pr_id"`
+	AdminID     int       `gorm:"column:admin_id"`
 	Description string    `gorm:"column:description"`
 	Comment     string    `gorm:"column:comment"`
-	CreatedAt   time.Time `gorm:"column:CreatedAt"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
 
-	PRSubmission PRSubmission `gorm:"foreignKey:PRID;references:ID"`
-	Admin        Admin        `gorm:"foreignKey:AdminID;references:ID"`
+	PRSubmission PRSubmission `gorm:"foreignKey:PRID;references:ID;constraint:false"`
+	Admin        Admin        `gorm:"foreignKey:AdminID;references:ID;constraint:false"`
 }
