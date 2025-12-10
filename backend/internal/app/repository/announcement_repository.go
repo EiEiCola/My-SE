@@ -19,6 +19,23 @@ func (r *AnnouncementRepository) Create(a *entity.Announcement) error {
 	return r.DB.Create(a).Error
 }
 
+func (r *AnnouncementRepository) GetByID(id int) (*entity.Announcement, error) {
+	var ann entity.Announcement
+	err := r.DB.Preload("Media").First(&ann, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &ann, nil
+}
+
+func (r *AnnouncementRepository) Update(a *entity.Announcement) error {
+	return r.DB.Save(a).Error
+}
+
+func (r *AnnouncementRepository) Delete(id int) error {
+	return r.DB.Delete(&entity.Announcement{}, id).Error
+}
+
 // ListPublished lists announcements that are within publish window (publish_StartAt/publish_EndAt)
 func (r *AnnouncementRepository) ListPublished(page, pageSize int, now time.Time, start *time.Time, end *time.Time) ([]entity.Announcement, int64, error) {
 	var items []entity.Announcement
