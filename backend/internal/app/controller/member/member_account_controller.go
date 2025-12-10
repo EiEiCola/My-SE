@@ -11,12 +11,12 @@ import (
 // struct ตัวนี้คือชั้น Controller สำหรับจัดการ HTTP request ที่เกี่ยวกับ auth (register / login)
 // ทำหน้าที่รับข้อมูลจาก client (frontend), เรียกใช้ AuthService, แล้วส่ง response กลับ
 type AuthController struct {
-    authService services.AuthService
+    authService services.MemberAccountService
 }
 
 // ฟังก์ชันสำหรับ register route ของ auth เข้ากับ Gin engine
 // รับ gin.Engine และ AuthService แล้วผูก handler ให้กับ path /api/auth/*
-func NewAuthController(r *gin.Engine, authService services.AuthService) {
+func NewAuthController(r *gin.Engine, authService services.MemberAccountService) {
     ctl := &AuthController{authService: authService}
 
     // group path พื้นฐานของ auth

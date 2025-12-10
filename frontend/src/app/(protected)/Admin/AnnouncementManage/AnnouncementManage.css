@@ -1,0 +1,104 @@
+.admin-announcement-manage {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.table-wrap {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+}
+
+.request-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.request-table th,
+.request-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+}
+
+.request-table thead th {
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.request-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.request-table tbody tr:hover {
+  background: #fff7f2;
+  transform: translateY(-2px);
+}
+
+.row-pending td { color: #b45309; }
+.row-approved td { color: #065f46; }
+.row-rejected td { color: #7f1d1d; }
+
+@media (max-width: 800px) {
+  .request-table th:nth-child(3), .request-table td:nth-child(3) {
+    display: none; /* hide submitted date on small screens */
+  }
+}
+
+/* Minimal detail styles */
+.detail-minimal .detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.detail-minimal .back-link {
+  background: none;
+  border: none;
+  color: #111827;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+}
+
+.detail-card {
+  background: #fff;
+  padding: 14px 16px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+  max-width: 900px;
+}
+
+.detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.detail-h3 { margin: 0; font-size: 16px; }
+.detail-meta { color: #6b7280; font-size: 13px; margin-bottom: 6px; }
+.detail-desc { margin-top: 8px; color:#111827; font-size:14px; }
+
+.detail-actions { display:flex; gap:10px; align-items:center; margin-top:12px; }
+.btn.small { padding: 8px 12px; border-radius: 8px; }
+.btn.btn-primary.small { background:#ff7a45; color:white; border:none; }
+.btn.small { background:#f3f4f6; border:none; color:#111827; }
+.detail-status { margin-left:8px; color:#374151; }
+
+/* textarea for admin edit */
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+}
