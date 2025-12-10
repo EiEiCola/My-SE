@@ -109,7 +109,7 @@ function Profile() {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        backgroundColor: "#FFF5ED",
+        backgroundColor: "#fff5ed",
         display: "flex",
         justifyContent: "center",
       }}
@@ -210,14 +210,14 @@ function Profile() {
               size="large"
               onClick={() => navigate("/User/Profile/Edit")}
               style={{
-                backgroundColor: "#C42E0A",
+                backgroundColor: "#9c2510",
                 borderRadius: 10,
-                padding: "0 15px",
+                padding: "0 10px",
                 fontWeight: 600,
-                height: 35,
+                height: 32,
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 5,
               }}
             >
               <EditIcon style={{ color: "white", fontSize: 18 }} />

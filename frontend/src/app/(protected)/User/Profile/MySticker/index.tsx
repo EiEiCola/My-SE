@@ -7,7 +7,7 @@ function MySticker() {
   return (
     <Card style={{ borderRadius: 20, padding: 25 }}>
       <Text style={{ fontWeight: 600, fontSize: 16 }}>
-        My Sticker
+       
       </Text>
 
       <div
@@ -31,9 +31,9 @@ function MySticker() {
               border: "1px solid #FFD2BE",
             }}
           >
-            <span style={{ fontSize: 40 }}>🌟</span>
+            <span style={{ fontSize: 40 }}> </span>
           </Card>
-        ))}
+        ))} 
       </div>
     </Card>
   );
