@@ -6,31 +6,14 @@ import (
 
 	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
 	member_controller "github.com/sut68/team12/backend/internal/app/controller/member"
-	"github.com/sut68/team12/backend/internal/app/repository"
-	"github.com/sut68/team12/backend/internal/app/services"
 )
 
-// SetupRoutes initializes all dependencies and registers all routes
-func SetupRoutes(r *gin.Engine, db *gorm.DB) {
-	// --- Admin / PR System Wiring ---
-
-	// Repositories
-	annRepo := repository.NewAnnouncementRepository(db)
-	prSubmissionRepo := repository.NewPRSubmissionRepository(db)
-	prReviewRepo := repository.NewPRReviewRepository(db)
-
-	// Services
-	annService := services.NewAnnouncementService(db, annRepo)
-	prService := services.NewPRSubmissionService(db, prSubmissionRepo)
-	prReviewService := services.NewPRReviewService(db, prSubmissionRepo, prReviewRepo, annRepo)
-
-	// Controller (Admin)
-	annController := controller.NewAdminAnnouncementController(annService)
-	prController := controller.NewAdminPRController(prService, prReviewService)
-
-	// Controller (Member)
-	// Uses existing PRSubmissionController in member package
-	memberPRController := member_controller.NewPRSubmissionController(prService)
+// SetupRoutes initializes routes with injected dependencies
+func SetupRoutes(r *gin.Engine, db *gorm.DB,
+	annController *controller.AdminAnnouncementController,
+	prController *controller.AdminPRController,
+	memberPRController *member_controller.PRSubmissionController,
+) {
 
 	// Mock Authentication Middleware
 	mockAdminAuth := func(c *gin.Context) {
