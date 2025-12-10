@@ -43,7 +43,6 @@ function Register() {
     genderID: "",
   });
 
-  // ✅ FIX TS error (field strict type + value strict type)
   const handleChange = (field: keyof RegisterForm, value: string) => {
     setForm({ ...form, [field]: value });
   };
@@ -76,208 +75,217 @@ function Register() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#FFE9D5",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 20,
-      }}
-    >
-      <Card
+    <>
+      <div
+        className="register-page"
         style={{
-          width: 1100,
-          borderRadius: 24,
-          padding: "50px 60px",
-          boxShadow: "0px 8px 20px rgba(0,0,0,0.08)",
+          minHeight: "100vh",
+          backgroundColor: "#fff5ed",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
         }}
       >
-        {/* HEADER */}
-        <Title
-          level={2}
+        <Card
           style={{
-            textAlign: "left",
-            color: "#C42E0A",
-            marginBottom: 5,
-            fontWeight: 700,
+            width: 1100,
+            borderRadius: 24,
+            padding: "50px 60px",
+            boxShadow: "0px 8px 20px rgba(0,0,0,0.08)",
           }}
         >
-          Welcome to SUT Community!
-        </Title>
-
-        <Text
-          style={{
-            display: "block",
-            textAlign: "left",
-            color: "#6D6D6D",
-            marginBottom: 40,
-            fontWeight: 600,
-            fontSize: 17,
-          }}
-        >
-          Register your account
-        </Text>
-
-        {/* ACCOUNT INFORMATION */}
-        <Text style={{ fontWeight: 700, color: "#C42E0A" }}>
-          Account Information
-        </Text>
-
-        <Row gutter={30} style={{ marginTop: 10, marginBottom: 25 }}>
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Email</Text>
-            <Input
-              size="large"
-              placeholder="Enter your email"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("email", e.target.value)}
-            />
-          </Col>
-
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Student ID</Text>
-            <Input
-              size="large"
-              placeholder="Ex. B6639990"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("studentID", e.target.value)}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={30} style={{ marginBottom: 40 }}>
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Password</Text>
-            <Input.Password
-              size="large"
-              placeholder="Enter your password"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("password", e.target.value)}
-            />
-          </Col>
-
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Confirm Password</Text>
-            <Input.Password
-              size="large"
-              placeholder="Confirm your password"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) =>
-                handleChange("confirmPassword", e.target.value)
-              }
-            />
-          </Col>
-        </Row>
-
-        {/* PERSONAL INFORMATION */}
-        <Text style={{ fontWeight: 700, color: "#C42E0A" }}>
-          Personal Information
-        </Text>
-
-        <Row gutter={30} style={{ marginTop: 10 }}>
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>First Name</Text>
-            <Input
-              size="large"
-              placeholder="Enter first name"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("firstName", e.target.value)}
-            />
-          </Col>
-
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Last Name</Text>
-            <Input
-              size="large"
-              placeholder="Enter last name"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("lastName", e.target.value)}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={30} style={{ marginTop: 20 }}>
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Username</Text>
-            <Input
-              size="large"
-              placeholder="Enter username"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("username", e.target.value)}
-            />
-          </Col>
-
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>National ID</Text>
-            <Input
-              size="large"
-              placeholder="Enter 13-digit national ID"
-              style={{ height: 46, borderRadius: 10 }}
-              onChange={(e) => handleChange("nationalID", e.target.value)}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={30} style={{ marginTop: 20, marginBottom: 40 }}>
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Date of Birth</Text>
-            <DatePicker
-              size="large"
-              style={{ width: "100%", height: 46, borderRadius: 10 }}
-              onChange={(_, dateString) => handleChange("dob", Array.isArray(dateString) ? dateString[0] ?? "" : dateString)}
-            />
-          </Col>
-
-          <Col span={12}>
-            <Text style={{ fontWeight: 600 }}>Gender</Text>
-            <Select
-              size="large"
-              style={{ width: "100%", height: 46 }}
-              placeholder="Select gender"
-              onChange={(value) => handleChange("genderID", String(value))}
-            >
-              <Select.Option value={1}>Male</Select.Option>
-              <Select.Option value={2}>Female</Select.Option>
-              <Select.Option value={3}>Other</Select.Option>
-            </Select>
-          </Col>
-        </Row>
-
-        {/* REGISTER BUTTON */}
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Button
-            type="primary"
-            size="large"
+          {/* HEADER */}
+          <Title
+            level={2}
             style={{
-              backgroundColor: "#C42E0A",
-              borderRadius: 10,
-              width: 120,
-              height: 40,
+              textAlign: "left",
+              color: "#C42E0A",
+              marginBottom: 5,
               fontWeight: 700,
-              fontSize: 16,
             }}
-            onClick={handleRegister}
           >
-            Register
-          </Button>
-        </div>
+            Welcome to SUT Community!
+          </Title>
 
-        {/* LOGIN LINK */}
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <Text style={{ fontWeight: 500, color: "#6D6D6D" }}>
-            Already have an account ?{" "}
-            <span
-              style={{ color: "#C42E0A", cursor: "pointer", fontWeight: 600 }}
-              onClick={() => navigate("/login")}
-            >
-              Login
-            </span>
+          <Text
+            style={{
+              display: "block",
+              textAlign: "left",
+              color: "#6D6D6D",
+              marginBottom: 40,
+              fontWeight: 600,
+              fontSize: 17,
+            }}
+          >
+            Register your account
           </Text>
-        </div>
-      </Card>
-    </div>
+
+          {/* ACCOUNT INFORMATION */}
+          <Text style={{ fontWeight: 700, color: "#C42E0A" }}>
+            Account Information
+          </Text>
+
+          <Row gutter={30} style={{ marginTop: 10, marginBottom: 25 }}>
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Email</Text>
+              <Input
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("email", e.target.value)}
+              />
+            </Col>
+
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Student ID</Text>
+              <Input
+                size="large"
+                placeholder="Ex. B6639990"   // ← คงไว้
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("studentID", e.target.value)}
+              />
+            </Col>
+          </Row>
+
+          <Row gutter={30} style={{ marginBottom: 40 }}>
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Password</Text>
+              <Input.Password
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("password", e.target.value)}
+              />
+            </Col>
+
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Confirm Password</Text>
+              <Input.Password
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) =>
+                  handleChange("confirmPassword", e.target.value)
+                }
+              />
+            </Col>
+          </Row>
+
+          {/* PERSONAL INFORMATION */}
+          <Text style={{ fontWeight: 700, color: "#C42E0A" }}>
+            Personal Information
+          </Text>
+
+          <Row gutter={30} style={{ marginTop: 10 }}>
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>First Name</Text>
+              <Input
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+              />
+            </Col>
+
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Last Name</Text>
+              <Input
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("lastName", e.target.value)}
+              />
+            </Col>
+          </Row>
+
+          <Row gutter={30} style={{ marginTop: 20 }}>
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Username</Text>
+              <Input
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("username", e.target.value)}
+              />
+            </Col>
+
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>National ID</Text>
+              <Input
+                size="large"
+                placeholder="Enter 13-digit national ID"   // ← คงไว้
+                style={{ height: 46, borderRadius: 10 }}
+                onChange={(e) => handleChange("nationalID", e.target.value)}
+              />
+            </Col>
+          </Row>
+
+          <Row gutter={30} style={{ marginTop: 20, marginBottom: 40 }}>
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Date of Birth</Text>
+              <DatePicker
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ width: "100%", height: 46, borderRadius: 10 }}
+                onChange={(_, dateString) =>
+                  handleChange(
+                    "dob",
+                    Array.isArray(dateString) ? dateString[0] ?? "" : dateString
+                  )
+                }
+              />
+            </Col>
+
+            <Col span={12}>
+              <Text style={{ fontWeight: 600 }}>Gender</Text>
+              <Select
+                size="large"
+                placeholder=""   // ← ลบ placeholder
+                style={{ width: "100%", height: 46 }}
+                onChange={(value) => handleChange("genderID", String(value))}
+              >
+                <Select.Option value={1}>Male</Select.Option>
+                <Select.Option value={2}>Female</Select.Option>
+                <Select.Option value={3}>Other</Select.Option>
+              </Select>
+            </Col>
+          </Row>
+
+          {/* REGISTER BUTTON */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <Button
+              type="primary"
+              size="large"
+              style={{
+                backgroundColor: "#C42E0A",
+                borderRadius: 10,
+                width: 120,
+                height: 40,
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+              onClick={handleRegister}
+            >
+              Register
+            </Button>
+          </div>
+
+          {/* LOGIN LINK */}
+          <div style={{ textAlign: "center", marginTop: 20 }}>
+            <Text style={{ fontWeight: 500, color: "#6D6D6D" }}>
+              Already have an account ?{" "}
+              <span
+                style={{ color: "#C42E0A", cursor: "pointer", fontWeight: 600 }}
+                onClick={() => navigate("/login")}
+              >
+                Login
+              </span>
+            </Text>
+          </div>
+        </Card>
+      </div>
+    </>
   );
 }
 
