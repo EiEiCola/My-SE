@@ -13,4 +13,5 @@ LastName 	string `json:"last_name"`
 MemberAccountID   uint   		`json:"member_account_id"`  
 MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`
 
+PollHistorys   []PollHistory `gorm:"foreignKey:AdminID;references:ID" json:"poll_historys"`
 }

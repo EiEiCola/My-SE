@@ -40,4 +40,6 @@ type Member struct {
 
 	Reviews      []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
     ReviewVotes  []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
+
+    Polls        []Poll       `gorm:"foreignKey:MemberID" json:"polls"`
 }
