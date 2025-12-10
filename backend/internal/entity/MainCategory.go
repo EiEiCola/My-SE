@@ -26,4 +26,7 @@ type MainCategory struct {
 
 	//Review relations
 	Reviews         []Review        `gorm:"foreignKey:MainCategoryID" json:"reviews"`
+
+	//Poll relations
+	Polls           []Poll          `gorm:"foreignKey:MainCategoryID" json:"polls"`
 }

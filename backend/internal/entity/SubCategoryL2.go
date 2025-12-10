@@ -24,4 +24,7 @@ type SubCategoryL2 struct{
 
 	//Review relations
 	Reviews       []Review        `gorm:"foreignKey:SubCategoryL2ID" json:"reviews"`
+
+	//Poll relations
+	Polls         []Poll          `gorm:"foreignKey:SubCategoryL2ID" json:"polls"`
 }
