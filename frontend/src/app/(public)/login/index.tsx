@@ -30,7 +30,7 @@ function Login() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#FFE9D5",
+        backgroundColor: "#fff5ed",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -77,7 +77,7 @@ function Login() {
             Email or Student ID
           </Text>
           <Input
-            placeholder="Enter your email or student ID"
+          
             size="large"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
@@ -94,7 +94,7 @@ function Login() {
           <Text style={{ fontWeight: 600, fontSize: 15 }}>Password</Text>
 
           <Input.Password
-            placeholder="Enter your password"
+        
             size="large"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

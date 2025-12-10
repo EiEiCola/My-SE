@@ -31,7 +31,7 @@ export default function ForgotPassword() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#FFE9D5",
+        backgroundColor: "#fff5ed",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
