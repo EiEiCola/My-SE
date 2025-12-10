@@ -37,9 +37,12 @@ func (ctl *AdminPRController) List(c *gin.Context) {
 			pageSize = n
 		}
 	}
-	var memberID *string
+	var memberID *uint
 	if m := c.Query("member_id"); m != "" {
-		memberID = &m
+		if id64, err := strconv.ParseUint(m, 10, 32); err == nil {
+			uid := uint(id64)
+			memberID = &uid
+		}
 	}
 	var statusID *int
 	if s := c.Query("status_id"); s != "" {

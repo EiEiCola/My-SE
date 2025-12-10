@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Admin struct {
 
-gorm.Model
+	gorm.Model
 
 AdminID 	int `json:"admin_id"`
 FirstName 	string `json:"first_name"`
@@ -14,4 +14,6 @@ MemberAccountID   uint   		`json:"member_account_id"`
 MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`
 
 PollHistorys   []PollHistory `gorm:"foreignKey:AdminID;references:ID" json:"poll_historys"`
+
+Announcements []Announcement `gorm:"foreignKey:AdminID;references:ID" json:"announcements"`
 }

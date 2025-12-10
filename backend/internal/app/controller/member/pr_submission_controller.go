@@ -37,12 +37,24 @@ func (ctl *PRSubmissionController) Create(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
 		return
 	}
-	memberID := ""
+	// parse memberID to uint
+	var uid uint
 	switch v := val.(type) {
 	case string:
-		memberID = v
+		id64, err := strconv.ParseUint(v, 10, 32)
+		if err == nil {
+			uid = uint(id64)
+		}
 	case int:
-		memberID = strconv.Itoa(v)
+		uid = uint(v)
+	case float64:
+		uid = uint(v)
+	case uint:
+		uid = v
+	}
+	if uid == 0 {
+		// fallback try to parse if valid is string but failed?
+		// if still 0, unexpected
 	}
 
 	// map input to service input
@@ -71,7 +83,7 @@ func (ctl *PRSubmissionController) Create(c *gin.Context) {
 		svcReq.Medias = append(svcReq.Medias, services.PRMediaInput{URL: url, Type: typ, IsCover: isCover})
 	}
 
-	sub, err := ctl.Service.CreateSubmission(memberID, svcReq)
+	sub, err := ctl.Service.CreateSubmission(uid, svcReq)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -86,12 +98,17 @@ func (ctl *PRSubmissionController) List(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
 		return
 	}
-	memberID := ""
+	var uid uint
 	switch v := val.(type) {
 	case string:
-		memberID = v
+		id64, _ := strconv.ParseUint(v, 10, 32)
+		uid = uint(id64)
 	case int:
-		memberID = strconv.Itoa(v)
+		uid = uint(v)
+	case float64:
+		uid = uint(v)
+	case uint:
+		uid = v
 	}
 
 	page := 1
@@ -114,7 +131,7 @@ func (ctl *PRSubmissionController) List(c *gin.Context) {
 	}
 	q := c.Query("q")
 
-	items, total, err := ctl.Service.ListMemberSubmissions(memberID, page, pageSize, statusID, q)
+	items, total, err := ctl.Service.ListMemberSubmissions(uid, page, pageSize, statusID, q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -136,14 +153,19 @@ func (ctl *PRSubmissionController) GetByID(c *gin.Context) {
 		return
 	}
 	val, _ := c.Get("member_id")
-	memberID := ""
+	var uid uint
 	switch v := val.(type) {
 	case string:
-		memberID = v
+		id64, _ := strconv.ParseUint(v, 10, 32)
+		uid = uint(id64)
 	case int:
-		memberID = strconv.Itoa(v)
+		uid = uint(v)
+	case float64:
+		uid = uint(v)
+	case uint:
+		uid = v
 	}
-	if sub.MemberID != memberID {
+	if sub.MemberID != uid {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		return
 	}

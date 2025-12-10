@@ -29,4 +29,7 @@ type MainCategory struct {
 
 	//Poll relations
 	Polls           []Poll          `gorm:"foreignKey:MainCategoryID" json:"polls"`
+
+	// Polymorphic relation for Reports
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }

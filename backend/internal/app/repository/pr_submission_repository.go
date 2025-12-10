@@ -29,7 +29,7 @@ func (r *PRSubmissionRepository) GetByID(id int) (*entity.PRSubmission, error) {
 }
 
 // ListByMember lists submissions for a member with pagination and optional filters
-func (r *PRSubmissionRepository) ListByMember(memberID string, page, pageSize int, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
+func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
 	var items []entity.PRSubmission
 	var total int64
 
@@ -52,7 +52,7 @@ func (r *PRSubmissionRepository) ListByMember(memberID string, page, pageSize in
 }
 
 // ListAll lists all submissions (admin) with optional filters
-func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *string, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
+func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
 	var items []entity.PRSubmission
 	var total int64
 
