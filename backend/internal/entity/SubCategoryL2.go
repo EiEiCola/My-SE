@@ -2,7 +2,6 @@ package entity
 
 import (
 	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -20,5 +19,7 @@ type SubCategoryL2 struct{
 	CreatedAAt time.Time `json:"created_at"`
 	
 	// Relations
-	Posts		  []Post          `gorm:"foreignKey:SubCategoryL2ID" json:"posts"`
+	Posts   []Post   `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"posts"` 
+    Reviews []Review `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"reviews"`
+    Polls   []Poll   `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"polls"`
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type Post struct {
-	gorm.Model 
+	gorm.Model
 	// FK
 	AuthorID uint `json:"author_id"`
 
@@ -17,8 +17,14 @@ type Post struct {
 
 	// Category (3 ระดับ)
 	MainCategoryID *uint `json:"main_category_id"`
-	SubCategory1ID *uint `json:"sub_category1_id"`
-	SubCategory2ID *uint `json:"sub_category2_id"`
+	SubCategoryL1ID *uint `json:"sub_category1_id"`
+	SubCategoryL2ID *uint `json:"sub_category2_id"`
+
+	// *** เพิ่มฟิลด์ Back-Reference ตรงนี้ ***
+    // (ใช้ชื่อฟิลด์เดียวกับ struct แม่)
+    MainCategory  MainCategory
+    SubCategoryL1 SubCategoryL1
+    SubCategoryL2 SubCategoryL2
 
 	Status       string `json:"status"`
 	ViewCount    uint   `json:"view_count"`
@@ -32,6 +38,8 @@ type Post struct {
 	Images      []PostImage        `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"images"`
 	Attachments []PostAttachment   `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"attachments"`
 	Comments    []Comment          `gorm:"foreignKey:PostID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"comments"`
+
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }
 
 
