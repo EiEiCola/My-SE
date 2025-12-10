@@ -31,7 +31,7 @@ type CreatePRSubmissionInput struct {
 	Medias     []PRMediaInput `json:"medias"`
 }
 
-func (s *PRSubmissionService) CreateSubmission(memberID string, in *CreatePRSubmissionInput) (*entity.PRSubmission, error) {
+func (s *PRSubmissionService) CreateSubmission(memberID uint, in *CreatePRSubmissionInput) (*entity.PRSubmission, error) {
 	sub := &entity.PRSubmission{
 		MemberID: memberID,
 		Title:    in.Title,
@@ -71,10 +71,10 @@ func (s *PRSubmissionService) GetByID(id int) (*entity.PRSubmission, error) {
 	return s.PRRepo.GetByID(id)
 }
 
-func (s *PRSubmissionService) ListMemberSubmissions(memberID string, page, pageSize int, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
+func (s *PRSubmissionService) ListMemberSubmissions(memberID uint, page, pageSize int, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
 	return s.PRRepo.ListByMember(memberID, page, pageSize, statusID, q)
 }
 
-func (s *PRSubmissionService) AdminListSubmissions(page, pageSize int, memberID *string, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
+func (s *PRSubmissionService) AdminListSubmissions(page, pageSize int, memberID *uint, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
 	return s.PRRepo.ListAll(page, pageSize, memberID, statusID, q)
 }

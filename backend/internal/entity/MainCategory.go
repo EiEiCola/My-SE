@@ -23,4 +23,13 @@ type MainCategory struct {
 	// Relations
 	SubCategoriesL1 []SubCategoryL1 `gorm:"foreignKey:MainCategoryID" json:"sub_categories_l1"`
 	Posts		    []Post          `gorm:"foreignKey:MainCategoryID" json:"posts"`
+
+	//Review relations
+	Reviews         []Review        `gorm:"foreignKey:MainCategoryID" json:"reviews"`
+
+	//Poll relations
+	Polls           []Poll          `gorm:"foreignKey:MainCategoryID" json:"polls"`
+
+	// Polymorphic relation for Reports
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }
