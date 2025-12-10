@@ -2,48 +2,27 @@ package main
 
 import (
 	"net/http"
-	// "log"
 
-	// "github.com/sut68/team12/backend/internal/routes"
-	"github.com/sut68/team12/backend/config"
-	// "github.com/sut68/team12/backend/internal/app/controller/member"
-	// "github.com/sut68/team12/backend/internal/app/repository"
-	// "github.com/sut68/team12/backend/internal/app/services"
-
-	// "gorm.io/driver/postgres" // หรือ mysql driver ตาม DB ของคุณ
-	// "gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"github.com/sut68/team12/backend/config"
+	"github.com/sut68/team12/backend/internal/routes"
 )
 
+const PORT = "8080"
+
 func main() {
+	// 1. Setup Database
+	config.Connect() // Sets global config.DB
 
-// ตัวอย่าง connect postgres - แก้ DSN ตามจริง
-	
-	// repo := repository.NewFriendRepository(db)
-	// svc := services.NewFriendService(repo)
-
-	// reqCtl := controller.NewFriendRequestController(svc)
-	// friendCtl := controller.NewFriendshipController(svc)
-	// blockCtl := controller.NewBlockController(svc)
-
-	config.Connect()
-
-	//SetUpGin
+	// 2. Setup Gin
 	r := gin.Default()
 
-	// health check
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	// Health check
+	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 
-	// ตัวอย่าง endpoint
-	r.GET("/hello", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Hello from team12 backend"})
-	})
+	// 3. Setup Routes (All wiring happens inside here)
+	routes.SetupRoutes(r)
 
-	// register routes from routes/friendsManage.go
-
-	// routes.FriendRoutes(r, reqCtl, friendCtl, blockCtl)
-
-	r.Run(":8080") // listen on 8080
+	// 4. Run
+	r.Run(":" + PORT)
 }
