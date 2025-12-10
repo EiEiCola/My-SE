@@ -53,3 +53,85 @@ func (ctl *AdminAnnouncementController) List(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
 }
+
+// GET /admin/announcements/:id
+func (ctl *AdminAnnouncementController) GetByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	ann, err := ctl.Service.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, ann)
+}
+
+// POST /admin/announcements
+func (ctl *AdminAnnouncementController) Create(c *gin.Context) {
+	var req services.CreateAnnouncementInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	val, ok := c.Get("admin_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+		return
+	}
+	var adminID int
+	switch v := val.(type) {
+	case int:
+		adminID = v
+	case string:
+		if n, err := strconv.Atoi(v); err == nil {
+			adminID = n
+		}
+	}
+
+	ann, err := ctl.Service.CreateAnnouncement(adminID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, ann)
+}
+
+// PUT /admin/announcements/:id
+func (ctl *AdminAnnouncementController) Update(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req services.CreateAnnouncementInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ann, err := ctl.Service.UpdateAnnouncement(id, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, ann)
+}
+
+// DELETE /admin/announcements/:id
+func (ctl *AdminAnnouncementController) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := ctl.Service.DeleteAnnouncement(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}

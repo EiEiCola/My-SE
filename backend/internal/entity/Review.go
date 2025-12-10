@@ -31,4 +31,6 @@ type Review struct {
 	ReviewVotes  []ReviewVote  `gorm:"foreignKey:ReviewID;references:ID"`
 	Tags        []Tag        `gorm:"many2many:review_tags" json:"tags"`
     ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`
+
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }

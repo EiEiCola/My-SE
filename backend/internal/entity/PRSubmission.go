@@ -4,12 +4,12 @@ import "time"
 
 type PRSubmission struct {
 	ID           int       `gorm:"column:pr_ID;primaryKey;autoIncrement"`
-	MemberID     string    `gorm:"column:m_ID"` // ให้ตรง type กับ Member.ID
+	MemberID     uint      `gorm:"column:m_ID"` // แก้เป็น uint ให้ตรงกับ Member.ID
 	Title        string    `gorm:"column:pr_title"`
 	Content      string    `gorm:"column:pr_content"`
 	ReqStartAt   time.Time `gorm:"column:req_StartAt"`
 	ReqEndAt     time.Time `gorm:"column:req_EndAt"`
-	StatusID     int       `gorm:"column:Status"`      // FK -> PRSubmissionStatus.id
+	StatusID     int       `gorm:"column:Status"` // FK -> PRSubmissionStatus.id
 	RejectReason string    `gorm:"column:RejectReason"`
 
 	Member Member             `gorm:"foreignKey:MemberID;references:ID"`
@@ -19,4 +19,7 @@ type PRSubmission struct {
 	Reviews []PRReview          `gorm:"foreignKey:PRID;references:ID"`
 
 	Announcement *Announcement `gorm:"foreignKey:PRSubmissionID;references:ID"`
+
+	// Polymorphic relation for Reports
+	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
 }

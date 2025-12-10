@@ -25,7 +25,7 @@ type ReportMediaInput struct {
 
 type CreateReportInput struct {
 	TargetType  string             `json:"target_type" binding:"required"`
-	TargetID    *int               `json:"target_id"`
+	TargetID    *uint              `json:"target_id"`
 	Title       string             `json:"title" binding:"required"`
 	Description string             `json:"description" binding:"required"`
 	Medias      []ReportMediaInput `json:"medias"`
