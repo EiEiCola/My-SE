@@ -13,5 +13,15 @@ LastName 	string `json:"last_name"`
 MemberAccountID   uint   		`json:"member_account_id"`  
 MemberAccount     MemberAccount `gorm:"foreignKey:MemberAccountID;references:ID"`
 
-PollHistorys   []PollHistory `gorm:"foreignKey:AdminID;references:ID" json:"poll_historys"`
+Rewards         []Reward       `gorm:"-"` 
+PollHistorys   	[]PollHistory  `gorm:"-"`
+PRReviews       []PRReview     `gorm:"-"` 
+Reports         []Report       `gorm:"-"`
+
+    // 5. ปัญหา Announcements
+Announcements    []Announcement `gorm:"-"` // ถ้ามีฟิลด์นี้ ต้องเพิ่ม gorm:"-" ด้วย
 }
+
+// func (Admin) TableName() string {
+//   return "admins_temp_test" // ใช้ชื่อตารางใหม่ที่ไม่เคยมี
+// }
