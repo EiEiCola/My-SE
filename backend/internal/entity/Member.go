@@ -37,4 +37,7 @@ type Member struct {
 
     BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
     BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
+
+	Reviews      []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
+    ReviewVotes  []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
 }
