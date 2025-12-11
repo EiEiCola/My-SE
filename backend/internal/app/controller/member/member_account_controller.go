@@ -15,7 +15,7 @@ func NewAuthController(authService services.MemberAccountService) *AuthControlle
 	return &AuthController{authService: authService}
 }
 
-// ----------- HANDLERS -------------
+// ----------- HANDLERS ------------
 
 func (ctl *AuthController) Register(c *gin.Context) {
 	var req struct {
@@ -63,5 +63,5 @@ func (ctl *AuthController) Login(c *gin.Context) {
 		"id":    acc.ID,
 		"email": acc.Email,
 		"role":  acc.RoleID,
-	})
+	}) 
 }

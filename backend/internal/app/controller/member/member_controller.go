@@ -8,7 +8,7 @@ import (
 	"github.com/sut68/team12/backend/internal/app/services"
 )
 
-// controller สำหรับจัดการ endpoint เกี่ยวกับโปรไฟล์ผู้ใช้ (Member)
+// controller สำหรับจัดการ endpoint เกี่ยวกับโปรไฟล์ผู้ใช้ 
 type MemberController struct {
 	memberService services.MemberService
 }
@@ -123,5 +123,5 @@ func (ctl *MemberController) UpdateProfileByAccountID(c *gin.Context) {
 		"dob":            m.Dob.Format("2006-01-02"),
 		"gender_id":      m.GenderID,
 		"member_picture": m.MemberPicture,
-	})
+	}) 
 }

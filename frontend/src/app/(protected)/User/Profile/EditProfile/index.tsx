@@ -20,7 +20,7 @@ const { Title } = Typography;
 const { TextArea } = Input;
 
 // 👇 ใช้ id ของ mock account ที่เนยสร้างใน table member_accounts
-const ACCOUNT_ID = 201; // ถ้าใช้เลขอื่นก็แก้ตรงนี้ตัวเดียว
+const ACCOUNT_ID = 201; //ถ้าใช้เลขอื่นก็แก้ตรงนี้ตัวเดียว
 
 const readOnlyStyle: React.CSSProperties = {
   marginTop: 5,
@@ -408,7 +408,7 @@ function EditProfile() {
                 padding: "0 20px",
                 height: 35,
                 fontWeight: 600,
-                fontSize: 14,
+                fontSize: 14, 
                 display: "flex",
                 alignItems: "center",
                 gap: 8,

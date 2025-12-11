@@ -7,7 +7,7 @@ import (
 
 // interface สำหรับจัดการข้อมูล Member 
 type MemberRepository interface {
-    // FindByID ดึงข้อมูล Member จาก primary key (ID)
+    // FindByID ดึงข้อมูล Member จาก primary key(ID)
     FindByID(id uint) (*entity.Member, error)
 
     // FindByAccountID ดึงโปรไฟล์จาก MemberAccountID
@@ -57,7 +57,7 @@ func (r *memberRepository) FindByAccountID(accountID uint) (*entity.Member, erro
     if err != nil {
         return nil, err
     }
-
+ 
     return &m, nil
 }
 

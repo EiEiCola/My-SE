@@ -6,9 +6,9 @@ const { Text } = Typography;
 function MyPost() {
   return (
     <Card style={{ borderRadius: 20, marginBottom: 20 }}>
-      <Text> My Post 🎉</Text>
+      <Text> My Post 🎉</Text >
     </Card>
   );
 }
 
-export default MyPost; 
+export default MyPost;  

@@ -9,7 +9,7 @@ import (
 )
 
 func SetupMemberRoutes(r *gin.Engine) {
-	db := config.DB
+	db := config.DB 
 
 	// repo
 	memberRepo := repository.NewMemberRepository(db)
@@ -23,7 +23,7 @@ func SetupMemberRoutes(r *gin.Engine) {
 	memberCtl := controller.NewMemberController(memberService)
 	authCtl := controller.NewAuthController(authService)
 
-	// ---------------- ROUTES HERE ----------------
+	// ---------------- ROUTES HERE ---------------
 
 	auth := r.Group("/api/auth")
 	{

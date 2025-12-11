@@ -33,7 +33,7 @@ func (s *memberAccountService) Register(email, password string, roleID uint) (*e
         Email:    email,
         Password: hashed,
         RoleID:   roleID,
-        // MemberID ให้เนยไปเซ็ตเองใน DB ชั่วคราว
+        // MemberID ให้ไปเซ็ตเองใน DB ชั่วคราว
     }
 
     if err := s.memberAccountRepo.Create(acc); err != nil {
@@ -49,5 +49,5 @@ func (s *memberAccountService) Login(email, password string) (*entity.MemberAcco
         return nil, errors.New("invalid email or password")
     }
 
-    return acc, nil
+    return acc, nil 
 }

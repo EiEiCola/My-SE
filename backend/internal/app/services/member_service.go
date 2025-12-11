@@ -35,7 +35,7 @@ func NewMemberService(memberRepo repository.MemberRepository) MemberService {
 	return &memberService{memberRepo: memberRepo}
 }
 
-// ดึงข้อมูลโปรไฟล์จาก accountID (เอาไว้ใช้กับ /me ทีหลัง)
+// ดึงข้อมูลโปรไฟล์จาก accountID (เอาไว้ใช้กับ/me ทีหลัง)
 func (s *memberService) GetProfileByAccountID(accountID uint) (*entity.Member, error) {
 	return s.memberRepo.FindByAccountID(accountID)
 }
@@ -72,5 +72,5 @@ func (s *memberService) UpdateProfile(accountID uint, input UpdateProfileInput) 
 		return nil, err
 	}
 
-	return m, nil
+	return m, nil 
 }

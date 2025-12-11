@@ -8,12 +8,12 @@ function MySticker() {
     <Card style={{ borderRadius: 20, padding: 25 }}>
       <Text style={{ fontWeight: 600, fontSize: 16 }}>
        
-      </Text>
+      </Text >
 
       <div
         style={{
           marginTop: 20,
-          display: "grid",
+          display: "grid", 
           gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
           gap: 20,
         }}

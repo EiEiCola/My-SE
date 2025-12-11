@@ -19,7 +19,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CrueltyFreeIcon from "@mui/icons-material/CrueltyFree";
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography; 
 
 // mock account id (ตอนนี้ใช้ตัวที่เทสต์ใน Postman)
 const ACCOUNT_ID = 201;
@@ -48,7 +48,7 @@ function Profile() {
   const [popupTab, setPopupTab] = useState("friends");
   const [popupList, setPopupList] = useState<any[]>([]);
 
-  // ⭐ mock friend/follow data
+  // ⭐ mock friend/ follow data
   const friendList = [
     { username: "butter", avatar: "", status: "friend" },
     { username: "nirachahaha", avatar: "", status: "friend" },

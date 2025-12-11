@@ -6,7 +6,7 @@ import (
 )
 
 type MemberAccountRepository interface {
-    // Create สร้าง member account ใหม่ในฐานข้อมูล
+    // Create สร้าง member account ใหม่
     Create(account *entity.MemberAccount) error
 
     // FindByEmail ดึงข้อมูล member account จาก email
@@ -14,7 +14,7 @@ type MemberAccountRepository interface {
     FindByEmail(email string) (*entity.MemberAccount, error)
 
     // FindByID ดึงข้อมูล member account จาก primary key (ID)
-    FindByID(id uint) (*entity.MemberAccount, error)
+    FindByID(id uint) (*entity.MemberAccount, error) 
 
     // Update อัปเดตข้อมูล member account ที่มีอยู่ในฐานข้อมูล
     Update(account *entity.MemberAccount) error
