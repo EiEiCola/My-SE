@@ -2,91 +2,44 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
-
+	 
+	"github.com/sut68/team12/backend/internal/dto"
 	"github.com/sut68/team12/backend/internal/app/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type FriendRequestController struct {
-	FriendService *services.FriendService
+	Service *services.FriendService
 }
 
 func NewFriendRequestController(s *services.FriendService) *FriendRequestController {
-	return &FriendRequestController{FriendService: s}
+	return &FriendRequestController{Service: s}
 }
 
-// POST /members/:id/friend-requests
-func (ctl *FriendRequestController) SendFriendRequest(c *gin.Context) {
-	senderID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid member id"})
-		return
-	}
-
-	var body struct {
-		TargetMemberID int `json:"target_member_id"`
-	}
+func (ctl *FriendRequestController) Send(c *gin.Context) {
+	var body dto.SendRequestDTO
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
-		return
-	}
-
-	rf, err := ctl.FriendService.SendFriendRequest(senderID, body.TargetMemberID)
-	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusCreated, gin.H{"friend_request": rf})
+	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.SendRequest(body)})
 }
 
-// POST /friend-requests/:id/accept
-func (ctl *FriendRequestController) AcceptFriendRequest(c *gin.Context) {
-	reqID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request id"})
-		return
-	}
-
-	rel, err := ctl.FriendService.AcceptFriendRequest(reqID)
-	if err != nil {
+func (ctl *FriendRequestController) Respond(c *gin.Context) {
+	var body dto.RespondRequestDTO
+	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "friend request accepted", "relation": rel})
+	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.RespondRequest(body)})
 }
 
-// POST /friend-requests/:id/reject
-func (ctl *FriendRequestController) RejectFriendRequest(c *gin.Context) {
-	reqID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request id"})
-		return
-	}
-
-	if err := ctl.FriendService.RejectFriendRequest(reqID); err != nil {
+func (ctl *FriendRequestController) Cancel(c *gin.Context) {
+	var body dto.CancelRequestDTO
+	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "friend request rejected"})
-}
-
-// DELETE /friend-requests/:id
-func (ctl *FriendRequestController) CancelFriendRequest(c *gin.Context) {
-	reqID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request id"})
-		return
-	}
-
-	if err := ctl.FriendService.CancelFriendRequest(reqID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "friend request canceled"})
+	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.CancelRequest(body)})
 }

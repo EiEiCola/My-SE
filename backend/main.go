@@ -4,20 +4,25 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sut68/team12/backend/config"
+	"github.com/sut68/team12/backend/internal/routes"
 )
 
+const PORT = "8080"
+
 func main() {
+	// 1. Setup Database
+	config.Connect() // Sets global config.DB
+
+	// 2. Setup Gin
 	r := gin.Default()
 
-	// health check
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	// Health check
+	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 
-	// ตัวอย่าง endpoint
-	r.GET("/hello", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Hello from team12 backend"})
-	})
+	// 3. Setup Routes (All wiring happens inside here)
+	routes.SetupRoutes(r)
 
-	r.Run(":8080") // listen on 8080
+	// 4. Run
+	r.Run(":" + PORT)
 }
