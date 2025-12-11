@@ -14,4 +14,5 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		SetupPRRoutes(api)
 	}
+		SetupMemberRoutes(r)
 }

@@ -1,7 +1,6 @@
 package repository
 
 import (
-
     "github.com/sut68/team12/backend/internal/entity"
     "gorm.io/gorm"
 )
@@ -25,6 +24,7 @@ type memberRepository struct {
 func NewMemberRepository(db *gorm.DB) MemberRepository {
     return &memberRepository{db: db}
 }
+
 // FindByID
 // ดึง Member จาก ID พร้อม preload ความสัมพันธ์ที่สำคัญ
 func (r *memberRepository) FindByID(id uint) (*entity.Member, error) {
@@ -40,17 +40,24 @@ func (r *memberRepository) FindByID(id uint) (*entity.Member, error) {
 }
 
 // FindByAccountID
-// ดึง Member จาก MemberAccountID (ใช้ตอนที่เรารู้ account แต่ยังไม่รู้ member)
+// ดึง Member โดยใช้ค่า accountID จากตาราง member_accounts
+// โครง FK ใน entity คือ member_accounts.member_id -> members.id
+// เลยต้อง JOIN เอา ไม่สามารถ Where("member_account_id = ?") ได้
 func (r *memberRepository) FindByAccountID(accountID uint) (*entity.Member, error) {
     var m entity.Member
-    if err := r.db.
+
+    err := r.db.
+        Joins("JOIN member_accounts ma ON ma.member_id = members.id").
         Preload("Gender").
         Preload("ActiveStatus").
         Preload("MemberAccount").
-        Where("member_account_id = ?", accountID).
-        First(&m).Error; err != nil {
+        Where("ma.id = ?", accountID).
+        First(&m).Error
+
+    if err != nil {
         return nil, err
     }
+
     return &m, nil
 }
 
