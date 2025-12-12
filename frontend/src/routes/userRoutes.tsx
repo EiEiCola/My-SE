@@ -6,7 +6,8 @@ import Reward from "../app/(protected)/User/Reward";
 import Message from "../app/(protected)/User/Message";
 import Friends from "../app/(protected)/User/Friend";
 import Group from "../app/(protected)/User/Category";
-import Review from "../app/(protected)/User/Review";
+
+import ReviewListPage from "../app/(protected)/User/Review/ReviewListPage";
 import Voting from "../app/(protected)/User/Voting";
 import Announcement from "../app/(protected)/User/Announcement";
 import AnnouncementDetail from "../app/(protected)/User/Announcement/AnnouncementDetail";
@@ -32,7 +33,7 @@ function UserRoutes() {
 
         <Route path="/User/Post" element={<Post />} />
 
-        <Route path="/User/Review" element={<Review />} />
+        <Route path="/User/Review" element={<ReviewListPage />} />
 
         <Route path="/User/Voting" element={<Voting />} />
 
