@@ -13,5 +13,6 @@ func SetupRoutes(r *gin.Engine) {
 	// api.Use(middlewares.Authorizes()) 
 	{
 		SetupPRRoutes(api)
+		SetupReviewRoutes(api) 
 	}
 }
