@@ -1,31 +1,63 @@
-import AddToPhotosIcon from '@mui/icons-material/AddToPhotos';
-import React, { useState, useEffect } from "react";
-import { Card, Typography, Button, Input, Table } from "antd";
+import AddToPhotosIcon from "@mui/icons-material/AddToPhotos";
+import React, { useEffect, useState } from "react";
+import { Card, Typography, Button, Input, Table, message, Modal } from "antd";
 import { UploadOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
+import {
+  adminRewardAPI,
+  type AdminRewardPayload,
+} from "../../../../services/http/admin_reward";
+
 const { Title } = Typography;
 
-// -------------------- API SERVICE (รอเชื่อม backend) -------------------
-const rewardAPI = {
-  create: async (formData: FormData) => {
-    return { data: { id: Date.now(), imageUrl: "" } }; // mock
-  },
+// -------------------- Helpers -------------------
+const toNumber = (v: any) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
-  update: async (id: number, formData: FormData) => {
-    return { data: { id } }; // mock
-  },
+// ✅ ดึง PK ให้ครอบคลุมทุกเคส (GORM ID / reward_id / RewardID)
+const pickId = (raw: any) => {
+  const n = Number(
+    raw?.ID ?? raw?.id ?? raw?.reward_id ?? raw?.RewardID ?? raw?.rewardID
+  );
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
-  getAll: async () => {
-    return { data: [] }; // mock
-  }
+const normalizeReward = (raw: any) => {
+  const id = pickId(raw);
+
+  const name =
+    raw?.reward_name ?? raw?.RewardName ?? raw?.name ?? raw?.rewardName ?? "";
+
+  const points =
+    raw?.point_required ??
+    raw?.PointRequired ??
+    raw?.points ??
+    raw?.pointRequired ??
+    "";
+
+  const picture =
+    raw?.reward_picture ??
+    raw?.RewardPicture ??
+    raw?.preview ??
+    raw?.imageUrl ??
+    raw?.rewardPicture ??
+    "";
+
+  return {
+    id,
+    name: String(name),
+    points: String(points),
+    preview: String(picture),
+  };
 };
 
 const RewardManage: React.FC = () => {
   const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
-
   const [isEditMode, setIsEditMode] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
@@ -38,16 +70,30 @@ const RewardManage: React.FC = () => {
     preview: "",
   });
 
+  // ✅ Controlled Delete Modal
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // ------------------ LOAD ------------------
+  const loadRewards = async () => {
+    try {
+      const res = await adminRewardAPI.getAll();
+      const list = Array.isArray(res.data) ? res.data : [];
+      const mapped = list.map(normalizeReward);
+      setRewards(mapped);
+    } catch (err: any) {
+      console.log("GET /admin/reward error =>", err);
+      message.error(err?.response?.data?.error || "โหลด rewards ไม่สำเร็จ");
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      const res = await rewardAPI.getAll();
-      setRewards(res.data);
-    };
-    loadData();
+    loadRewards();
   }, []);
 
+  // ------------------ IMAGE ------------------
   const handleImageChange = (e: any) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -58,114 +104,154 @@ const RewardManage: React.FC = () => {
 
   // ------------------ SAVE (CREATE + EDIT) ------------------
   const handleSave = async () => {
-    if (!form.name || !form.points || (!isEditMode && !form.image)) {
-      alert("กรอกข้อมูลให้ครบก่อนน้า ❤️");
+    if (!form.name || !form.points || (!isEditMode && !form.preview)) {
+      message.warning("กรอกข้อมูลให้ครบก่อนน้า ❤️");
       return;
     }
 
-    if (isEditMode) {
-      const fd = new FormData();
-      fd.append("name", form.name);
-      fd.append("points", form.points);
-      if (form.image) fd.append("image", form.image);
+    const payload: AdminRewardPayload = {
+      reward_name: form.name,
+      point_required: toNumber(form.points),
+      reward_picture: form.preview || "",
+    };
 
-      await rewardAPI.update(editId!, fd);
+    try {
+      if (isEditMode) {
+        const safeEditId = Number(editId);
+        if (!safeEditId || Number.isNaN(safeEditId)) {
+          message.error("แก้ไขไม่ได้: id ไม่ถูกต้อง");
+          return;
+        }
 
-      setRewards(
-        rewards.map((r) =>
-          r.id === editId
-            ? { ...r, name: form.name, points: form.points, preview: form.preview }
-            : r
-        )
+        await adminRewardAPI.update(safeEditId, payload);
+        message.success("อัปเดตรางวัลสำเร็จ ✅");
+      } else {
+        await adminRewardAPI.create(payload);
+        message.success("สร้างรางวัลสำเร็จ ✅");
+      }
+
+      setForm({ name: "", points: "", image: null, preview: "" });
+      setIsEditMode(false);
+      setEditId(null);
+      setOpen(false);
+
+      await loadRewards();
+    } catch (err: any) {
+      console.log("CREATE/UPDATE error =>", err);
+      const status = err?.response?.status;
+      const backendMsg =
+        err?.response?.data?.error || err?.response?.data?.message;
+      message.error(
+        backendMsg ? `Error ${status}: ${backendMsg}` : "บันทึกไม่สำเร็จ"
       );
-    } else {
-      const fd = new FormData();
-      fd.append("name", form.name);
-      fd.append("points", form.points);
-      fd.append("image", form.image!);
-
-      const res = await rewardAPI.create(fd);
-
-      const newReward = {
-        id: res.data.id,
-        name: form.name,
-        points: form.points,
-        preview: form.preview,
-      };
-
-      setRewards([...rewards, newReward]);
     }
-
-    setForm({ name: "", points: "", image: null, preview: "" });
-    setIsEditMode(false);
-    setEditId(null);
-    setOpen(false);
   };
 
   // ------------------ DELETE ------------------
   const handleDelete = (id: number) => {
-    setRewards(rewards.filter((r) => r.id !== id));
+    const safeId = Number(id);
+    if (!safeId || Number.isNaN(safeId)) {
+      message.error("ลบไม่ได้: id ไม่ถูกต้อง");
+      return;
+    }
+
+    setDeleteId(safeId);
+    setDeleteOpen(true);
   };
 
-  // ------------------ EDIT BUTTON ------------------
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+
+    try {
+      await adminRewardAPI.remove(deleteId);
+      setRewards((prev) => prev.filter((r: any) => r.id !== deleteId));
+      await loadRewards();
+      message.success("ลบสำเร็จ ✅");
+    } catch (err: any) {
+      console.log("DELETE error =>", err);
+      message.error("ลบไม่สำเร็จ");
+    } finally {
+      setDeleteOpen(false);
+      setDeleteId(null);
+    }
+  };
+
+  // ------------------ EDIT ------------------
   const handleEdit = (row: any) => {
+    const safeId = Number(row?.id);
+    if (!safeId || Number.isNaN(safeId)) {
+      message.error("แก้ไขไม่ได้: id ไม่ถูกต้อง");
+      return;
+    }
+
     setIsEditMode(true);
-    setEditId(row.id);
+    setEditId(safeId);
     setForm({
-      name: row.name,
-      points: row.points,
+      name: row.name ?? "",
+      points: row.points ?? "",
       image: null,
-      preview: row.preview,
+      preview: row.preview ?? "",
     });
     setOpen(true);
   };
 
-  // ------------------ TABLE COLUMNS ------------------
+  // ------------------ TABLE ------------------
   const columns = [
     {
       title: "Sticker",
       dataIndex: "preview",
-      render: (img: string) => (
-        <img
-          src={img}
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 8,
-            objectFit: "cover",
-            border: "1px solid #ddd",
-          }}
-        />
-      ),
+      render: (img: string) =>
+        img ? (
+          <img
+            src={img}
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 8,
+              objectFit: "cover",
+              border: "1px solid #ddd",
+            }}
+            alt="reward"
+          />
+        ) : (
+          <span style={{ color: "#999" }}>No Image</span>
+        ),
     },
     { title: "Name", dataIndex: "name" },
     { title: "Points", dataIndex: "points" },
     {
       title: "Action",
-      render: (_: any, row: any) => (
-        <>
-          <Button
-            icon={<EditOutlined />}
-            style={{ marginRight: 10 }}
-            onClick={() => handleEdit(row)}
-          />
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(row.id)}
-          />
-        </>
-      ),
+      key: "action",
+      render: (_: any, row: any) => {
+        const id = Number(row?.id);
+        const disabled = !id || Number.isNaN(id);
+
+        return (
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button
+              icon={<EditOutlined />}
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdit(row);
+              }}
+            />
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete(id);
+              }}
+            />
+          </div>
+        );
+      },
     },
   ];
-
-  // ⭐ หัวตารางสีเทาอ่อน
-  const headerStyle = {
-    fontWeight: 500,
-    color: "black",
-    background: "#F7F7F7",
-    fontSize: 15,
-  };
 
   return (
     <main
@@ -173,7 +259,6 @@ const RewardManage: React.FC = () => {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        backgroundColor: "#FFF5ED",
         display: "flex",
         justifyContent: "center",
       }}
@@ -188,7 +273,6 @@ const RewardManage: React.FC = () => {
             minHeight: 500,
           }}
         >
-          {/* TITLE */}
           <Title
             level={3}
             style={{
@@ -201,32 +285,41 @@ const RewardManage: React.FC = () => {
             Reward Management
           </Title>
 
-          {/* BUTTON GROUP: Add Reward + Point Rule */}
-          <div style={{ display: "flex", gap: 15, marginBottom: 30 }}>
-            
-            {/* ADD REWARD BUTTON */}
-            <Button
-              type="primary"
-              icon={<AddToPhotosIcon style={{ fontSize: 20, marginRight: 6 }} />}
-              style={{
-                backgroundColor: "#C42E0A",
-                borderRadius: 10,
-                padding: "0 15px",
-                height: 35,
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-              }}
-              onClick={() => {
-                setIsEditMode(false);
-                setForm({ name: "", points: "", image: null, preview: "" });
-                setOpen(true);
-              }}
-            >
-              Add Reward
-            </Button>
+          {/* ✅ ซ้าย: Add Reward / ขวาสุด: Point Rule */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 30,
+            }}
+          >
+            <div style={{ display: "flex", gap: 15 }}>
+              <Button
+                type="primary"
+                icon={
+                  <AddToPhotosIcon style={{ fontSize: 20, marginRight: 6 }} />
+                }
+                style={{
+                  backgroundColor: "#C42E0A",
+                  borderRadius: 10,
+                  padding: "0 15px",
+                  height: 35,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onClick={() => {
+                  setIsEditMode(false);
+                  setEditId(null);
+                  setForm({ name: "", points: "", image: null, preview: "" });
+                  setOpen(true);
+                }}
+              >
+                Add Reward
+              </Button>
+            </div>
 
-            {/* POINT RULE BUTTON */}
             <Button
               style={{
                 backgroundColor: "#ffffff",
@@ -241,7 +334,6 @@ const RewardManage: React.FC = () => {
             >
               Point Rule
             </Button>
-
           </div>
 
           {/* POPUP */}
@@ -278,9 +370,9 @@ const RewardManage: React.FC = () => {
                   {isEditMode ? "Edit Reward" : "Add Reward"}
                 </h2>
 
-                {/* FORM */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 25 }}>
-
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 25 }}
+                >
                   <div>
                     <label style={{ fontWeight: 400, color: "#C42E0A" }}>
                       Sticker Name
@@ -288,7 +380,9 @@ const RewardManage: React.FC = () => {
                     <Input
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, name: e.target.value })
+                      }
                     />
                   </div>
 
@@ -315,7 +409,6 @@ const RewardManage: React.FC = () => {
                         {form.image ? form.image.name : "Choose Image"}
                       </span>
                       <UploadOutlined />
-
                       <input
                         type="file"
                         accept="image/*"
@@ -335,6 +428,7 @@ const RewardManage: React.FC = () => {
                           border: "1px solid #ddd",
                           objectFit: "cover",
                         }}
+                        alt="preview"
                       />
                     )}
                   </div>
@@ -347,12 +441,13 @@ const RewardManage: React.FC = () => {
                       type="number"
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.points}
-                      onChange={(e) => setForm({ ...form, points: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, points: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
-                {/* BUTTON GROUP */}
                 <div
                   style={{
                     display: "flex",
@@ -360,7 +455,6 @@ const RewardManage: React.FC = () => {
                     marginTop: 35,
                   }}
                 >
-                  {/* CANCEL BUTTON */}
                   <Button
                     style={{
                       borderRadius: 10,
@@ -376,7 +470,6 @@ const RewardManage: React.FC = () => {
                     Cancel
                   </Button>
 
-                  {/* CREATE / SAVE */}
                   <Button
                     style={{
                       backgroundColor: "#C42E0A",
@@ -395,20 +488,28 @@ const RewardManage: React.FC = () => {
             </div>
           )}
 
-          {/* TABLE */}
+          {/* DELETE CONFIRM */}
+          <Modal
+            open={deleteOpen}
+            title="ยืนยันการลบ"
+            okText="ลบ"
+            cancelText="ยกเลิก"
+            okButtonProps={{ danger: true }}
+            onOk={confirmDelete}
+            onCancel={() => {
+              setDeleteOpen(false);
+              setDeleteId(null);
+            }}
+          >
+            <div>ต้องการลบรางวัลนี้ใช่ไหม ?</div>
+          </Modal>
+
           <Table
             dataSource={rewards}
             columns={columns}
-            rowKey="id"
+            rowKey={(record: any) => record.id}
             style={{ marginTop: 20 }}
             pagination={false}
-            components={{
-              header: {
-                cell: (props: any) => (
-                  <th {...props} style={{ ...props.style, ...headerStyle }} />
-                ),
-              },
-            }}
           />
         </Card>
       </div>

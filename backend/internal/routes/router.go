@@ -15,6 +15,9 @@ func SetupRoutes(r *gin.Engine){
 		SetupPRRoutes(api)
 		
 		SetupPollRoutes(api)
+
+		SetupAdminRewardRoutes(api)
+		SetupPointRuleRoutes(api)
 	}
 		SetupMemberRoutes(r) 
 }

@@ -37,8 +37,13 @@ func (c *AdminRewardController) CreateReward(ctx *gin.Context) {
 }
 
 func (c *AdminRewardController) UpdateReward(ctx *gin.Context) {
-	idStr := ctx.Param("reward_id")
-	id, _ := strconv.ParseUint(idStr, 10, 64)
+	idStr := ctx.Param("id") // ✅ ต้องเป็น "id"
+	idU64, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || idU64 == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	id := uint(idU64)
 
 	var req entity.Reward
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -46,7 +51,7 @@ func (c *AdminRewardController) UpdateReward(ctx *gin.Context) {
 		return
 	}
 
-	result, err := c.adminRewardService.UpdateReward(uint(id), &req)
+	result, err := c.adminRewardService.UpdateReward(id, &req)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -56,11 +61,17 @@ func (c *AdminRewardController) UpdateReward(ctx *gin.Context) {
 }
 
 func (c *AdminRewardController) DeleteReward(ctx *gin.Context) {
-	idStr := ctx.Param("reward_id")
-	id, _ := strconv.ParseUint(idStr, 10, 64)
+	idStr := ctx.Param("id") // ✅ ต้องเป็น "id"
+	idU64, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || idU64 == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	id := uint(idU64)
 
-	err := c.adminRewardService.DeleteReward(uint(id))
-	if err != nil {
+	println("DELETE id =", id)
+
+	if err := c.adminRewardService.DeleteReward(id); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -79,10 +90,15 @@ func (c *AdminRewardController) GetAllReward(ctx *gin.Context) {
 }
 
 func (c *AdminRewardController) GetRewardByID(ctx *gin.Context) {
-	idStr := ctx.Param("reward_id")
-	id, _ := strconv.ParseUint(idStr, 10, 64)
+	idStr := ctx.Param("id") // ✅ ต้องเป็น "id"
+	idU64, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || idU64 == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	id := uint(idU64)
 
-	result, err := c.adminRewardService.GetRewardByID(uint(id))
+	result, err := c.adminRewardService.GetRewardByID(id)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

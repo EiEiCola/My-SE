@@ -1,37 +1,51 @@
 import React, { useState, useEffect } from "react";
-import { Card, Typography, Button, Input, Table } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-// import axios from "axios";  // ← เปิดใช้ตอนเชื่อม backend
+import { Card, Typography, Button, Input, Table, message, Popconfirm } from "antd";
+import { EditOutlined, DeleteOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const { Title } = Typography;
 
-// -------------------- API SERVICE (พร้อมต่อ backend) -------------------
-const ruleAPI = {
-  create: async (body: any) => {
-    // ❗ เชื่อม backend จริงแบบนี้
-    // const res = await axios.post("http://localhost:8080/point-rule", body);
-    // return res;
+// ✅ axios instance: baseURL = http://localhost:8080/api
+const api = axios.create({
+  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8080") + "/api",
+});
 
-    return { data: { id: Date.now(), ...body } }; // mock
-  },
+type PointRulePayload = {
+  activity_type: string;
+  activity_point: number;
+  daily_limit: number;
+};
 
-  update: async (id: number, body: any) => {
-    // await axios.put(`http://localhost:8080/point-rule/${id}`, body);
+const pointRuleAPI = {
+  create: (payload: PointRulePayload) => api.post("/admin/point-rule", payload),
+  update: (id: number, payload: PointRulePayload) =>
+    api.put(`/admin/point-rule/${id}`, payload),
+  remove: (id: number) => api.delete(`/admin/point-rule/${id}`),
+  getAll: () => api.get("/admin/point-rule"),
+};
 
-    return { data: { id, ...body } }; // mock
-  },
+// -------- helpers ----------
+const getRowId = (row: any) => {
+  const n = Number(row?.id ?? row?.ID ?? row?._raw?.id ?? row?._raw?.ID);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
-  getAll: async () => {
-    // const res = await axios.get("http://localhost:8080/point-rule");
-    // return res;
-
-    return { data: [] }; // mock
-  },
+const normalizeRule = (raw: any) => {
+  const id = getRowId(raw);
+  return {
+    id,
+    activity_type: String(raw?.activity_type ?? raw?.ActivityType ?? ""),
+    activity_point: Number(raw?.activity_point ?? raw?.ActivityPoint ?? 0),
+    daily_limit: Number(raw?.daily_limit ?? raw?.DailyLimit ?? 0),
+    _raw: raw,
+  };
 };
 
 const PointRuleManage: React.FC = () => {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
+  const [open, setOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
@@ -43,63 +57,129 @@ const PointRuleManage: React.FC = () => {
     limit: "",
   });
 
+  const loadRules = async () => {
+    try {
+      const res = await pointRuleAPI.getAll();
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
+
+      const mapped = list.map(normalizeRule);
+
+      const bad = mapped.filter((x: any) => !x.id || x.id <= 0);
+      if (bad.length > 0) {
+        console.warn(
+          "[WARN] invalid id (0) rows:",
+          bad.map((b: any) => b._raw)
+        );
+      }
+
+      setRules(mapped);
+    } catch (err: any) {
+      console.log("GET /admin/point-rule error =>", err);
+      message.error(err?.response?.data?.error || "โหลดกติกาแต้มไม่สำเร็จ");
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const res = await ruleAPI.getAll();
-      setRules(res.data);
-    };
-    load();
+    loadRules();
   }, []);
 
   // -------------------- SAVE (Create + Edit) ---------------------
   const handleSave = async () => {
     if (!form.type || !form.point || !form.limit) {
-      alert("กรอกข้อมูลให้ครบก่อนนะ ❤️");
+      message.warning("กรอกข้อมูลให้ครบก่อนนะ ❤️");
       return;
     }
 
-    const body = {
+    const payload: PointRulePayload = {
       activity_type: form.type,
       activity_point: Number(form.point),
       daily_limit: Number(form.limit),
     };
 
-    if (isEditMode) {
-      await ruleAPI.update(editId!, body);
+    try {
+      if (isEditMode) {
+        const id = Number(editId);
+        if (!id || Number.isNaN(id)) {
+          message.error("แก้ไขไม่ได้: id ไม่ถูกต้อง");
+          return;
+        }
+        await pointRuleAPI.update(id, payload);
+        message.success("อัปเดตกติกาสำเร็จ ✅");
+      } else {
+        await pointRuleAPI.create(payload);
+        message.success("สร้างกติกาสำเร็จ ✅");
+      }
 
-      setRules(
-        rules.map((r) =>
-          r.id === editId
-            ? { ...r, ...body }
-            : r
-        )
+      setForm({ type: "", point: "", limit: "" });
+      setIsEditMode(false);
+      setEditId(null);
+      setOpen(false);
+
+      await loadRules();
+    } catch (err: any) {
+      console.log(
+        "CREATE/UPDATE error =>",
+        err?.response?.status,
+        err?.response?.data,
+        err
       );
-    } else {
-      const res = await ruleAPI.create(body);
-
-      setRules([...rules, res.data]);
+      const status = err?.response?.status;
+      const backendMsg =
+        err?.response?.data?.error || err?.response?.data?.message;
+      message.error(
+        backendMsg ? `Error ${status}: ${backendMsg}` : "บันทึกไม่สำเร็จ"
+      );
     }
-
-    // reset
-    setForm({ type: "", point: "", limit: "" });
-    setIsEditMode(false);
-    setEditId(null);
-    setOpen(false);
   };
 
   // -------------------- DELETE ---------------------
-  const handleDelete = (id: number) => {
-    setRules(rules.filter((r) => r.id !== id));
+  const doDelete = async (row: any) => {
+    const id = getRowId(row);
+    console.log("[UI] CONFIRM DELETE id =", id, "row=", row);
+
+    if (!id) {
+      message.error("ลบไม่ได้: id เป็น 0/ว่าง (ดู console.warn)");
+      return;
+    }
+
+    try {
+      await pointRuleAPI.remove(id);
+      message.success("ลบสำเร็จ ✅");
+      await loadRules();
+    } catch (err: any) {
+      console.log(
+        "[API] DELETE error =>",
+        err?.response?.status,
+        err?.response?.data,
+        err
+      );
+      const status = err?.response?.status;
+      const backendMsg =
+        err?.response?.data?.error || err?.response?.data?.message;
+      message.error(
+        backendMsg ? `Error ${status}: ${backendMsg}` : "ลบไม่สำเร็จ"
+      );
+    }
   };
 
   // -------------------- EDIT ----------------------
   const handleEdit = (row: any) => {
+    const id = getRowId(row);
+    if (!id) {
+      message.error("แก้ไขไม่ได้: id ไม่ถูกต้อง");
+      return;
+    }
+
     setIsEditMode(true);
-    setEditId(row.id);
+    setEditId(id);
     setForm({
-      type: row.activity_type,
-      point: row.activity_point,
-      limit: row.daily_limit,
+      type: row.activity_type ?? "",
+      point: String(row.activity_point ?? ""),
+      limit: String(row.daily_limit ?? ""),
     });
     setOpen(true);
   };
@@ -111,16 +191,50 @@ const PointRuleManage: React.FC = () => {
     { title: "Daily Limit", dataIndex: "daily_limit" },
     {
       title: "Action",
-      render: (_: any, row: any) => (
-        <>
-          <Button
-            icon={<EditOutlined />}
-            style={{ marginRight: 10 }}
-            onClick={() => handleEdit(row)}
-          />
-          <Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(row.id)} />
-        </>
-      ),
+      key: "action",
+      render: (_: any, row: any) => {
+        const id = getRowId(row);
+        const disabled = !id;
+
+        return (
+          <>
+            <Button
+              icon={<EditOutlined />}
+              style={{ marginRight: 10 }}
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEdit(row);
+              }}
+            />
+
+            <Popconfirm
+              title="ยืนยันการลบ"
+              description="ต้องการลบ Point Rule นี้ใช่ไหม ?"
+              okText="ลบ"
+              cancelText="ยกเลิก"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => doDelete(row)}
+              onPopupClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                disabled={disabled}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("[UI] CLICK DELETE button row=", row);
+                }}
+              />
+            </Popconfirm>
+          </>
+        );
+      },
     },
   ];
 
@@ -137,7 +251,6 @@ const PointRuleManage: React.FC = () => {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        backgroundColor: "#FFF5ED",
         display: "flex",
         justifyContent: "center",
       }}
@@ -152,6 +265,7 @@ const PointRuleManage: React.FC = () => {
             minHeight: 500,
           }}
         >
+          {/* ✅ TITLE อยู่บนสุด */}
           <Title
             level={3}
             style={{
@@ -164,25 +278,49 @@ const PointRuleManage: React.FC = () => {
             Point Rule Management
           </Title>
 
-          {/* ADD RULE BUTTON */}
-          <Button
-            type="primary"
+          {/* ✅ Back ซ้าย / Add Rule ขวา บรรทัดเดียวกัน */}
+          <div
             style={{
-              backgroundColor: "#C42E0A",
-              borderRadius: 10,
-              padding: "0 15px",
-              height: 35,
-              fontWeight: 600,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 20,
             }}
-            onClick={() => {
-              setIsEditMode(false);
-              setForm({ type: "", point: "", limit: "" });
-              setOpen(true);
-            }}
           >
-            Add Rule
-          </Button>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              style={{
+                borderRadius: 10,
+                height: 35,
+                fontWeight: 600,
+                border: "1px solid #C42E0A",
+                color: "#C42E0A",
+                background: "white",
+              }}
+              onClick={() => navigate("/Admin/RewardManage")}
+            >
+              Back
+            </Button>
+
+            <Button
+              type="primary"
+              style={{
+                backgroundColor: "#C42E0A",
+                borderRadius: 10,
+                padding: "0 15px",
+                height: 35,
+                fontWeight: 600,
+              }}
+              onClick={() => {
+                setIsEditMode(false);
+                setEditId(null);
+                setForm({ type: "", point: "", limit: "" });
+                setOpen(true);
+              }}
+            >
+              Add Rule
+            </Button>
+          </div>
 
           {/* POPUP */}
           {open && (
@@ -218,7 +356,6 @@ const PointRuleManage: React.FC = () => {
                   {isEditMode ? "Edit Rule" : "Add Rule"}
                 </h2>
 
-                {/* FORM */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 25 }}>
                   <div>
                     <label style={{ color: "#C42E0A" }}>Activity Type</label>
@@ -235,7 +372,9 @@ const PointRuleManage: React.FC = () => {
                       type="number"
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.point}
-                      onChange={(e) => setForm({ ...form, point: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, point: e.target.value })
+                      }
                     />
                   </div>
 
@@ -245,12 +384,13 @@ const PointRuleManage: React.FC = () => {
                       type="number"
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.limit}
-                      onChange={(e) => setForm({ ...form, limit: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, limit: e.target.value })
+                      }
                     />
                   </div>
                 </div>
 
-                {/* BUTTONS */}
                 <div
                   style={{
                     display: "flex",
@@ -291,12 +431,10 @@ const PointRuleManage: React.FC = () => {
             </div>
           )}
 
-          {/* TABLE */}
           <Table
             dataSource={rules}
             columns={columns}
-            rowKey="id"
-            style={{ marginTop: 5 }}
+            rowKey={(r: any) => String(r.id || getRowId(r) || Math.random())}
             pagination={false}
             components={{
               header: {
