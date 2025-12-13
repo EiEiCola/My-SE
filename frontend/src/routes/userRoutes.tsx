@@ -12,6 +12,8 @@ import EditProfile from "../app/(protected)/User/Profile/EditProfile";
 import Reward from "../app/(protected)/User/Reward";
 import Message from "../app/(protected)/User/Message";
 import Friends from "../app/(protected)/User/Friend";
+import FriendRequest from "../app/(protected)/User/Friend/Request";
+import FriendPopular from "../app/(protected)/User/Friend/Popular";
 import Group from "../app/(protected)/User/Category";
 import Review from "../app/(protected)/User/Review";
 import Voting from "../app/(protected)/User/Voting";
@@ -42,6 +44,8 @@ function UserRoutes() {
         <Route path="/User/Message" element={<Message />} />
 
         <Route path="/User/Friends" element={<Friends />} />
+        <Route path="/User/Friends/Request" element={<FriendRequest />} />
+        <Route path="/User/Friends/Popular" element={<FriendPopular />} />
 
         <Route path="/User/Group" element={<Group />} />
 

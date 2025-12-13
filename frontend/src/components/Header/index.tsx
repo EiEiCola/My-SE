@@ -1,12 +1,57 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
+
+// import { 
+//     TableRows,
+// } from '@mui/icons-material';
 
 interface HeaderProps {
   role: "admin" | "user";
   username?: string;
+  isCollapsed?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
-  const title = role === "admin" ? "Admin Dashboard" : "Dashboard";
+const Header: React.FC<HeaderProps> = ({ role, username = "eiei", isCollapsed }) => {
+  const location = useLocation();
+  
+  // แมพ path กับชื่อเมนู
+  const getPageTitle = () => {
+    const path = location.pathname;
+    
+    if (role === "admin") {
+      const adminTitles: { [key: string]: string } = {
+        "/Admin": "หน้าหลัก",
+        "/Admin/ProfileManage": "จัดการผู้ใช้",
+        "/Admin/RewardManage": "จัดการสะสมแต้ม",
+        "/Admin/MessageManage": "จัดการข้อความ",
+        "/Admin/FriendsManage": "จัดการเพื่อน",
+        "/Admin/PostManage": "จัดการโพสต์",
+        "/Admin/GroupManage": "จัดการกลุ่ม",
+        "/Admin/ReviewManage": "จัดการรีวิว",
+        "/Admin/VotingManage": "จัดการโพล",
+        "/Admin/AnnouncementManage": "จัดการประชาสัมพันธ์",
+        "/Admin/ReportManage": "จัดการรายงานปัญหา",
+      };
+      return adminTitles[path] || "Admin Dashboard";
+    } else {
+      const userTitles: { [key: string]: string } = {
+        "/User": "หน้าหลัก",
+        "/User/Profile": "โปรไฟล์",
+        "/User/Reward": "สะสมแต้ม",
+        "/User/Message": "ข้อความ",
+        "/User/Friends": "เพื่อน",
+        "/User/Post": "ฟีด",
+        "/User/Group": "กลุ่ม",
+        "/User/Review": "รีวิว",
+        "/User/Voting": "โพล",
+        "/User/Announcement": "ประชาสัมพันธ์",
+        "/User/Report": "รายงานปัญหา",
+      };
+      return userTitles[path] || "Dashboard";
+    }
+  };
+
+  const title = getPageTitle();
   const subtitle =
     role === "admin"
       ? `Welcome back, ${username} (Admin)`
@@ -15,21 +60,13 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
   return (
     <div
       className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl 
-      border-b border-slate-200/50 dark:border-slate-700/50 px-6 py-4"
+      border-b-1 border-l-0 border-r-0 border-t-0 border-slate-200/50 border-solid px-6 py-4"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-1 items-center justify-between">
         {/* LEFT */}
         <div className="flex items-center space-x-4">
-          <button
-            className="p-2 rounded-lg text-slate-600 dark:text-slate-200
-            hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            {/* ตรงนี้ค่อยใส่ icon ทีหลังได้ */}
-            <div className="w-5 h-5" />
-          </button>
-
           <div className="hidden md:block">
-            <h1 className="text-xl font-black text-slate-800 dark:text-white">
+            <h1 className="text-xl font-bold text-slate-800">
               {title}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-300">
@@ -41,11 +78,6 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
         {/* CENTER – Search */}
         <div className="flex-1 max-w-md mx-8">
           <div className="relative">
-            {/* icon search */}
-            <div
-              className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2
-              text-slate-400"
-            />
             <input
               type="text"
               placeholder="Search anything..."
@@ -56,12 +88,6 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
               focus:outline-none focus:ring-2
               focus:ring-blue-500 focus:border-transparent transition-all"
             />
-            <button
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5
-              text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <div className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -72,7 +98,6 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
             bg-gradient-to-r from-blue-500 to-purple-600 text-white 
             rounded-xl hover:shadow-lg transition-all text-sm font-medium"
           >
-            <div className="w-4 h-4" />
             <span>New</span>
           </button>
         </div>
