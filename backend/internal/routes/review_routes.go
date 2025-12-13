@@ -34,5 +34,9 @@ func SetupReviewRoutes(api *gin.RouterGroup) {
 
 		// ✅ List Reviews
 		memberGroup.GET("/reviews", reviewController.ListReviews)
+		memberGroup.DELETE("/reviews/:id", reviewController.DeleteReview)
+		memberGroup.POST("/reviews/:id/images", reviewController.UploadReviewImages)
+		
+
 	}
 }

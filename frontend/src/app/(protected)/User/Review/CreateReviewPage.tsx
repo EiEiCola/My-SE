@@ -2,6 +2,12 @@ import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateReviewPage.css";
 
+
+import { createReview, uploadReviewImages } from "../../../../services/http/reviewApi";
+
+
+
+
 type CategoryItem = {
   value: string;
   label: string;
@@ -37,6 +43,18 @@ const ratingText = (r: number) => {
 };
 
 const MY_USERNAME = "chaaim8dec"; // TODO: ดึงจาก auth จริงภายหลัง
+
+// ✅ แปลง category (string) -> main_category_id (number)
+// ตอนนี้ใส่ “ตัวอย่าง” ก่อนนะ ต้องปรับให้ตรงกับ ID ใน DB ของทีม
+const mapCategoryToMainCategoryID = (categoryValue: string): number => {
+  const map: Record<string, number> = {
+    "โรงอาหารกลาง": 1,
+    "รายวิชาวิศวกรรมคอมพิวเตอร์": 2,
+    "สถานที่ออกกำลังกาย": 3,
+    "หอพัก": 4,
+  };
+  return map[categoryValue] ?? 1;
+};
 
 // ===== Confirm Modal =====
 type ConfirmModalProps = {
@@ -133,6 +151,10 @@ const CreateReviewPage: React.FC = () => {
   // Confirm modal
   const [openConfirm, setOpenConfirm] = useState(false);
 
+  // ✅ เพิ่ม state สำหรับ submit จริง
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
   const displayName = useMemo(() => {
     if (identityMode === "real") return MY_USERNAME;
     if (identityMode === "anon") return "ไม่ระบุตัวตน";
@@ -187,23 +209,76 @@ const CreateReviewPage: React.FC = () => {
     setHoverRating(0);
     setIdentityMode("real");
     setAliasName("");
+    setSubmitError("");
     setImages((prev) => {
       prev.forEach((it) => URL.revokeObjectURL(it.url));
       return [];
     });
   };
 
-  const handleSubmit = () => {
-    // TODO: ยิง backend จริงในอนาคต (POST /reviews)
-    alert("โพสต์รีวิวสำเร็จ! 🎉");
-    handleReset();
-    navigate("/User/Review");
+  // ✅ ยิง POST จริง
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
+
+    try {
+      setSubmitting(true);
+      setSubmitError("");
+
+      const mainCategoryID = mapCategoryToMainCategoryID(formData.category);
+
+      // backend รับ: title, content, rating, is_anonymous, main_category_id, sub_category...
+      // ❌ ไม่ส่ง member_id
+      await createReview({
+        title: formData.title.trim(),
+        content: formData.content.trim(),
+        rating: Number(formData.rating),
+        is_anonymous: identityMode === "anon", // ✅ anon เท่านั้นที่เป็น anonymous จริงใน backend
+        main_category_id: mainCategoryID,
+
+        // ตอนนี้ UI ยังไม่เลือก sub-category -> ส่งเป็น null/ไม่ส่งก็ได้
+        sub_category_l1_id: null,
+        sub_category_l2_id: null,
+
+        // ถ้าทีมยังไม่ทำ hashtags/images endpoint จริง: ไม่ต้องส่ง
+        // hashtags: [],
+        // images: [],
+      });
+
+      const created = await createReview({
+  title: formData.title.trim(),
+  content: formData.content.trim(),
+  rating: Number(formData.rating),
+  is_anonymous: identityMode === "anon",
+  main_category_id: mainCategoryID,
+  sub_category_l1_id: null,
+  sub_category_l2_id: null,
+});
+
+// ✅ ดึง id ให้ชัวร์ (เพราะ backend บางทีส่ง ID/Id/id)
+const reviewId =
+  created?.ID ?? created?.id ?? created?.Id;
+
+if (!reviewId) throw new Error("createReview success แต่ไม่เจอ reviewId");
+
+// ✅ upload รูป (ถ้ามี)
+const files = images.map((it) => it.file).filter(Boolean) as File[];
+if (files.length > 0) {
+  await uploadReviewImages(Number(reviewId), files);
+}
+
+
+      // สำเร็จ: เคลียร์ฟอร์ม + กลับหน้า list
+      handleReset();
+      navigate("/User/Review");
+    } catch (e: any) {
+      setSubmitError(e.message || "โพสต์ไม่สำเร็จ");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClickPost = () => {
-    if (!canSubmit) return;
-
-    // เปิด modal ยืนยัน
+    if (!canSubmit || submitting) return;
     setOpenConfirm(true);
   };
 
@@ -212,7 +287,7 @@ const CreateReviewPage: React.FC = () => {
       <div className="createWrap">
         {/* Header */}
         <div className="createHeader">
-          <button type="button" className="backBtn" onClick={() => navigate(-1)}>
+          <button type="button" className="backBtn" onClick={() => navigate(-1)} disabled={submitting}>
             <span className="backIcon">←</span>
             กลับ
           </button>
@@ -239,6 +314,13 @@ const CreateReviewPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* ✅ error จาก backend */}
+          {submitError && (
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#fee2e2", fontWeight: 800 }}>
+              โพสต์ไม่สำเร็จ: {submitError}
+            </div>
+          )}
         </div>
 
         {/* 2 Column */}
@@ -263,6 +345,7 @@ const CreateReviewPage: React.FC = () => {
                       type="button"
                       className={`catBtn ${active ? "active" : ""}`}
                       onClick={() => setFormData((p) => ({ ...p, category: cat.value }))}
+                      disabled={submitting}
                     >
                       <div className="catEmoji">{cat.emoji}</div>
                       <div className="catLabel">{cat.label}</div>
@@ -299,6 +382,7 @@ const CreateReviewPage: React.FC = () => {
                         onMouseLeave={() => setHoverRating(0)}
                         onClick={() => setFormData((p) => ({ ...p, rating: star }))}
                         aria-label={`rate-${star}`}
+                        disabled={submitting}
                       >
                         ★
                       </button>
@@ -308,8 +392,6 @@ const CreateReviewPage: React.FC = () => {
                 <div className="ratingHint">แตะดาวเพื่อให้คะแนน (1-5 ดาว)</div>
               </div>
             </div>
-
-          
 
             {/* Images */}
             <div className="card">
@@ -327,6 +409,7 @@ const CreateReviewPage: React.FC = () => {
                 multiple
                 className="hiddenInput"
                 onChange={onPickImages}
+                disabled={submitting}
               />
 
               <div className="imgGrid">
@@ -337,7 +420,13 @@ const CreateReviewPage: React.FC = () => {
                       {item ? (
                         <>
                           <img src={item.url} alt={`upload-${idx}`} />
-                          <button type="button" className="imgDel" onClick={() => removeImage(idx)} aria-label="remove">
+                          <button
+                            type="button"
+                            className="imgDel"
+                            onClick={() => removeImage(idx)}
+                            aria-label="remove"
+                            disabled={submitting}
+                          >
                             ✕
                           </button>
                         </>
@@ -346,7 +435,7 @@ const CreateReviewPage: React.FC = () => {
                           type="button"
                           className="imgAdd"
                           onClick={openFilePicker}
-                          disabled={images.length >= MAX_IMAGES}
+                          disabled={images.length >= MAX_IMAGES || submitting}
                         >
                           <div className="imgAddIcon">📷</div>
                           <div className="imgAddText">เพิ่มรูป</div>
@@ -361,7 +450,7 @@ const CreateReviewPage: React.FC = () => {
                 type="button"
                 className={`btnOutline ${images.length >= MAX_IMAGES ? "disabled" : ""}`}
                 onClick={openFilePicker}
-                disabled={images.length >= MAX_IMAGES}
+                disabled={images.length >= MAX_IMAGES || submitting}
               >
                 + เพิ่มรูปภาพ
               </button>
@@ -387,6 +476,7 @@ const CreateReviewPage: React.FC = () => {
                 value={formData.title}
                 onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value.slice(0, MAX_TITLE) }))}
                 placeholder="เช่น อาหารอร่อย บรรยากาศดี"
+                disabled={submitting}
               />
               <div className="helper">หัวข้อสั้น กระชับ อ่านแล้วเข้าใจทันที</div>
             </div>
@@ -408,6 +498,7 @@ const CreateReviewPage: React.FC = () => {
                 onChange={(e) => setFormData((p) => ({ ...p, content: e.target.value.slice(0, MAX_CONTENT) }))}
                 placeholder="เขียนรีวิวของคุณ... เช่น จุดเด่น/ข้อควรระวัง/แนะนำเวลาไป"
                 rows={12}
+                disabled={submitting}
               />
 
               <div className="tipBox">
@@ -418,7 +509,7 @@ const CreateReviewPage: React.FC = () => {
               </div>
             </div>
 
-              {/* Identity */}
+            {/* Identity */}
             <div className="card">
               <div className="cardHead">
                 <div>
@@ -434,6 +525,7 @@ const CreateReviewPage: React.FC = () => {
                     name="identity"
                     checked={identityMode === "real"}
                     onChange={() => setIdentityMode("real")}
+                    disabled={submitting}
                   />
                   <div className="idText">
                     <div className="idMain">แสดงชื่อจริง</div>
@@ -447,6 +539,7 @@ const CreateReviewPage: React.FC = () => {
                     name="identity"
                     checked={identityMode === "alias"}
                     onChange={() => setIdentityMode("alias")}
+                    disabled={submitting}
                   />
                   <div className="idText">
                     <div className="idMain">ใช้นามแฝง</div>
@@ -460,6 +553,7 @@ const CreateReviewPage: React.FC = () => {
                     name="identity"
                     checked={identityMode === "anon"}
                     onChange={() => setIdentityMode("anon")}
+                    disabled={submitting}
                   />
                   <div className="idText">
                     <div className="idMain">ไม่ระบุตัวตน</div>
@@ -474,6 +568,7 @@ const CreateReviewPage: React.FC = () => {
                     value={aliasName}
                     onChange={(e) => setAliasName(e.target.value.slice(0, 20))}
                     placeholder="เช่น เพื่อนใจดี, น้องปี1, นักศึกษาSUT"
+                    disabled={submitting}
                   />
                   <div className="aliasCount">{aliasName.length}/20</div>
                 </div>
@@ -483,12 +578,17 @@ const CreateReviewPage: React.FC = () => {
             {/* Submit */}
             <div className="card">
               <div className="actions">
-                <button type="button" className="btnGray" onClick={handleReset}>
+                <button type="button" className="btnGray" onClick={handleReset} disabled={submitting}>
                   ล้างฟอร์ม
                 </button>
 
-                <button type="button" className={`btnPrimary ${!canSubmit ? "disabled" : ""}`} onClick={handleClickPost} disabled={!canSubmit}>
-                  โพสต์รีวิว 🚀
+                <button
+                  type="button"
+                  className={`btnPrimary ${!canSubmit || submitting ? "disabled" : ""}`}
+                  onClick={handleClickPost}
+                  disabled={!canSubmit || submitting}
+                >
+                  {submitting ? "กำลังโพสต์..." : "โพสต์รีวิว 🚀"}
                 </button>
               </div>
 
@@ -502,7 +602,6 @@ const CreateReviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* footer spacer */}
         <div style={{ height: 16 }} />
       </div>
 
@@ -510,9 +609,9 @@ const CreateReviewPage: React.FC = () => {
       <ConfirmPostModal
         open={openConfirm}
         onClose={() => setOpenConfirm(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           setOpenConfirm(false);
-          handleSubmit();
+          await handleSubmit();
         }}
         displayName={displayName}
         category={formData.category}

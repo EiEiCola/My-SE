@@ -27,7 +27,7 @@ type Review struct {
 	SubCategoryL2ID *uint          `json:"sub_category_l2_id"`
 	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID"`
 
-	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID"`
+	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID" `
 	ReviewVotes  []ReviewVote  `gorm:"foreignKey:ReviewID;references:ID"`
 	Tags        []Tag        `gorm:"many2many:review_tags" json:"tags"`
     ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`

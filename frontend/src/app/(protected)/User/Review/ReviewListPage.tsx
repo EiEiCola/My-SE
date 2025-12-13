@@ -1,11 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReviewCard from "./components/ReviewCard";
 import ReportReviewModal from "./ReportReviewModal";
 import "./ReviewListPage.css";
 
+//ดึง ลบ
+import { fetchReviews } from "../../../../services/http/reviewApi";
+import { deleteReview } from "../../../../services/http/reviewApi"; 
+
+
 interface ReviewItem {
   id: number;
+  memberId?: number; // ✅ ใช้เช็ค "รีวิวของฉัน" + สิทธิ์ลบ
   username: string;
   title: string;
   content: string;
@@ -17,61 +23,22 @@ interface ReviewItem {
   notHelpfulCount: number;
 }
 
-const reviewsSeed: ReviewItem[] = [
-  {
-    id: 1,
-    username: "chaaim8dec",
-    title: "โรงอาหารสะอาด อาหารอร่อย",
-    content:
-      "โรงอาหารสะอาดมากเลย อาหารสะอาด แม่ค้าพูดจาดีมากครับ แนะนำร้านข้าวมันไก่ น้ำซุปคือทีเด็ด ชดแล้วคล่องคอสุดๆ",
-    date: "2025-08-01",
-    category: "โรงอาหารกลาง",
-    rating: 5,
-    images: ["", "", ""],
-    helpfulCount: 12,
-    notHelpfulCount: 1,
-  },
-  {
-    id: 2,
-    username: "sutstudent01",
-    title: "ก๋วยเตี๋ยวอร่อย แต่คนแน่นตอนเที่ยง",
-    content:
-      "ร้านก๋วยเตี๋ยวรสชาติดีมาก เส้นลวกกำลังดี แต่ช่วงเที่ยงคนเยอะ ต้องรอคิวนานหน่อย แนะนำไปก่อนเที่ยงจะดีกว่า",
-    date: "2025-08-02",
-    category: "โรงอาหารกลาง",
-    rating: 4,
-    images: ["", ""],
-    helpfulCount: 5,
-    notHelpfulCount: 0,
-  },
-  {
-    id: 3,
-    username: "comeng66",
-    title: "วิชาโปรแกรมมิ่งสอนสนุก งานเยอะหน่อย",
-    content:
-      "อาจารย์อธิบายเข้าใจง่าย มีตัวอย่างให้ลองเยอะ แต่การบ้านก็เยอะตาม ต้องแบ่งเวลาอ่านก่อนสอบนิดนึง",
-    date: "2025-08-03",
-    category: "รายวิชาวิศวกรรมคอมพิวเตอร์",
-    rating: 5,
-    images: [""],
-    helpfulCount: 8,
-    notHelpfulCount: 2,
-  },
-  {
-    id: 4,
-    username: "chaaim8dec",
-    title: "หอพักสะอาดดีมากครับ",
-    content: "หอพักใหม่ สะอาด สิ่งอำนวยความสะดวกครบถ้วน เดินทางสะดวก ปลอดภัย",
-    date: "2025-08-04",
-    category: "หอพัก",
-    rating: 5,
-    images: [],
-    helpfulCount: 20,
-    notHelpfulCount: 0,
-  },
-];
 
-const MY_USERNAME = "chaaim8dec";
+
+// ตอนนี้ backend mock member_id = 1
+const MY_MEMBER_ID = 1;
+
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString("th-TH", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const REPORT_REASONS = [
   "เนื้อหาไม่เหมาะสม / ลามก",
@@ -127,7 +94,11 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
 const ReviewListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [reviews, setReviews] = useState<ReviewItem[]>(reviewsSeed);
+
+  // ✅ เปลี่ยนจาก seed -> โหลดจาก API จริง
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ทั้งหมด");
@@ -141,6 +112,60 @@ const ReviewListPage: React.FC = () => {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedReviewIdForDelete, setSelectedReviewIdForDelete] = useState<number | null>(null);
+
+  // ✅ โหลดรีวิวจาก DB จริง
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const apiData = await fetchReviews();
+
+        const mapped: ReviewItem[] = (apiData || []).map((r: any) => {
+          const memberId = r.member_id ?? r.MemberID;
+
+          return {
+            id: r.ID ?? r.id,
+            memberId,
+            username:
+              r.Member?.username ||
+              r.username ||
+              (memberId ? `member#${memberId}` : "anonymous"),
+            title: r.title || "",
+            content: r.content || "",
+            rating: r.rating ?? 0,
+
+            // ใช้ created_at จาก DB ถ้ามี
+           date: formatDate(
+  r.created_at || r.CreatedAt || r.updated_at || r.UpdatedAt || new Date().toISOString()
+),
+
+
+            // ตอนนี้ API list อาจยังไม่ได้ส่งชื่อหมวดมา -> fallback ไว้ก่อน
+            category:
+              r.MainCategory?.name ||
+              r.category ||
+              (r.main_category_id ? `หมวด #${r.main_category_id}` : "ไม่ระบุหมวด"),
+
+            helpfulCount: r.helpful_count ?? r.HelpfulCount ?? 0,
+            notHelpfulCount: r.not_helpful_count ?? r.NotHelpfulCount ?? 0,
+
+            // ถ้าระบบยังไม่ได้ทำ images จริง จะเป็น [] ไปก่อน
+            images: (r.ReviewImages || r.review_images || []).map(
+              (img: any) => img.url || img.image_url || ""
+            ),
+          };
+        });
+
+        setReviews(mapped);
+      } catch (e: any) {
+        setError(e.message || "โหลดรีวิวไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const handleReport = (reviewId: number) => {
     setSelectedReviewIdForReport(reviewId);
@@ -176,12 +201,18 @@ const ReviewListPage: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (selectedReviewIdForDelete == null) return;
+  // ตอนนี้ยังเป็น “ลบออกจากหน้าจอ” ก่อน (ข้อ 3 เราจะต่อ DELETE API จริง)
+  const handleDeleteConfirm = async () => {
+  if (selectedReviewIdForDelete == null) return;
+  try {
+    await deleteReview(selectedReviewIdForDelete);
     setReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
     setIsDeleteModalOpen(false);
     setSelectedReviewIdForDelete(null);
-  };
+  } catch (e: any) {
+    alert(e.message || "ลบไม่สำเร็จ");
+  }
+};
 
   const filteredAndSortedReviews = useMemo(() => {
     let list = reviews.filter((r) => {
@@ -190,7 +221,9 @@ const ReviewListPage: React.FC = () => {
         .includes(searchTerm.toLowerCase());
 
       const matchesCategory = selectedCategory === "ทั้งหมด" || r.category === selectedCategory;
-      const matchesFilter = filterBy === "all" || r.username === MY_USERNAME;
+
+      // ✅ เปลี่ยนจาก username -> memberId (ชัวร์กว่า)
+      const matchesFilter = filterBy === "all" || r.memberId === MY_MEMBER_ID;
 
       return matchesSearch && matchesCategory && matchesFilter;
     });
@@ -245,38 +278,56 @@ const ReviewListPage: React.FC = () => {
             </div>
 
             <div className="rl-tabs">
-              <button className={`rl-tab ${filterBy === "all" ? "is-active" : ""}`} onClick={() => setFilterBy("all")}>
+              <button
+                className={`rl-tab ${filterBy === "all" ? "is-active" : ""}`}
+                onClick={() => setFilterBy("all")}
+              >
                 รีวิวทั้งหมด 🌐
               </button>
-              <button className={`rl-tab ${filterBy === "my" ? "is-active" : ""}`} onClick={() => setFilterBy("my")}>
+              <button
+                className={`rl-tab ${filterBy === "my" ? "is-active" : ""}`}
+                onClick={() => setFilterBy("my")}
+              >
                 รีวิวของฉัน 👤
               </button>
-              <button className={`rl-tab ${sortBy === "latest" ? "is-active" : ""}`} onClick={() => setSortBy("latest")}>
+              <button
+                className={`rl-tab ${sortBy === "latest" ? "is-active" : ""}`}
+                onClick={() => setSortBy("latest")}
+              >
                 ล่าสุด ✨
               </button>
-              <button className={`rl-tab ${sortBy === "popular" ? "is-active" : ""}`} onClick={() => setSortBy("popular")}>
+              <button
+                className={`rl-tab ${sortBy === "popular" ? "is-active" : ""}`}
+                onClick={() => setSortBy("popular")}
+              >
                 ยอดนิยม 🔥
               </button>
             </div>
           </div>
         </div>
 
+        {/* ✅ loading / error */}
+        {loading && <div style={{ padding: 12, fontWeight: 800 }}>กำลังโหลดรีวิว...</div>}
+        {error && <div style={{ padding: 12, fontWeight: 800, color: "red" }}>{error}</div>}
+
         <div className="rl-list">
-          {filteredAndSortedReviews.length > 0 ? (
+          {!loading && filteredAndSortedReviews.length > 0 ? (
             filteredAndSortedReviews.map((review) => (
               <ReviewCard
                 key={review.id}
                 review={review}
                 onReport={() => handleReport(review.id)}
-                canDelete={review.username === MY_USERNAME}
+                // ✅ เช็คจาก memberId (ตอนนี้ mock member_id = 1)
+                canDelete={review.memberId === MY_MEMBER_ID}
                 onDelete={() => handleDeleteClick(review.id)}
               />
             ))
-          ) : (
+          ) : !loading ? (
             <div className="rl-empty">
               <div className="rl-emptyEmoji">🧐</div>
               <div className="rl-emptyText">
-                ไม่พบรีวิว{filterBy === "my" ? "ที่คุณเขียน" : ""}{searchTerm || selectedCategory !== "ทั้งหมด" ? "ตามที่ค้นหา" : ""}
+                ไม่พบรีวิว{filterBy === "my" ? "ที่คุณเขียน" : ""}
+                {searchTerm || selectedCategory !== "ทั้งหมด" ? "ตามที่ค้นหา" : ""}
               </div>
               <button
                 className="rl-clear"
@@ -289,7 +340,7 @@ const ReviewListPage: React.FC = () => {
                 ล้างการค้นหา
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* ✅ ปุ่มลอย */}
