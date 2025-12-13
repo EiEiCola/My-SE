@@ -12,8 +12,8 @@ type CreateReviewRequest struct {
     SubCategoryL1ID *uint `json:"sub_category_l1_id"`
     SubCategoryL2ID *uint `json:"sub_category_l2_id"`
 
-    // User ควรมาจาก token แต่ถ้า controller ยังไม่ทำ auth ให้ส่งมาก่อน
-    MemberID uint `json:"member_id" binding:"required"`
+    //แล้วแก้ field MemberID จากเดิมที่เป็น binding:"required" ให้เป็น ไม่ต้อง required หรือให้ Gin “ไม่ต้อง bind/validate” field นี้
+  MemberID uint `json:"member_id" binding:"-"`
 
     // #tags (แบบ Twitter)
     // ถ้า tag มีอยู่แล้ว → ผูกกับ review

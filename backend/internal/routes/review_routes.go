@@ -12,31 +12,27 @@ import (
 // SetupReviewRoutes registers all routes related to Review system
 func SetupReviewRoutes(api *gin.RouterGroup) {
 	db := config.DB
+
 	// Repository
 	reviewRepo := repository.NewReviewRepository(db)
 	// Service
 	reviewService := services.NewReviewService(reviewRepo)
 	// Controller
 	reviewController := member_controller.NewReviewController(reviewService)
-	// -----------------------------
-	// Mock Member Auth (เหมือน PR)
-	// -----------------------------
+
+	// Mock Member Auth
 	mockMemberAuth := func(c *gin.Context) {
 		c.Set("member_id", uint(1)) // mock member id
 		c.Next()
 	}
 
-	// -----------------------------
 	// Member Review Routes
-	// -----------------------------
 	memberGroup := api.Group("/member", mockMemberAuth)
 	{
-		// Create Review
+		// ✅ Create Review
 		memberGroup.POST("/reviews", reviewController.CreateReview)
 
-		// (เผื่ออนาคต)
-		// memberGroup.GET("/reviews", reviewController.ListReviews)
-		// memberGroup.GET("/reviews/:id", reviewController.GetReviewByID)
-		// memberGroup.POST("/reviews/:id/vote", reviewController.VoteReview)
+		// ✅ List Reviews
+		memberGroup.GET("/reviews", reviewController.ListReviews)
 	}
 }
