@@ -1,0 +1,98 @@
+package dto
+
+import "time"
+
+/* =========================
+   CREATE POLL (MEMBER)
+========================= */
+
+type CreatePollOptionDTO struct {
+	Label     string `json:"label" binding:"required"`
+	ImgURL    string `json:"img_url"`              // รูปของตัวเลือก
+	SortOrder *int   `json:"sort_order,omitempty"` // optional
+}
+
+type CreatePollRequest struct {
+	Question      string     `json:"question" binding:"required"`
+	AllowMultiple bool       `json:"allow_multiple"`
+	MaxChoice     *int       `json:"max_choice"`
+	StartAt       *time.Time `json:"start_at"`
+	EndAt         *time.Time `json:"end_at"`
+
+	MainCategoryID  *uint `json:"main_category_id"`
+	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
+	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+
+	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
+}
+
+/* =========================
+   LIST / DETAIL RESPONSE
+========================= */
+
+type PollOptionResponse struct {
+	ID        uint   `json:"id"`
+	Label     string `json:"label"`
+	ImgURL    string `json:"img_url"`
+	SortOrder int    `json:"sort_order"`
+}
+
+type PollResponse struct {
+	ID       uint   `json:"id"`
+	Question string `json:"question"`
+
+	StatusID uint `json:"poll_status_id"`
+	MemberID uint `json:"member_id"`
+
+	AllowMultiple bool       `json:"allow_multiple"`
+	MaxChoice     *int       `json:"max_choice"`
+	StartAt       *time.Time `json:"start_at"`
+	EndAt         *time.Time `json:"end_at"`
+
+	LastRejectReason string `json:"last_reject_reason,omitempty"`
+
+	Options   []PollOptionResponse `json:"options"`
+	CreatedAt time.Time            `json:"created_at"`
+}
+
+/* =========================
+   VOTE
+========================= */
+
+type VotePollRequest struct {
+	OptionIDs []uint `json:"option_ids" binding:"required,min=1,dive,gt=0"`
+}
+
+type VotePollResponse struct {
+	PollID    uint   `json:"poll_id"`
+	MemberID  uint   `json:"member_id"`
+	OptionIDs []uint `json:"option_ids"`
+	Message   string `json:"message"`
+}
+
+/* =========================
+   ADMIN ACTION
+========================= */
+
+type RejectPollRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+/* =========================
+   RESULTS
+========================= */
+
+type PollResultItem struct {
+	OptionID uint    `json:"option_id"`
+	Label    string  `json:"label"`
+	ImgURL   string  `json:"img_url"`
+	Count    int64   `json:"count"`
+	Percent  float64 `json:"percent"`
+}
+
+type PollResultsResponse struct {
+	PollID   uint             `json:"poll_id"`
+	Question string           `json:"question"`
+	Total    int64            `json:"total_votes"`
+	Items    []PollResultItem `json:"items"`
+}
