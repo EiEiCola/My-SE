@@ -20,18 +20,20 @@ func NewMemberAccountService(memberAccountRepo repository.MemberAccountRepositor
     return &memberAccountService{memberAccountRepo: memberAccountRepo}
 }
 
+// Register สร้าง MemberAccount ใหม่ (ตอนนี้ยังไม่สร้าง Member ให้อัตโนมัติ)
 func (s *memberAccountService) Register(email, password string, roleID uint) (*entity.MemberAccount, error) {
-
     if existing, _ := s.memberAccountRepo.FindByEmail(email); existing != nil {
         return nil, errors.New("email already used")
     }
 
-    hashed := password // TODO: bcrypt
+    // TODO: bcrypt ภายหลัง
+    hashed := password
 
     acc := &entity.MemberAccount{
         Email:    email,
         Password: hashed,
         RoleID:   roleID,
+        // MemberID ให้ไปเซ็ตเองใน DB ชั่วคราว
     }
 
     if err := s.memberAccountRepo.Create(acc); err != nil {
@@ -47,5 +49,5 @@ func (s *memberAccountService) Login(email, password string) (*entity.MemberAcco
         return nil, errors.New("invalid email or password")
     }
 
-    return acc, nil
+    return acc, nil 
 }
