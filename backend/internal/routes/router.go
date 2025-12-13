@@ -5,7 +5,7 @@ import (
 )
 
 // SetupRoutes initializes all routes
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine){
 	// SetupAuthRoutes(r)           // Placeholder for future Auth routes
 	// SetupUserPublicRoutes(r)     // Placeholder for Public routes
 
@@ -14,5 +14,8 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		SetupPRRoutes(api)
 		SetupReviewRoutes(api) 
+		SetupPollRoutes(api)
+
 	}
+		SetupMemberRoutes(r) 
 }
