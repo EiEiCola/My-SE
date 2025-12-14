@@ -12,5 +12,6 @@ type ReviewImage struct {
 
 	//FK review ไม่มี* เพราะตถ้าจะมีรูปยังไงก้ต้องมีไอดีรีวิว
 	ReviewID uint  `json:"review_id"`
-	Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
+	Review   Review `json:"-" gorm:"foreignKey:ReviewID;references:ID"`
+	//Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
 }

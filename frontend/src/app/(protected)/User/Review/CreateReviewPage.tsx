@@ -228,36 +228,19 @@ const CreateReviewPage: React.FC = () => {
 
       // backend รับ: title, content, rating, is_anonymous, main_category_id, sub_category...
       // ❌ ไม่ส่ง member_id
-      await createReview({
-        title: formData.title.trim(),
-        content: formData.content.trim(),
-        rating: Number(formData.rating),
-        is_anonymous: identityMode === "anon", // ✅ anon เท่านั้นที่เป็น anonymous จริงใน backend
-        main_category_id: mainCategoryID,
-
-        // ตอนนี้ UI ยังไม่เลือก sub-category -> ส่งเป็น null/ไม่ส่งก็ได้
-        sub_category_l1_id: null,
-        sub_category_l2_id: null,
-
-        // ถ้าทีมยังไม่ทำ hashtags/images endpoint จริง: ไม่ต้องส่ง
-        // hashtags: [],
-        // images: [],
-      });
-
       const created = await createReview({
-  title: formData.title.trim(),
-  content: formData.content.trim(),
-  rating: Number(formData.rating),
-  is_anonymous: identityMode === "anon",
-  main_category_id: mainCategoryID,
-  sub_category_l1_id: null,
-  sub_category_l2_id: null,
-});
+      title: formData.title.trim(),
+      content: formData.content.trim(),
+      rating: Number(formData.rating),
+      is_anonymous: identityMode === "anon",
+      main_category_id: mainCategoryID,
+      sub_category_l1_id: null,
+      sub_category_l2_id: null,
+    });
+    
 
 // ✅ ดึง id ให้ชัวร์ (เพราะ backend บางทีส่ง ID/Id/id)
-const reviewId =
-  created?.ID ?? created?.id ?? created?.Id;
-
+const reviewId =created?.ID ?? created?.id ?? created?.Id;
 if (!reviewId) throw new Error("createReview success แต่ไม่เจอ reviewId");
 
 // ✅ upload รูป (ถ้ามี)

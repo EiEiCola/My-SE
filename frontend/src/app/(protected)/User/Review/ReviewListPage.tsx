@@ -6,8 +6,7 @@ import "./ReviewListPage.css";
 
 //ดึง ลบ
 import { fetchReviews } from "../../../../services/http/reviewApi";
-import { deleteReview } from "../../../../services/http/reviewApi"; 
-
+import { deleteReview } from "../../../../services/http/reviewApi";
 
 interface ReviewItem {
   id: number;
@@ -23,10 +22,20 @@ interface ReviewItem {
   notHelpfulCount: number;
 }
 
-
-
 // ตอนนี้ backend mock member_id = 1
 const MY_MEMBER_ID = 1;
+
+// ✅ ใช้ base เดียวกับฝั่ง api (กันเคส /uploads/... และ http...)
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+const toFullUrl = (url?: string) => {
+  if (!url) return "";
+  const u = String(url).trim();
+  if (!u) return "";
+  if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("data:") || u.startsWith("blob:")) return u;
+  if (u.startsWith("/")) return `${API_BASE}${u}`;
+  return `${API_BASE}/${u}`;
+};
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);
@@ -125,38 +134,35 @@ const ReviewListPage: React.FC = () => {
         const mapped: ReviewItem[] = (apiData || []).map((r: any) => {
           const memberId = r.member_id ?? r.MemberID;
 
-          return {
-            id: r.ID ?? r.id,
-            memberId,
-            username:
-              r.Member?.username ||
-              r.username ||
-              (memberId ? `member#${memberId}` : "anonymous"),
-            title: r.title || "",
-            content: r.content || "",
-            rating: r.rating ?? 0,
-
-            // ใช้ created_at จาก DB ถ้ามี
-           date: formatDate(
-  r.created_at || r.CreatedAt || r.updated_at || r.UpdatedAt || new Date().toISOString()
-),
+          // ✅ กัน images เป็น null และทำให้ “ไม่ random”
+          const rawImgs = r.ReviewImages ?? r.review_images ?? r.images ?? [];
+          const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
 
 
-            // ตอนนี้ API list อาจยังไม่ได้ส่งชื่อหมวดมา -> fallback ไว้ก่อน
-            category:
-              r.MainCategory?.name ||
-              r.category ||
-              (r.main_category_id ? `หมวด #${r.main_category_id}` : "ไม่ระบุหมวด"),
+  const images = imgArr
+    .slice()
+    .sort(
+      (a: any, b: any) =>
+        (a.sort_order ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? 0)
+    )
+    .map((img: any) => toFullUrl(img.url ?? img.URL ?? img.image_url))
+    .filter((u: string) => !!u);
 
-            helpfulCount: r.helpful_count ?? r.HelpfulCount ?? 0,
-            notHelpfulCount: r.not_helpful_count ?? r.NotHelpfulCount ?? 0,
+  return {
+    id: r.ID ?? r.id,
+    memberId,
+    username: r.Member?.username || r.username || (memberId ? `member#${memberId}` : "anonymous"),
+    title: r.title || "",
+    content: r.content || "",
+    rating: r.rating ?? 0,
+    date: formatDate(r.created_at || r.CreatedAt || r.updated_at || r.UpdatedAt || new Date().toISOString()),
+    category: r.MainCategory?.name || r.category || (r.main_category_id ? `หมวด #${r.main_category_id}` : "ไม่ระบุหมวด"),
+    helpfulCount: r.helpful_count ?? r.HelpfulCount ?? 0,
+    notHelpfulCount: r.not_helpful_count ?? r.NotHelpfulCount ?? 0,
+    images, // ✅ ใช้อันนี้
+  };
+});
 
-            // ถ้าระบบยังไม่ได้ทำ images จริง จะเป็น [] ไปก่อน
-            images: (r.ReviewImages || r.review_images || []).map(
-              (img: any) => img.url || img.image_url || ""
-            ),
-          };
-        });
 
         setReviews(mapped);
       } catch (e: any) {
@@ -203,16 +209,16 @@ const ReviewListPage: React.FC = () => {
 
   // ตอนนี้ยังเป็น “ลบออกจากหน้าจอ” ก่อน (ข้อ 3 เราจะต่อ DELETE API จริง)
   const handleDeleteConfirm = async () => {
-  if (selectedReviewIdForDelete == null) return;
-  try {
-    await deleteReview(selectedReviewIdForDelete);
-    setReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
-    setIsDeleteModalOpen(false);
-    setSelectedReviewIdForDelete(null);
-  } catch (e: any) {
-    alert(e.message || "ลบไม่สำเร็จ");
-  }
-};
+    if (selectedReviewIdForDelete == null) return;
+    try {
+      await deleteReview(selectedReviewIdForDelete);
+      setReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
+      setIsDeleteModalOpen(false);
+      setSelectedReviewIdForDelete(null);
+    } catch (e: any) {
+      alert(e.message || "ลบไม่สำเร็จ");
+    }
+  };
 
   const filteredAndSortedReviews = useMemo(() => {
     let list = reviews.filter((r) => {

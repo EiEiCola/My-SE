@@ -2,7 +2,7 @@ package entity
 
 import (
 	"gorm.io/gorm"
-	"time"
+	
 )
 type Review struct {
 	gorm.Model
@@ -12,7 +12,7 @@ type Review struct {
 	IsAnonymous     bool      `json:"is_anonymous"`
 	HelpfulCount    int       `json:"helpful_count"`
 	NotHelpfulCount int       `json:"not_helpful_count"`
-	CreatedAt       time.Time `json:"created_at"`
+	//CreatedAt       time.Time `json:"created_at"`
 
 	MemberID   uint   `json:"member_id"`  
     Member     Member `gorm:"foreignKey:MemberID;references:ID"`

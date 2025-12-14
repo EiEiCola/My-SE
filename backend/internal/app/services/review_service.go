@@ -48,11 +48,12 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 		NotHelpfulCount: 0,
 	}
 
+	// 1) create review ก่อน เพื่อให้ได้ review.ID
 	if err := s.reviewRepo.CreateReview(review); err != nil {
 		return nil, err
 	}
 
-	// hashtags
+	// 2) hashtags
 	if len(req.Hashtags) > 0 {
 		for _, raw := range req.Hashtags {
 			name := strings.TrimSpace(strings.TrimPrefix(raw, "#"))
@@ -82,7 +83,15 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 	}
 
 	// ❗images จะมาใน endpoint upload แยก
-	return review, nil
+
+	// ✅ (ข้อ 2) โหลดใหม่พร้อม preload ก่อนส่งกลับ
+	// เพื่อให้ Member/MainCategory/Tags/ReviewImages ไม่เป็น object ว่างๆ
+	full, err := s.reviewRepo.FindReviewByID(review.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return full, nil
 }
 
 func (s *reviewService) AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error {
