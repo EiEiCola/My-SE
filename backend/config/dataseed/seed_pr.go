@@ -81,7 +81,8 @@ func SeedPRSystem(db *gorm.DB) {
 		Username:  "admin01",
 		GenderID:  1,
 	}
-	db.Where(entity.Member{Username: "admin01"}).FirstOrCreate(&adminMember)
+	// Use Unscoped to find existing member even if soft-deleted, to avoid Unique Constraint violation
+	db.Unscoped().Where(entity.Member{Username: "admin01"}).FirstOrCreate(&adminMember)
 
 	adminAccount := entity.MemberAccount{
 		MemberID: adminMember.ID,
@@ -89,7 +90,7 @@ func SeedPRSystem(db *gorm.DB) {
 		Password: string(hashedPassword),
 		RoleID:   2, // Admin Role (assuming 2)
 	}
-	db.Where(entity.MemberAccount{Email: "admin01@example.com"}).FirstOrCreate(&adminAccount)
+	db.Unscoped().Where(entity.MemberAccount{Email: "admin01@example.com"}).FirstOrCreate(&adminAccount)
 
 	admin := entity.Admin{
 		MemberAccountID: adminAccount.ID,
