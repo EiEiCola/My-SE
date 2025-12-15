@@ -207,7 +207,7 @@ func (rc *ReviewController) UploadReviewImages(c *gin.Context) {
 
 		images = append(images, dto.ReviewImageRequest{
 			URL:       publicURL,
-			IsCover:   i == 0,     // ให้รูปแรกเป็น cover ไปก่อน
+			IsCover:   i == 0, // ให้รูปแรกเป็น cover ไปก่อน
 			SortOrder: i + 1,
 		})
 	}
@@ -225,5 +225,62 @@ func (rc *ReviewController) UploadReviewImages(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "images uploaded",
 		"data":    images,
+	})
+}
+
+// ✅ POST /api/member/reviews/:id/vote
+func (rc *ReviewController) VoteReview(c *gin.Context) {
+	// member_id จาก middleware (mockMemberAuth)
+	memberIDAny, ok := c.Get("member_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
+		return
+	}
+
+	// ✅ กัน panic: รองรับ uint/int/float64 เหมือน CreateReview
+	var memberID uint
+	switch v := memberIDAny.(type) {
+	case uint:
+		memberID = v
+	case int:
+		if v < 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+			return
+		}
+		memberID = uint(v)
+	case float64:
+		if v < 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+			return
+		}
+		memberID = uint(v)
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+		return
+	}
+
+	// review id
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	reviewID := uint(id64)
+
+	var req dto.VoteReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "detail": err.Error()})
+		return
+	}
+
+	resp, err := rc.reviewService.VoteReview(reviewID, memberID, req.VoteType)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "vote failed", "detail": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "vote updated",
+		"data":    resp,
 	})
 }

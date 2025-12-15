@@ -17,6 +17,9 @@ type ReviewService interface {
 
 	// ✅ upload images metadata to DB
 	AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error
+	// Vote
+	VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error)
+
 }
 
 type reviewService struct {
@@ -126,11 +129,26 @@ func (s *reviewService) AddReviewImages(reviewID uint, memberID uint, images []d
 
 	return nil
 }
-
+// ListReviews ดึงรีวิวทั้งหมด (optionally กรองด้วย mainCategoryID)?
 func (s *reviewService) ListReviews(mainCategoryID *uint) ([]entity.Review, error) {
 	return s.reviewRepo.ListReviewsByCategory(mainCategoryID)
 }
-
+// DeleteReview จะตรวจสอบสิทธิ์การลบด้วย memberID
 func (s *reviewService) DeleteReview(reviewID uint, memberID uint) error {
 	return s.reviewRepo.DeleteReviewByID(reviewID, memberID)
+}
+// VoteReview จะจัดการโหวตรีวิวทุกเคส
+func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error) {
+	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.VoteReviewResponse{
+		ReviewID:        reviewID,
+		HelpfulCount:    h,
+		NotHelpfulCount: n,
+		MyVoteType:      myVote,
+		Action:          action,
+	}, nil
 }
