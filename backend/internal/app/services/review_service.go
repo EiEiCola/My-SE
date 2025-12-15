@@ -19,7 +19,6 @@ type ReviewService interface {
 	AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error
 	// Vote
 	VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error)
-
 }
 
 type reviewService struct {
@@ -28,6 +27,45 @@ type reviewService struct {
 
 func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
 	return &reviewService{reviewRepo: reviewRepo}
+}
+
+// --------------------------
+// helpers (อยู่ไฟล์นี้ได้เลย)
+// --------------------------
+
+func normalizeTag(raw string) string {
+	s := strings.TrimSpace(raw)
+	// รองรับ "###tag" ให้เหลือแค่ tag
+	s = strings.TrimLeft(s, "#")
+	s = strings.TrimSpace(s)
+	s = strings.ToLower(s) // กัน #Work กับ #work
+	return s
+}
+
+// ตรวจแบบ generic (รองรับ postgres/sqlite/mySQL จากข้อความ error)
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+
+	// Postgres: duplicate key value violates unique constraint
+	if strings.Contains(msg, "duplicate key value") && strings.Contains(msg, "unique") {
+		return true
+	}
+	// SQLite: UNIQUE constraint failed
+	if strings.Contains(msg, "unique constraint failed") {
+		return true
+	}
+	// MySQL: duplicate entry
+	if strings.Contains(msg, "duplicate entry") {
+		return true
+	}
+	// เผื่อข้อความอื่น ๆ
+	if strings.Contains(msg, "unique") && strings.Contains(msg, "duplicate") {
+		return true
+	}
+	return false
 }
 
 func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Review, error) {
@@ -56,29 +94,52 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 		return nil, err
 	}
 
-	// 2) hashtags
+	// 2) hashtags: มีแล้วใช้ / ไม่มีก็สร้าง
 	if len(req.Hashtags) > 0 {
+		seen := make(map[string]struct{}) // กันซ้ำใน request
+
 		for _, raw := range req.Hashtags {
-			name := strings.TrimSpace(strings.TrimPrefix(raw, "#"))
+			name := normalizeTag(raw)
 			if name == "" {
 				continue
 			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
 
+			// 2.1 หา tag ก่อน
 			tag, err := s.reviewRepo.FindTagByName(name)
 			if err != nil {
 				return nil, err
 			}
 
+			// 2.2 ไม่เจอ -> สร้างใหม่ (แต่ต้องกันชน unique)
 			if tag == nil {
 				newTag := &entity.Tag{Name: name}
 				if err := s.reviewRepo.CreateTag(newTag); err != nil {
-					return nil, err
+					// ถ้าชน unique เพราะมีคนสร้างพร้อมกัน -> หาใหม่แล้วใช้ต่อ
+					if isUniqueConstraintError(err) {
+						tag, err = s.reviewRepo.FindTagByName(name)
+						if err != nil {
+							return nil, err
+						}
+						if tag == nil {
+							// กันเคสแปลก ๆ
+							return nil, err
+						}
+					} else {
+						return nil, err
+					}
+				} else {
+					tag = newTag
 				}
-				if err := s.reviewRepo.AttachTagToReview(review.ID, newTag.ID); err != nil {
-					return nil, err
-				}
-			} else {
-				if err := s.reviewRepo.AttachTagToReview(review.ID, tag.ID); err != nil {
+			}
+
+			// 2.3 ผูก review <-> tag
+			if err := s.reviewRepo.AttachTagToReview(review.ID, tag.ID); err != nil {
+				// ถ้าเธอใส่ unique (review_id, tag_id) แล้วเจอซ้ำ -> ไม่ต้อง fail
+				if !isUniqueConstraintError(err) {
 					return nil, err
 				}
 			}
@@ -129,14 +190,17 @@ func (s *reviewService) AddReviewImages(reviewID uint, memberID uint, images []d
 
 	return nil
 }
+
 // ListReviews ดึงรีวิวทั้งหมด (optionally กรองด้วย mainCategoryID)?
 func (s *reviewService) ListReviews(mainCategoryID *uint) ([]entity.Review, error) {
 	return s.reviewRepo.ListReviewsByCategory(mainCategoryID)
 }
+
 // DeleteReview จะตรวจสอบสิทธิ์การลบด้วย memberID
 func (s *reviewService) DeleteReview(reviewID uint, memberID uint) error {
 	return s.reviewRepo.DeleteReviewByID(reviewID, memberID)
 }
+
 // VoteReview จะจัดการโหวตรีวิวทุกเคส
 func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error) {
 	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)

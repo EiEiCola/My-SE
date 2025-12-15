@@ -112,11 +112,10 @@ func (r *reviewRepository) CreateTag(tag *entity.Tag) error {
 }
 
 func (r *reviewRepository) AttachTagToReview(reviewID uint, tagID uint) error {
-	reviewTag := entity.ReviewTag{
-		ReviewID: reviewID,
-		TagID:    tagID,
-	}
-	return r.db.Create(&reviewTag).Error
+	rt := entity.ReviewTag{ReviewID: reviewID, TagID: tagID}
+	return r.db.
+		Where("review_id = ? AND tag_id = ?", reviewID, tagID).
+		FirstOrCreate(&rt).Error
 }
 
 // IMAGE
