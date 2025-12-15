@@ -1,14 +1,19 @@
 import React from "react";
-import { Card, Typography } from "antd";
+import { Card } from "antd";
 
-const { Text } = Typography;
+type Props = {
+  targetId: number;
+};
 
-function MyPost() {
+const MyPost: React.FC<Props> = ({ targetId }) => {
   return (
-    <Card style={{ borderRadius: 20, marginBottom: 20 }}>
-      <Text> My Post 🎉</Text >
+    <Card>
+      <p>Posts of user ID: {targetId}</p>
+      <p style={{ color: "#999" }}>
+        (ระบบโพสต์ของเพื่อน – รอเชื่อม API)
+      </p>
     </Card>
   );
-}
+};
 
-export default MyPost;  
+export default MyPost;

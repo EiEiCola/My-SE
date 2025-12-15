@@ -2,7 +2,12 @@ import { Routes, Route } from 'react-router-dom'
 import Home from '../app/(protected)/Admin/Home/HomeAdmin'
 import AdminLayout from '../Layout/admin'
 import ProfileManage from "../app/(protected)/Admin/ProfileManage";
+import EditAdminProfile from "../app/(protected)/Admin/ProfileManage/EditProfile";
+
 import RewardManage from "../app/(protected)/Admin/RewardManage";
+import PointRuleManage from "../app/(protected)/Admin/RewardManage/PointRuleManage";
+ 
+
 import MessageManage from "../app/(protected)/Admin/MessageManage";
 import FriendsManage from "../app/(protected)/Admin/FriendManage";
 import GroupManage from "../app/(protected)/Admin/CategoryManage";
@@ -20,8 +25,13 @@ function AdminRoutes() {
         <Route path="/Admin" element={<Home />} />
 
         <Route path="/Admin/ProfileManage" element={<ProfileManage />} />
+        <Route path="/Admin/Profile/Edit" element={<EditAdminProfile />} />
 
         <Route path="/Admin/RewardManage" element={<RewardManage />} />
+
+        <Route 
+          path="/Admin/RewardManage/PointRule" element={<PointRuleManage />} />
+
 
         <Route path="/Admin/MessageManage" element={<MessageManage />} />
 

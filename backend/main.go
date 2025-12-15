@@ -6,7 +6,11 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
 	"github.com/sut68/team12/backend/config"
+	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
+	"github.com/sut68/team12/backend/internal/app/repository"
+	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/routes"
 )
 
@@ -16,6 +20,8 @@ func main() {
 	// 1. Setup Database
 	config.Connect()
 
+	db := config.DB
+
 	// 2. Setup Gin
 	r := gin.Default()
 
@@ -23,7 +29,7 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Admin-ID"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -33,9 +39,21 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// 3. Setup Routes
-	routes.SetupRoutes(r)
+	// 3) Build dependencies (Repo -> Service -> Controller)
 
-	// 4. Run
+	// ---- Admin Profile ของเดิม ----
+	adminRepo := repository.NewAdminRepository(db)
+	adminSvc := services.NewAdminProfileService(adminRepo)
+	adminProfileCtl := controller.NewAdminProfileController(adminSvc)
+
+	// ---- ✅ Admin User Manage (Search + Lock/Unlock) ----
+	adminUserRepo := repository.NewAdminUserRepository(db)
+	adminUserSvc := services.NewAdminUserService(adminUserRepo)
+	adminUserCtl := controller.NewAdminUserController(adminUserSvc)
+
+	// 4. Setup Routes
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl)
+
+	// 5. Run
 	r.Run(":" + PORT)
 }
