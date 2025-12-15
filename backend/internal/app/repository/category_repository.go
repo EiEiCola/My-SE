@@ -23,7 +23,12 @@ func (r *MainCategoryRepository) FindAll() ([]entity.MainCategory, error) {
 
 func (r *MainCategoryRepository) FindByID(id uint) (*entity.MainCategory, error) {
 	var item entity.MainCategory
-	err := r.DB.First(&item, id).Error
+	err := r.DB.
+		Preload("SubCategoriesL1").
+		Preload("Posts").
+		Preload("Reviews").
+		Preload("Polls").
+		First(&item, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,12 @@ func (r *SubCategoryL1Repository) FindAll(mainID *uint) ([]entity.SubCategoryL1,
 
 func (r *SubCategoryL1Repository) FindByID(id uint) (*entity.SubCategoryL1, error) {
 	var item entity.SubCategoryL1
-	err := r.DB.First(&item, id).Error
+	err := r.DB.
+		Preload("SubCategories").  //จริงๆต้องใช้ SubCategoriesL2 แต่ ใน entity ใช้ SubCategories เลยต้องไปแก้ไขใน entity ก่อน
+		Preload("Posts").
+		Preload("Reviews").
+		Preload("Polls").
+	    First(&item, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +121,11 @@ func (r *SubCategoryL2Repository) FindAll(sub1ID *uint) ([]entity.SubCategoryL2,
 
 func (r *SubCategoryL2Repository) FindByID(id uint) (*entity.SubCategoryL2, error) {
 	var item entity.SubCategoryL2
-	err := r.DB.First(&item, id).Error
+	err := r.DB.
+		Preload("Posts").
+		Preload("Reviews").
+		Preload("Polls").
+		First(&item, id).Error
 	if err != nil {
 		return nil, err
 	}
