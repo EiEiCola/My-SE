@@ -16,7 +16,7 @@ type SubCategoryL2 struct{
 	CreatedByAdmin   uint	  `json:"created_by_admin"`
 
 	// Timestapms
-	CreatedAAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 	
 	// Relations
 	Posts   []Post   `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"posts"` 
