@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import ReviewCard from "./components/ReviewCard";
 import ReportReviewModal from "./ReportReviewModal";
 import "./ReviewListPage.css";
+// ดึง ลบ โหวต
+import { fetchReviews, deleteReview, voteReview } from "../../../../services/http/reviewApi";
 
-//ดึง ลบ
-import { fetchReviews } from "../../../../services/http/reviewApi";
-import { deleteReview } from "../../../../services/http/reviewApi";
 
 interface ReviewItem {
   id: number;
@@ -20,6 +19,7 @@ interface ReviewItem {
   images: string[];
   helpfulCount: number;
   notHelpfulCount: number;
+  myVoteType?: "helpful" | "not_helpful" | null;
 }
 
 // ตอนนี้ backend mock member_id = 1
@@ -246,6 +246,30 @@ const ReviewListPage: React.FC = () => {
   const deletingReview =
     selectedReviewIdForDelete != null ? reviews.find((r) => r.id === selectedReviewIdForDelete) : null;
 
+  
+  
+  const handleVote = async (reviewId: number, voteType: "helpful" | "not_helpful") => {
+  try {
+    const data = await voteReview(reviewId, voteType);
+
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? {
+              ...r,
+              helpfulCount: data.helpful_count,
+              notHelpfulCount: data.not_helpful_count,
+              myVoteType: data.my_vote_type, // null ได้
+            }
+          : r
+      )
+    );
+  } catch (e: any) {
+    alert(e.message || "โหวตไม่สำเร็จ");
+  }
+};
+
+
   return (
     <div className="rl-page">
       <div className="rl-wrap">
@@ -326,6 +350,8 @@ const ReviewListPage: React.FC = () => {
                 // ✅ เช็คจาก memberId (ตอนนี้ mock member_id = 1)
                 canDelete={review.memberId === MY_MEMBER_ID}
                 onDelete={() => handleDeleteClick(review.id)}
+                //โหวตรีวิว
+                onVote={(type) => handleVote(review.id, type)}
               />
             ))
           ) : !loading ? (

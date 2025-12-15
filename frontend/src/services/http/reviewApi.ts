@@ -76,3 +76,23 @@ export async function uploadReviewImages(reviewId: number, files: File[]) {
   if (!res.ok) throw new Error(json?.detail || json?.error || "upload images failed");
   return json.data; // [{url,is_cover,sort_order},...]
 }
+
+
+//ฟังก์ชันโหวตรีวิว (helpful / not_helpful)
+export async function voteReview(reviewId: number, voteType: "helpful" | "not_helpful") {
+  const res = await fetch(`${API_BASE}/api/member/reviews/${reviewId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vote_type: voteType }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.detail || json?.error || "vote failed");
+  return json.data as {
+    review_id: number;
+    helpful_count: number;
+    not_helpful_count: number;
+    my_vote_type: "helpful" | "not_helpful" | null;
+    action: "voted" | "unvoted" | "switched";
+  };
+}
