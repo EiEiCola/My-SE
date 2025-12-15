@@ -46,10 +46,10 @@ const AnnouncementCreate: React.FC = () => {
       const reqStart = date ? new Date(date).toISOString() : null;
       const reqEnd = endDate ? new Date(endDate).toISOString() : null;
 
-      const payload = { 
-        title, 
-        content, 
-        req_start_at: reqStart, 
+      const payload = {
+        title,
+        content,
+        req_start_at: reqStart,
         req_end_at: reqEnd,
         medias: image ? [{ url: image, type: 'image', is_cover: true }] : []
       };
@@ -119,9 +119,11 @@ const AnnouncementCreate: React.FC = () => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  // In real app: upload to server or read as dataURL
-                  // For now, just store file name or fake URL
-                  setImage(URL.createObjectURL(file));
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setImage(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
                 }
               }}
             />

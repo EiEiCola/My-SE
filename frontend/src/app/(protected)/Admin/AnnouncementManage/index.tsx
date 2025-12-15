@@ -13,17 +13,49 @@ interface RequestRow {
   status: "pending" | "approved" | "rejected";
 }
 
-const mockRequests: RequestRow[] = [
-  { id: 1, user: "user01", title: "ขอเชิญร่วมงานปฐมนิเทศ", submittedAt: "2025-12-01", displayFrom: "2025-12-05", displayTo: "2025-12-10", status: "pending" },
-  { id: 2, user: "user02", title: "อบรมเทคโนโลยีสารสนเทศ", submittedAt: "2025-12-02", displayFrom: "2025-12-12", displayTo: "2025-12-15", status: "pending" },
-  { id: 3, user: "user03", title: "ขอประชาสัมพันธ์ข่าวดี", submittedAt: "2025-12-03", displayFrom: "2025-12-04", displayTo: "2025-12-06", status: "approved" },
-];
-
 const AnnouncementManage: React.FC = () => {
   const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
+  const [requests, setRequests] = React.useState<RequestRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const filteredRequests = mockRequests.filter(r => filterStatus === "all" ? true : r.status === filterStatus);
+  React.useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        setLoading(true);
+        // Build query params
+        let url = '/api/admin/pr-submissions?page_size=50';
+        if (filterStatus === 'pending') url += '&status_id=1';
+        else if (filterStatus === 'approved') url += '&status_id=2';
+        else if (filterStatus === 'rejected') url += '&status_id=3';
+
+        // Using Admin List API (Mock Admin Auth)
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch");
+        const json = await response.json();
+        const mapped = (json.data || []).map((item: any) => ({
+          id: item.id,
+          user: item.member?.username || `Member #${item.member_id}`,
+          title: item.title,
+          submittedAt: item.req_start_at ? new Date(item.req_start_at).toLocaleDateString('th-TH') : "-",
+          // Note: Backend might return ISO, conversion needed.
+          // displayFrom/To map to ReqStart/End
+          displayFrom: item.req_start_at ? new Date(item.req_start_at).toLocaleDateString('th-TH') : "-",
+          displayTo: item.req_end_at ? new Date(item.req_end_at).toLocaleDateString('th-TH') : "-",
+          status: item.status_id === 1 ? "pending" : item.status_id === 2 ? "approved" : "rejected"
+        }));
+        setRequests(mapped);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRequests();
+  }, [filterStatus]); // Re-fetch when filter changes
+
+  // Client-side filter removed as we now filter on server
+  const filteredRequests = requests;
 
   const handleRowClick = (id: number) => {
     navigate(`/Admin/AnnouncementManage/${id}`);
