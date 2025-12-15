@@ -1,14 +1,13 @@
 import React from "react";
-import { Card, Typography } from "antd";
+import { Card } from "antd";
 
-const { Text } = Typography;
-
-function MyFav() {
+const MyFav: React.FC = () => {
   return (
-    <Card style={{ borderRadius: 20 }} >
-      <Text> My Fav ❤️</Text>
+    <Card>
+      <p>My Favorite</p>
+      <p style={{ color: "#999" }}>Coming soon</p>
     </Card>
   );
-}
+};
 
-export default MyFav;  
+export default MyFav;
