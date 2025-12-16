@@ -20,8 +20,8 @@ type SubCategoryL1 struct{
 	CreatedAt time.Time `json:"created_at"`
 
 	// Relations
-	SubCategories []SubCategoryL2 `gorm:"foreignKey:SubCategoryL1ID" json:"sub_categories_l2"`
-	Posts		  []Post          `gorm:"foreignKey:SubCategoryL1ID" json:"posts"`
+	SubCategoriesL2 []SubCategoryL2 `gorm:"foreignKey:SubCategoryL1ID" json:"sub_categories_l2"`
+	Posts		    []Post          `gorm:"foreignKey:SubCategoryL1ID" json:"posts"`
 
 	//Review relations
 	Reviews       []Review        `gorm:"foreignKey:SubCategoryL1ID" json:"reviews"`

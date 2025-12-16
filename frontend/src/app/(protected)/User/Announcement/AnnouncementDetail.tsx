@@ -26,35 +26,34 @@ const AnnouncementDetail: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Replace with your actual API endpoint
-        // const response = await fetch(`/api/announcements/${id}`);
-        // const data = await response.json();
-        // setAnnouncement(data);
+        // Fetch real data
+        const response = await fetch(`/api/members/announcements/${id}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch announcement");
+        }
+        const data = await response.json();
 
-        // Mock data - replace with real API call above
-        const mockData: AnnouncementDetail = {
-          id: parseInt(id || "1"),
-          title: "ประกาศสำคัญ",
-          description: "ข้อมูลประกาศใหม่",
-          image: "https://via.placeholder.com/800x400?text=Announcement+Detail",
-          date: "2025-01-15",
-          author: "ผู้ดูแลระบบ",
-          content: `นี่คือรายละเอียดของประกาศที่มีความสำคัญ
-          
-โครงการนี้ได้รับการพัฒนาเพื่อให้ประชากรทั่วไปสามารถได้รับข้อมูลข่าวสารและประกาศต่างๆ อย่างรวดเร็วและชัดเจน
+        // Map backend data to frontend interface
+        // Backend returns: snake_case keys usually? Let's check struct json tags.
+        // entity.Announcement has json tags. 
+        // ID, Title, Content, PublishStartAt, PublishEndAt, StatusID
+        // We need to map to: title, description (use content), image (use media), date, author, status
 
-หัวข้อหลักของประกาศนี้:
-• ให้ข้อมูลที่เป็นประโยชน์และเกี่ยวข้องกับชีวิตประจำวัน
-• นำเสนอข้อมูลในรูปแบบที่เข้าใจง่ายและเชื่อถือได้
-• อำนวยความสะดวกให้ผู้ใช้งานสามารถติดตามข้อมูลได้ตลอดเวลา
+        // Helper to find cover image
+        const coverImage = data.media?.find((m: any) => m.is_cover)?.url || data.media?.[0]?.url;
 
-เนื้อหาของประกาศนี้มีไว้เพื่อให้ประชาชนได้รับทราบข้อมูลสำคัญ และสามารถนำไปใช้ในการตัดสินใจได้อย่างเหมาะสม
-
-ขอบคุณที่ติดตามข้อมูลประกาศของเรา`,
-          status: "active",
+        const mappedData: AnnouncementDetail = {
+          id: data.id,
+          title: data.title,
+          description: data.content, // Using content as description for now
+          content: data.content,
+          image: coverImage,
+          date: data.publish_start_at,
+          author: "Admin", // Backend doesn't send Admin Name yet, defaulting
+          status: data.status_id === 1 ? "active" : "archived",
         };
 
-        setAnnouncement(mockData);
+        setAnnouncement(mappedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch announcement");
       } finally {

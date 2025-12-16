@@ -8,7 +8,7 @@ const { Title } = Typography;
 
 // ✅ axios instance: baseURL = http://localhost:8080/api
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8080") + "/api",
+  baseURL: (import.meta.env.VITE_API_URL || "") + "/api",
 });
 
 type PointRulePayload = {
@@ -63,8 +63,8 @@ const PointRuleManage: React.FC = () => {
       const list = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
-        ? res.data.data
-        : [];
+          ? res.data.data
+          : [];
 
       const mapped = list.map(normalizeRule);
 
