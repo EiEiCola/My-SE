@@ -41,14 +41,21 @@ const AnnouncementCreate: React.FC = () => {
         throw new Error("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น");
       }
 
-      if (!category) {
-        throw new Error("กรุณาเลือกหมวดหมู่");
-      }
+      // Convert dates to ISO string or RFC3339 format for Go backend
+      // Assuming existing `date` is YYYY-MM-DD
+      const reqStart = date ? new Date(date).toISOString() : null;
+      const reqEnd = endDate ? new Date(endDate).toISOString() : null;
 
-      const payload = { title, category, description, content, image, date, endDate, status: "active" };
+      const payload = {
+        title,
+        content,
+        req_start_at: reqStart,
+        req_end_at: reqEnd,
+        medias: image ? [{ url: image, type: 'image', is_cover: true }] : []
+      };
 
-      // Example POST - adjust URL as needed (env or proxy)
-      const res = await fetch(`/api/announcements`, {
+      // Send to Member PR Submission endpoint
+      const res = await fetch(`/api/members/pr-submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -56,7 +63,7 @@ const AnnouncementCreate: React.FC = () => {
 
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(txt || "Failed to create announcement");
+        throw new Error(txt || "Failed to create submission");
       }
 
       // On success, go back to announcement list
@@ -112,9 +119,11 @@ const AnnouncementCreate: React.FC = () => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  // In real app: upload to server or read as dataURL
-                  // For now, just store file name or fake URL
-                  setImage(URL.createObjectURL(file));
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setImage(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
                 }
               }}
             />

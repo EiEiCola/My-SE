@@ -1,64 +1,56 @@
 package routes
 
 import (
-	"github.com/sut68/team12/backend/internal/app/controller/member"
-	"github.com/sut68/team12/backend/internal/middlewares"
-
 	"github.com/gin-gonic/gin"
+	"github.com/sut68/team12/backend/config"
+	"github.com/sut68/team12/backend/internal/app/controller/member"
+	"github.com/sut68/team12/backend/internal/app/repository"
+	"github.com/sut68/team12/backend/internal/app/services"
 )
 
-func FriendRoutes(r *gin.Engine,
-	reqCtl *controller.FriendRequestController,
-	friendCtl *controller.FriendshipController,
-	blockCtl *controller.BlockController) {
+// SetupFriendRoutes จะทำการตั้งค่า routes สำหรับระบบจัดการเพื่อนทั้งหมด
+func SetupFriendRoutes(r *gin.Engine) {
+	db := config.DB 
 
-	f := r.Group("/friends", middlewares.AuthMiddleware())
+	repo := repository.NewFriendRepository(db)
+	friendService := services.NewFriendService(repo)
 
-	f.POST("/send", reqCtl.Send)
-	f.POST("/respond", reqCtl.Respond)
-	f.POST("/cancel", reqCtl.Cancel)
+	// Controllers ที่เกี่ยวข้อง
+	friendReqCtl := controller.NewFriendRequestController(friendService)
+	friendshipCtl := controller.NewFriendshipController(friendService)
+	blockCtl := controller.NewBlockController(friendService)
+	
+	// ** เพิ่ม Follow Controller **
+	followCtl := controller.NewFollowController(friendService) 
 
-	f.POST("/unfriend", friendCtl.Unfriend)
+	api := r.Group("/api")
+	// api.Use(middlewares.Authorizes()) // ใส่ Authentication middleware ที่นี่
+	{
+		// ------------------ Friend Requests (คำขอเป็นเพื่อน) ------------------
+		api.POST("/friend-requests", friendReqCtl.Send)
+		api.POST("/friend-requests/respond", friendReqCtl.Respond)
+		// ใช้ DELETE เพื่อยกเลิก (เป็นการลบทิ้ง)
+		api.DELETE("/friend-requests/cancel", friendReqCtl.Cancel) 
+		
+		// ------------------ Relations (ความสัมพันธ์/เพื่อน) ------------------
+		// ใช้ DELETE เพื่อลบความสัมพันธ์ (Unfriend)
+		api.DELETE("/friendships/unfriend", friendshipCtl.Unfriend)
+		
+		// ------------------ Follow (ติดตาม/เลิกติดตาม) ------------------
+		// POST /api/follows 		-> ติดตาม
+		api.POST("/follows", followCtl.Follow)
+		// DELETE /api/follows 	-> เลิกติดตาม (Unfollow/Mute)
+		api.DELETE("/follows", followCtl.Unfollow)
 
-	f.POST("/block", blockCtl.Block)
+		// POST /api/follows/mute 	-> ซ่อนโพสต์
+		api.POST("/follows/mute", followCtl.Mute)
+		// DELETE /api/follows/mute -> ยกเลิกการซ่อนโพสต์ (Unmute)
+		api.DELETE("/follows/mute", followCtl.Unmute)
+
+		// ------------------ Block (บล็อก/เลิกบล็อก) ------------------
+		// POST /api/blocks 		-> บล็อก
+		api.POST("/blocks", blockCtl.Block)
+		// DELETE /api/blocks 	-> เลิกบล็อก
+		api.DELETE("/blocks", blockCtl.Unblock) 
+	}
 }
-
-// package routes
-
-// import (
-// 	"github.com/gin-gonic/gin"
-// 	"gorm.io/gorm"
-
-// 	"github.com/sut68/team12/backend/internal/app/controller"
-// 	"github.com/sut68/team12/backend/internal/app/repository"
-// 	"github.com/sut68/team12/backend/internal/app/services"
-// )
-
-// // RegisterFriendRoutes จะรับ gin.Engine และ *gorm.DB เพื่อสร้าง repo/service/controller และ bind routes
-// func RegisterFriendRoutes(r *gin.Engine, db *gorm.DB) {
-// 	// สร้าง repository, service, controllers
-// 	repo := repository.NewFriendRepository(db)
-// 	friendService := services.NewFriendService(db, repo)
-
-// 	friendReqCtl := controller.NewFriendRequestController(friendService)
-// 	friendshipCtl := controller.NewFriendshipController(friendService)
-// 	blockCtl := controller.NewBlockController(friendService)
-
-// 	// group routes ถ้าต้องการ prefix
-// 	api := r.Group("/api")
-// 	{
-// 		// friend requests
-// 		api.POST("/members/:id/friend-requests", friendReqCtl.SendFriendRequest)
-// 		api.POST("/friend-requests/:id/accept", friendReqCtl.AcceptFriendRequest)
-// 		api.POST("/friend-requests/:id/reject", friendReqCtl.RejectFriendRequest)
-// 		api.DELETE("/friend-requests/:id", friendReqCtl.CancelFriendRequest)
-
-// 		// friendships
-// 		api.GET("/members/:id/friends", friendshipCtl.GetFriends)
-// 		api.DELETE("/members/:id/friends/:targetID", friendshipCtl.Unfriend)
-
-// 		// block
-// 		api.POST("/members/:id/block/:targetID", blockCtl.BlockMember)
-// 		api.DELETE("/members/:id/block/:targetID", blockCtl.UnblockMember)
-// 	}
-// }

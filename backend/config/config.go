@@ -6,8 +6,10 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
+
 	"gorm.io/gorm"
 )
 
@@ -48,6 +50,8 @@ func Connect() *gorm.DB {
 		log.Fatal("Failed to connect to database. ", err)
 	}
 	log.Println("Connected to database")
+
+	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
 
@@ -107,6 +111,8 @@ func Connect() *gorm.DB {
 		&entity.RoomMember{},
 		&entity.MessageStatus{},
 		&entity.AttachmentChat{},
+		&entity.FollowStatus{},
+		&entity.Follow{},
 
 		// --- 9. ตาราง PR & Report (Moderation Module) ---
 		&entity.PRSubmission{},
@@ -146,6 +152,8 @@ func Connect() *gorm.DB {
 	// s.SeedClubRequest(db)
 	// s.SeedClubMember(db)
 	// s.SeedEvent(db)
+
+	dataseed.SeedPRSystem(db)
 
 	return db
 }

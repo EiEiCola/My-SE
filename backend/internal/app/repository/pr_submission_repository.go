@@ -19,6 +19,10 @@ func (r *PRSubmissionRepository) Create(sub *entity.PRSubmission) error {
 	return r.DB.Create(sub).Error
 }
 
+func (r *PRSubmissionRepository) Update(sub *entity.PRSubmission) error {
+	return r.DB.Save(sub).Error
+}
+
 func (r *PRSubmissionRepository) GetByID(id int) (*entity.PRSubmission, error) {
 	var s entity.PRSubmission
 	err := r.DB.Preload("Media").Preload("Reviews").Where("pr_id = ?", id).First(&s).Error
@@ -73,6 +77,6 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Preload("Reviews").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("Reviews").Preload("Member").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }

@@ -49,8 +49,8 @@ const UserItems: MenuItem[] = [
         subItems: [
             { name: "คำขอเป็นเพื่อน", path: "/User/Friends/Request" },
             { name: "เพื่อนแนะนำ", path: "/User/Friends/Popular" },
-            { name: "เพื่อนทั้งหมด", path: "/User/Friends/All" },
-            { name: "วันเกิด", path: "/User/Friends/Birthdays" },
+            { name: "เพื่อนทั้งหมด", path: "/User/Friends/FriendRelation" },
+            { name: "วันเกิด", path: "/User/Friends/FriendBirthday" },
         ]
     },
     { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal />},
@@ -142,7 +142,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                                 </span>
                             </div>
 
-                            <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex flex-col flex-1">
                                 <h1 className="text-base font-bold text-slate-800 whitespace-nowrap">
                                     SUT Community
                                 </h1>
