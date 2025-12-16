@@ -1,0 +1,79 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - main  # หรือ branch ที่คุณต้องการ deploy
+
+jobs:
+  # 1. Test & Build Backend
+  build_backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: juribers/team12-backend:latest
+
+  # 2. Build Frontend
+  build_frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: juribers/team12-frontend:latest
+
+  # 3. Deploy to Azure VM via SSH
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build_backend, build_frontend] # รอให้ Build เสร็จก่อนค่อย Deploy
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            # เข้าโฟลเดอร์งาน (แก้ให้ตรงกับที่สร้างไว้บน Server)
+            cd ~/my_app || mkdir -p ~/my_app && cd ~/my_app
+            
+            # (Optional) ถ้าอยากให้แน่ใจว่าไฟล์ docker-compose ล่าสุด ให้ scp ไปด้วยก็ได้ 
+            # แต่ถ้าไฟล์นิ่งแล้ว รันแค่ข้างล่างนี้พอครับ:
+
+            echo "🚀 Deploying..."
+            sudo docker compose pull
+            sudo docker compose up -d
+            sudo docker image prune -f
+            echo "✅ Deployment Success!"
