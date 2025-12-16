@@ -26,12 +26,20 @@ func main() {
 
 	// 3. CORS (ต้องมาก่อน SetupRoutes)
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Admin-ID"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+  AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
+  AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+  AllowHeaders: []string{
+    "Origin",
+    "Content-Type",
+    "Authorization",
+    "X-Admin-ID",
+    "x-idempotency-key",
+    "X-Idempotency-Key",
+  },
+  AllowCredentials: true,
+  MaxAge:           12 * time.Hour,
+}))
+
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {

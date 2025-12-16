@@ -11,6 +11,10 @@ func SetupRoutes(
 	adminProfileController *controller.AdminProfileController,
 	adminUserController *controller.AdminUserController,
 ) {
+
+	// ✅ เพิ่มบรรทัดนี้
+  r.Static("/uploads", "./uploads")
+  
 	api := r.Group("/api")
 	// api.Use(middlewares.Authorizes())
 	{
@@ -25,8 +29,10 @@ func SetupRoutes(
 
 		// route จัดการบัญชีผู้ใช้ (Search + Lock/Unlock)
 		SetupAdminUserManageRoutes(api, adminUserController)
-	}
 
+		SetupRewardRoutes(api)
+		SetupMemberRewardRoutes(api)
+	}
 	// ของเดิม
 	SetupMemberRoutes(r)
 }

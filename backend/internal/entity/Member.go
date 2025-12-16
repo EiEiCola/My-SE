@@ -1,32 +1,34 @@
 package entity
 
 import (
+	"time"
 
+	"github.com/asaskevich/govalidator"
 	"gorm.io/gorm"
-    "time"
 )
 
 type Member struct {
-
 	gorm.Model
 
-    FirstName     string `json:"first_name"`
-    LastName      string `json:"last_name"`
-    Username      string `json:"username" gorm:"unique"`
-	Dob           time.Time `json:"dob"`
-    Bio           string `json:"bio"`
-    MemberPicture string `json:"member_picture"`
-    NationalID    string `json:"national_id"`
-    StudentID     string `json:"student_id" gorm:"unique"`
+	FirstName string `json:"first_name" valid:"required~FirstName is required"`
+	LastName  string `json:"last_name" valid:"required~LastName is required"`
+	Username  string `json:"username" gorm:"unique" valid:"required~Username is required"`
+
+	Dob time.Time `json:"dob" valid:"required~Dob is required"`
+
+	Bio           string `json:"bio"`
+	MemberPicture string `json:"member_picture"`
+
+	NationalID string `json:"national_id" valid:"required~NationalID is required,length(13|13)~NationalID must be 13 digits"`
+	StudentID  string `json:"student_id" gorm:"unique" valid:"required~StudentID is required"`
 
 	// 1:1 กับ MemberAccount
 	MemberAccount *MemberAccount `gorm:"foreignKey:MemberID;references:ID"`
 
+	GenderID uint   `json:"gender_id" valid:"required~GenderID is required"`
+	Gender   Gender `gorm:"foreignKey:GenderID;references:ID"`
 
-    GenderID       uint        `json:"gender_id"`
-    Gender         Gender       `gorm:"foreignKey:GenderID;references:ID"`
-
-	ActiveStatusID uint         `json:"active_status_id"`
+	ActiveStatusID uint         `json:"active_status_id" valid:"required~ActiveStatusID is required"`
 	ActiveStatus   ActiveStatus `gorm:"foreignKey:ActiveStatusID;references:ID"`
 
 	SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
@@ -38,14 +40,22 @@ type Member struct {
 	BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
 	BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
 
-	Reviews      []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
-    ReviewVotes  []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
+	Reviews     []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
+	ReviewVotes []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
 
-    Polls        []Poll       `gorm:"foreignKey:MemberID" json:"polls"`
+	Polls []Poll `gorm:"foreignKey:MemberID" json:"polls"`
 
 	PRSubmissions []PRSubmission `gorm:"foreignKey:MemberID" json:"pr_submissions"`
 
 	Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
 
 	ReceivedReports []Report `gorm:"polymorphic:Target;" json:"received_reports"`
+}
+
+func init() {
+	govalidator.SetFieldsRequiredByDefault(false)
+}
+
+func ValidateMember(m Member) (bool, error) {
+	return govalidator.ValidateStruct(m)
 }
