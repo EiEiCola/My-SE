@@ -3,7 +3,9 @@ name: Deploy to Azure VM
 on:
   push:
     branches:
-      - main  # หรือ branch ที่คุณต้องการ deploy
+    branches:
+      - main
+      - issue-125
 
 jobs:
   # 1. Test & Build Backend
@@ -70,10 +72,10 @@ jobs:
             cd ~/my_app || mkdir -p ~/my_app && cd ~/my_app
             
             # (Optional) ถ้าอยากให้แน่ใจว่าไฟล์ docker-compose ล่าสุด ให้ scp ไปด้วยก็ได้ 
-            # แต่ถ้าไฟล์นิ่งแล้ว รันแค่ข้างล่างนี้พอครับ:
+            # แต่ถ้าไฟล์นิ่งแล้ว รันแค่ข้างล่างนี้พอ:
 
-            echo "🚀 Deploying..."
+            echo "Deploying..."
             sudo docker compose pull
             sudo docker compose up -d
             sudo docker image prune -f
-            echo "✅ Deployment Success!"
+            echo "Deployment Success!"
