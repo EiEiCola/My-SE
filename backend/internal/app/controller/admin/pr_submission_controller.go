@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
@@ -60,6 +61,22 @@ func (ctl *AdminPRController) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
 }
 
+// GET /admin/pr-submissions/:id
+func (ctl *AdminPRController) GetByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	sub, err := ctl.SubmissionService.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, sub)
+}
+
 // POST /admin/pr-submissions/:id/review
 func (ctl *AdminPRController) Review(c *gin.Context) {
 	idStr := c.Param("id")
@@ -93,4 +110,44 @@ func (ctl *AdminPRController) Review(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+type updatePRRequest struct {
+	Title      string  `json:"title" binding:"required"`
+	Content    string  `json:"content" binding:"required"`
+	ReqStartAt *string `json:"req_start_at"`
+	ReqEndAt   *string `json:"req_end_at"`
+}
+
+// PUT /admin/pr-submissions/:id
+func (ctl *AdminPRController) Update(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req updatePRRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var start, end *time.Time
+	if req.ReqStartAt != nil {
+		if t, err := time.Parse(time.RFC3339, *req.ReqStartAt); err == nil {
+			start = &t
+		}
+	}
+	if req.ReqEndAt != nil {
+		if t, err := time.Parse(time.RFC3339, *req.ReqEndAt); err == nil {
+			end = &t
+		}
+	}
+
+	if err := ctl.SubmissionService.UpdateSubmission(id, req.Title, req.Content, start, end); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "updated"})
 }

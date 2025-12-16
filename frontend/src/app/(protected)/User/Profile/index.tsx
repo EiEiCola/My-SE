@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Button,
-  Typography,
-  Avatar,
-  Tabs,
-} from "antd";
+import { Card, Button, Typography, Avatar, Tabs } from "antd";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import axios from "axios";
 
 // ⭐ Icons
 import CakeIcon from "@mui/icons-material/Cake";
@@ -19,7 +12,10 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CrueltyFreeIcon from "@mui/icons-material/CrueltyFree";
 
-const { Title, Text } = Typography; 
+// ✅ use separated API
+import { memberAPI } from "../../../../services/http/member_profile";
+
+const { Title, Text } = Typography;
 
 // mock account id (ตอนนี้ใช้ตัวที่เทสต์ใน Postman)
 const ACCOUNT_ID = 201;
@@ -64,8 +60,8 @@ function Profile() {
 
   // ⭐ โหลดโปรไฟล์จาก backend
   useEffect(() => {
-    axios
-      .get(`http://localhost:8080/api/members/account/${ACCOUNT_ID}`)
+    memberAPI
+      .getByAccountId(ACCOUNT_ID)
       .then((res) => {
         const data = res.data;
 
@@ -129,7 +125,6 @@ function Profile() {
 
   // ⭐ เวลาเปลี่ยนแท็บ
   const handleTabChange = (key: string) => {
-    // เปลี่ยนแค่ path เดี๋ยว useEffect ด้านบนจะเปลี่ยน activeTab ให้เอง
     navigate(`/User/Profile/${key}`);
   };
 
@@ -147,7 +142,8 @@ function Profile() {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        backgroundColor: "#fff5ed",
+        // ✅ เอาพื้นหลังสุดออก (ถ้าอยากให้ขาวใส่ "#fff" ได้)
+        // backgroundColor: "#fff",
         display: "flex",
         justifyContent: "center",
       }}
@@ -194,45 +190,30 @@ function Profile() {
                   style={{ paddingRight: 140, cursor: "pointer" }}
                   onClick={() => openPopup("friends")}
                 >
-                  <Title
-                    level={4}
-                    style={{ margin: 0, color: "black", fontWeight: 700 }}
-                  >
+                  <Title level={4} style={{ margin: 0, color: "black", fontWeight: 700 }}>
                     {profile.friends}
                   </Title>
-                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>
-                    friends
-                  </Text>
+                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>friends</Text>
                 </div>
 
                 <div
                   style={{ paddingRight: 140, cursor: "pointer" }}
                   onClick={() => openPopup("followers")}
                 >
-                  <Title
-                    level={4}
-                    style={{ margin: 0, color: "black", fontWeight: 700 }}
-                  >
+                  <Title level={4} style={{ margin: 0, color: "black", fontWeight: 700 }}>
                     {profile.followers}
                   </Title>
-                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>
-                    followers
-                  </Text>
+                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>followers</Text>
                 </div>
 
                 <div
                   style={{ paddingRight: 140, cursor: "pointer" }}
                   onClick={() => openPopup("following")}
                 >
-                  <Title
-                    level={4}
-                    style={{ margin: 0, color: "black", fontWeight: 700 }}
-                  >
+                  <Title level={4} style={{ margin: 0, color: "black", fontWeight: 700 }}>
                     {profile.following}
                   </Title>
-                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>
-                    following
-                  </Text>
+                  <Text style={{ fontWeight: 500, color: "#5c5c5c" }}>following</Text>
                 </div>
               </div>
 
@@ -259,9 +240,7 @@ function Profile() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center" }}>
-                    <PeopleAltIcon
-                      style={{ color: "#C42E0A", marginRight: 6 }}
-                    />
+                    <PeopleAltIcon style={{ color: "#C42E0A", marginRight: 6 }} />
                     {profile.gender || "—"}
                   </div>
 
@@ -330,23 +309,16 @@ function Profile() {
                       gap: 8,
                       fontSize: 16,
                       fontWeight: 600,
-                      color:
-                        activeTab === "post" ? "#C42E0A" : "#8E8E8E",
+                      color: activeTab === "post" ? "#C42E0A" : "#8E8E8E",
                     }}
                   >
                     <DescriptionIcon
-                      style={{
-                        color:
-                          activeTab === "post"
-                            ? "#C42E0A"
-                            : "#8E8E8E",
-                      }}
+                      style={{ color: activeTab === "post" ? "#C42E0A" : "#8E8E8E" }}
                     />
                     My Post
                   </span>
                 ),
               },
-
               {
                 key: "fav",
                 label: (
@@ -357,23 +329,16 @@ function Profile() {
                       gap: 8,
                       fontSize: 16,
                       fontWeight: 600,
-                      color:
-                        activeTab === "fav" ? "#C42E0A" : "#8E8E8E",
+                      color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E",
                     }}
                   >
                     <FavoriteIcon
-                      style={{
-                        color:
-                          activeTab === "fav"
-                            ? "#C42E0A"
-                            : "#8E8E8E",
-                      }}
+                      style={{ color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E" }}
                     />
                     My Fav
                   </span>
                 ),
               },
-
               {
                 key: "sticker",
                 label: (
@@ -384,19 +349,11 @@ function Profile() {
                       gap: 8,
                       fontSize: 16,
                       fontWeight: 600,
-                      color:
-                        activeTab === "sticker"
-                          ? "#C42E0A"
-                          : "#8E8E8E",
+                      color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E",
                     }}
                   >
                     <CrueltyFreeIcon
-                      style={{
-                        color:
-                          activeTab === "sticker"
-                            ? "#C42E0A"
-                            : "#8E8E8E",
-                      }}
+                      style={{ color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E" }}
                     />
                     My Sticker
                   </span>
@@ -453,10 +410,7 @@ function Profile() {
                     cursor: "pointer",
                     fontWeight: 700,
                     color: popupTab === t ? "#C42E0A" : "#555",
-                    borderBottom:
-                      popupTab === t
-                        ? "3px solid #C42E0A"
-                        : "3px solid transparent",
+                    borderBottom: popupTab === t ? "3px solid #C42E0A" : "3px solid transparent",
                     paddingBottom: 4,
                   }}
                 >
@@ -476,48 +430,26 @@ function Profile() {
                   borderBottom: "1px solid #ddd",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 15,
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
                   <Avatar size={55} src={item.avatar}>
                     {item.username[0]}
                   </Avatar>
 
-                  <span
-                    style={{ fontSize: 17, fontWeight: 600 }}
-                  >
-                    {item.username}
-                  </span>
+                  <span style={{ fontSize: 17, fontWeight: 600 }}>{item.username}</span>
                 </div>
 
                 {popupTab === "followers" && (
-                  <Button
-                    type="primary"
-                    style={{
-                      background: "#C42E0A",
-                      border: "none",
-                    }}
-                  >
+                  <Button type="primary" style={{ background: "#C42E0A", border: "none" }}>
                     follow back
                   </Button>
                 )}
 
-                {popupTab === "following" && (
-                  <Button danger>unfollow</Button>
-                )}
+                {popupTab === "following" && <Button danger>unfollow</Button>}
               </div>
             ))}
 
-            <div
-              style={{ textAlign: "right", marginTop: 25 }}
-            >
-              <Button onClick={() => setPopupOpen(false)}>
-                Close
-              </Button>
+            <div style={{ textAlign: "right", marginTop: 25 }}>
+              <Button onClick={() => setPopupOpen(false)}>Close</Button>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import Home from "../app/(protected)/User/Home/HomeUser";
 import UserLayout from "../Layout/user";
 
 import Profile from "../app/(protected)/User/Profile";
+import ProfileView from "../app/(protected)/User/Profile/ProfileView";
 import MyPost from "../app/(protected)/User/Profile/MyPost";
 import MyFav from "../app/(protected)/User/Profile/MyFav";
 import MySticker from "../app/(protected)/User/Profile/MySticker";
@@ -35,13 +36,16 @@ function UserRoutes() {
 
         {/* ⭐ PROFILE (Nested Routes) */}
         <Route path="/User/Profile" element={<Profile />}>
-          <Route index element={<MyPost />} />      // ⭐ default
-          <Route path="post" element={<MyPost />} />
+          <Route index element={<Post />} />      // ⭐ default
+          <Route path="post" element={<Post />} />
           <Route path="fav" element={<MyFav />} />
           <Route path="sticker" element={<MySticker />} />
         </Route>
 
         <Route path="/User/Profile/edit" element={<EditProfile />} />
+        <Route path="/User/Profile" element={<ProfileView />} />
+        <Route path="/User/Profile/:memberId" element={<ProfileView />} />
+
 
         <Route path="/User/Reward" element={<Reward />} />
 

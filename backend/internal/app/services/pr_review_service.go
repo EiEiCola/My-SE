@@ -75,6 +75,15 @@ func (s *PRReviewService) ReviewSubmission(adminID int, submissionID int, status
 					log.Println("Create Media Error:", err)
 					return err
 				}
+				// If this is cover, update announcement's CoverMediaID
+				if m.IsCover {
+					mid := int(am.MediaID)
+					// We need to use map to update to avoid zero value issues if using struct?
+					// But we are in transaction.
+					if err := tx.Model(&entity.Announcement{}).Where("ann_id = ?", ann.ID).Update("cover_media_id", mid).Error; err != nil {
+						log.Println("Update Cover ID Error:", err)
+					}
+				}
 			}
 		}
 

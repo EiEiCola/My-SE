@@ -1,94 +1,102 @@
+// backend/internal/service/admin_profile_service.go
 package services
 
 import (
+  "errors"
+  "strings"
 
-    "github.com/sut68/team12/backend/internal/app/repository"
-	"github.com/sut68/team12/backend/internal/entity"
+  "github.com/sut68/team12/backend/internal/app/repository"
+  "github.com/sut68/team12/backend/internal/utils"
 )
 
-
-type AdminService interface {
-    // GetByID ดึง Admin จาก ID
-    GetByID(id uint) (*entity.Admin, error)
-
-    // GetByAccountID ดึง Admin จาก MemberAccountID
-    GetByAccountID(accountID uint) (*entity.Admin, error)
-
-    // ListAdmins ดึง Admin ทั้งหมด
-    ListAdmins() ([]entity.Admin, error)
-
-    // CreateAdmin สร้าง Admin ใหม่จากข้อมูลที่รับมา
-    CreateAdmin(input CreateAdminInput) (*entity.Admin, error)
-
-    // UpdateAdminProfile แก้ไขชื่อ/นามสกุลของ Admin
-    UpdateAdminProfile(id uint, input UpdateAdminInput) (*entity.Admin, error)
+type AdminProfileDTO struct {
+  ID             uint   `json:"id"`
+  Username       string `json:"username"`
+  FirstName      string `json:"first_name"`
+  LastName       string `json:"last_name"`
+  ProfilePicture string `json:"profile_picture"`
+  PhoneNumber    string `json:"phone_number"`
+  Email          string `json:"email"`
+  NationalIDLast4 string `json:"national_id_last4"`
 }
 
-// struct สำหรับรับข้อมูลตอนสร้าง Admin ใหม่
-type CreateAdminInput struct {
-    AdminID         int    `json:"admin_id"`
-    FirstName       string `json:"first_name"`
-    LastName        string `json:"last_name"`
-    MemberAccountID uint   `json:"member_account_id"`
+type UpdateAdminProfileReq struct {
+  Username       string `json:"username"`
+  FirstName      string `json:"first_name"`
+  LastName       string `json:"last_name"`
+  ProfilePicture string `json:"profile_picture"`
+  PhoneNumber    string `json:"phone_number"`
 }
 
-// struct สำหรับรับข้อมูลตอนแก้ไขโปรไฟล์ Admin
-type UpdateAdminInput struct {
-    FirstName string `json:"first_name"`
-    LastName  string `json:"last_name"`
+type SetAdminNationalIDReq struct {
+  NationalID string `json:"national_id"`
 }
 
-type adminService struct {
-    adminRepo repository.AdminRepository
+type AdminProfileService interface {
+  GetMe(adminID uint) (*AdminProfileDTO, error)
+  UpdateMe(adminID uint, req UpdateAdminProfileReq) error
+  SetNationalID(adminID uint, req SetAdminNationalIDReq) error
 }
 
-func NewAdminService(adminRepo repository.AdminRepository) AdminService {
-    return &adminService{adminRepo: adminRepo}
+type adminProfileService struct {
+  repo repository.AdminRepository
 }
 
-// ใช้ดึง Admin จาก ID
-func (s *adminService) GetByID(id uint) (*entity.Admin, error) {
-    return s.adminRepo.FindByID(id)
+func NewAdminProfileService(repo repository.AdminRepository) AdminProfileService {
+  return &adminProfileService{repo: repo}
 }
 
-// ใช้ดึง Admin จาก MemberAccountID (เช่นจาก context auth ทีหลัง)
-func (s *adminService) GetByAccountID(accountID uint) (*entity.Admin, error) {
-    return s.adminRepo.FindByAccountID(accountID)
+func (s *adminProfileService) GetMe(adminID uint) (*AdminProfileDTO, error) {
+  admin, err := s.repo.GetByIDWithAccount(adminID)
+  if err != nil {
+    return nil, err
+  }
+
+  dto := &AdminProfileDTO{
+    ID:             admin.ID,
+    Username:       admin.Username,
+    FirstName:      admin.FirstName,
+    LastName:       admin.LastName,
+    ProfilePicture: admin.ProfilePicture,
+    PhoneNumber:    admin.PhoneNumber,
+    NationalIDLast4: admin.NationalIDLast4,
+    Email:          admin.MemberAccount.Email,
+  }
+  return dto, nil
 }
 
-// ดึง Admin ทั้งหมด (ใช้ในหน้า list แอดมิน)
-func (s *adminService) ListAdmins() ([]entity.Admin, error) {
-    return s.adminRepo.FindAll()
+func (s *adminProfileService) UpdateMe(adminID uint, req UpdateAdminProfileReq) error {
+  patch := map[string]any{}
+
+  if strings.TrimSpace(req.Username) != "" {
+    patch["username"] = strings.TrimSpace(req.Username)
+  }
+  if req.FirstName != "" {
+    patch["first_name"] = req.FirstName
+  }
+  if req.LastName != "" {
+    patch["last_name"] = req.LastName
+  }
+  if req.ProfilePicture != "" {
+    patch["profile_picture"] = req.ProfilePicture
+  }
+  if req.PhoneNumber != "" {
+    patch["phone_number"] = req.PhoneNumber
+  }
+
+  if len(patch) == 0 {
+    return errors.New("ไม่มีข้อมูลสำหรับอัปเดต")
+  }
+  return s.repo.UpdateProfile(adminID, patch)
 }
 
-// สร้าง Admin ใหม่จากข้อมูล input
-func (s *adminService) CreateAdmin(input CreateAdminInput) (*entity.Admin, error) {
-    admin := &entity.Admin{
-        AdminID:         input.AdminID,
-        FirstName:       input.FirstName,
-        LastName:        input.LastName,
-        MemberAccountID: input.MemberAccountID,
-    }
+func (s *adminProfileService) SetNationalID(adminID uint, req SetAdminNationalIDReq) error {
+  nid := utils.NormalizeNationalID(req.NationalID)
+  if !utils.ValidateNationalID13(nid) {
+    return errors.New("เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก")
+  }
 
-    if err := s.adminRepo.Create(admin); err != nil {
-        return nil, err
-    }
-    return admin, nil
-}
-
-// แก้ไขชื่อ/นามสกุลของ Admin
-func (s *adminService) UpdateAdminProfile(id uint, input UpdateAdminInput) (*entity.Admin, error) {
-    admin, err := s.adminRepo.FindByID(id)
-    if err != nil {
-        return nil, err
-    }
-
-    admin.FirstName = input.FirstName
-    admin.LastName = input.LastName
-
-    if err := s.adminRepo.Update(admin); err != nil {
-        return nil, err
-    }
-
-    return admin, nil
+  hash := utils.HashNationalID(nid)
+  last4 := utils.Last4(nid)
+  return s.repo.UpdateNationalID(adminID, hash, last4)
 }

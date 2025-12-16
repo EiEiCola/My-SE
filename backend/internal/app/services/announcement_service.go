@@ -136,3 +136,21 @@ func (s *AnnouncementService) UpdateAnnouncement(id int, in *CreateAnnouncementI
 func (s *AnnouncementService) DeleteAnnouncement(id int) error {
 	return s.AnnRepo.Delete(id)
 }
+
+// GetPublishedByID retrieves an announcement only if it is published and active
+func (s *AnnouncementService) GetPublishedByID(id int) (*entity.Announcement, error) {
+	ann, err := s.AnnRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// Check Status Active (1)
+	if ann.StatusID != 1 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	// Check Date Range
+	now := time.Now()
+	if now.Before(ann.PublishStartAt) || now.After(ann.PublishEndAt) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return ann, nil
+}
