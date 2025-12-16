@@ -45,7 +45,7 @@ const FriendRequest: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Friend Request List */}
-      <div className="w-96 bg-white flex flex-col shadow-lg border-b-0 border-l-0 border-r-1
+      <div className="w-96 bg-white flex flex-col border-b-0 border-l-0 border-r-1
         border-t-0 border-slate-200/50 border-solid ">
         {/* Header */}
         <div className="p-4 border-b-1 border-l-0 border-r-0
@@ -65,12 +65,11 @@ const FriendRequest: React.FC = () => {
               className="text-xs text-orange-500 cursor-pointer hover:text-orange-600 font-medium">
               ดูคำขอที่ส่งแล้ว
             </button>
-
           </div>
         </div>
 
         {/* Request List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 ">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {requests.map((request) => (
             <div
               key={request.id}
@@ -78,14 +77,14 @@ const FriendRequest: React.FC = () => {
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
-                <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
                   <Image className="w-6 h-6 text-gray-400" />
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-semibold text-[17px] text-gray-800">{request.name}</h3>
+                    <h3 className="font-semibold text-base text-gray-800">{request.name}</h3>
                     <span className="text-xs text-gray-500">{request.date}</span>
                   </div>
                   <p className="text-xs text-gray-500 mb-3">{request.bank}</p>
@@ -95,7 +94,7 @@ const FriendRequest: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleAccept(request.id)}
-                        className="flex-1 bg-gradient-to-r from-orange-400 to-orange-500 text-white py-2 rounded-full font-medium hover:from-orange-500 hover:to-orange-600 transition-all shadow-md"
+                        className="flex-1 bg-gradient-to-r from-orange-400 to-orange-500 text-white py-2 rounded-full font-medium text-sm hover:from-orange-500 hover:to-orange-600 transition-all shadow-md"
                       >
                         ยืนยัน
                       </button>

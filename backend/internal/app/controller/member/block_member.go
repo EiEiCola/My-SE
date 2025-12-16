@@ -24,3 +24,12 @@ func (ctl *BlockController) Block(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.Block(body)})
 }
+
+func (ctl *BlockController) Unblock(c *gin.Context) {
+	var body dto.UnblockDTO
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.Unblock(body)})
+}

@@ -107,6 +107,8 @@ func Connect() *gorm.DB {
 		&entity.RoomMember{},
 		&entity.MessageStatus{},
 		&entity.AttachmentChat{},
+		&entity.FollowStatus{},
+		&entity.Follow{},
 
 		// --- 9. ตาราง PR & Report (Moderation Module) ---
 		&entity.PRSubmission{},
