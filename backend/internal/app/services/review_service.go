@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -17,6 +18,7 @@ type ReviewService interface {
 
 	// ✅ upload images metadata to DB
 	AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error
+
 	// Vote
 	VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error)
 }
@@ -33,12 +35,41 @@ func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
 // helpers (อยู่ไฟล์นี้ได้เลย)
 // --------------------------
 
+// รองรับ hashtag ทุกภาษา + ตัวเลข + _ + -
+// เช่น #เงินดี #SUT2025 #work-hard #หอA1
+var hashtagRe = regexp.MustCompile(`#([\p{L}\p{N}_-]+)`)
+
+func extractHashtags(text string) []string {
+	matches := hashtagRe.FindAllStringSubmatch(text, -1)
+	out := make([]string, 0, len(matches))
+
+	seen := map[string]struct{}{}
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		tag := strings.TrimSpace(m[1])
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		out = append(out, tag)
+	}
+	return out
+}
+
 func normalizeTag(raw string) string {
 	s := strings.TrimSpace(raw)
 	// รองรับ "###tag" ให้เหลือแค่ tag
 	s = strings.TrimLeft(s, "#")
 	s = strings.TrimSpace(s)
-	s = strings.ToLower(s) // กัน #Work กับ #work
+
+	// กัน #Work กับ #work (ถ้าไม่อยาก lower ให้ลบบรรทัดนี้)
+	s = strings.ToLower(s)
+
 	return s
 }
 
@@ -94,11 +125,15 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 		return nil, err
 	}
 
-	// 2) hashtags: มีแล้วใช้ / ไม่มีก็สร้าง
-	if len(req.Hashtags) > 0 {
-		seen := make(map[string]struct{}) // กันซ้ำใน request
+	// 2) hashtags: รวมทั้งที่ frontend ส่งมา + ที่พิมพ์ใน content (แบบ Twitter)
+	allTags := make([]string, 0, len(req.Hashtags)+8)
+	allTags = append(allTags, req.Hashtags...)
+	allTags = append(allTags, extractHashtags(req.Content)...)
 
-		for _, raw := range req.Hashtags {
+	if len(allTags) > 0 {
+		seen := make(map[string]struct{}) // กันซ้ำใน request+content
+
+		for _, raw := range allTags {
 			name := normalizeTag(raw)
 			if name == "" {
 				continue
@@ -148,8 +183,7 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 
 	// ❗images จะมาใน endpoint upload แยก
 
-	// ✅ (ข้อ 2) โหลดใหม่พร้อม preload ก่อนส่งกลับ
-	// เพื่อให้ Member/MainCategory/Tags/ReviewImages ไม่เป็น object ว่างๆ
+	// ✅ โหลดใหม่พร้อม preload ก่อนส่งกลับ
 	full, err := s.reviewRepo.FindReviewByID(review.ID)
 	if err != nil {
 		return nil, err
