@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - issue-125
 
 jobs:
   # 1. Test & Build Backend

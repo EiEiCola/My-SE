@@ -24,7 +24,6 @@ services:
 
   # Backend (Go)
   backend:
-    # ⚠️ เปลี่ยน YOUR_DOCKER_HUB_USER เป็นชื่อ User ของคุณ
     image: juribers/team12-backend:latest
     container_name: team12-backend
     restart: unless-stopped
