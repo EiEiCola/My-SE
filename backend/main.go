@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -26,8 +28,14 @@ func main() {
 	r := gin.Default()
 
 	// ✅ CORS (ต้องมาก่อน SetupRoutes)
+	// ✅ CORS
+	allowedOrigins := []string{"http://localhost:5173", "http://localhost:3000"}
+	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+		allowedOrigins = append(allowedOrigins, strings.Split(envOrigins, ",")...)
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Admin-ID"},
 		AllowCredentials: true,
