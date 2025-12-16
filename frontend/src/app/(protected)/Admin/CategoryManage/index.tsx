@@ -213,6 +213,9 @@ const GroupManage: React.FC = () => {
   const [detailRecord, setDetailRecord] = useState<CategoryNode | null>(null);
   const [detailPath, setDetailPath] = useState<CategoryNode[]>([]);
 
+  // Track selected rows for highlighting (multiple can be selected)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+
   // ---------- Fetch Data ----------
   const fetchCategories = useCallback(async () => {
     try {
@@ -318,6 +321,10 @@ const GroupManage: React.FC = () => {
     const path = findNodePath(categories, record.key) || [record];
     setDetailRecord(record);
     setDetailPath(path);
+    // Add this row and its ancestors to highlighted set
+    const newKeys = new Set(selectedRowKeys);
+    path.forEach(n => newKeys.add(n.key));
+    setSelectedRowKeys(newKeys);
     setDetailOpen(true);
   };
 
@@ -552,6 +559,16 @@ const GroupManage: React.FC = () => {
   // =========================================================
   return (
     <main style={{ flex: 1, padding: 24, background: "transparent" }}>
+      <style>
+        {`
+          .selected-category-row > td {
+            background-color: #fff7ed !important;
+          }
+          .selected-category-row:hover > td {
+            background-color: #ffedd5 !important;
+          }
+        `}
+      </style>
       {contextHolder}
       {modalContextHolder}
       <div style={{ maxWidth: 960, margin: "0 auto" }}>
@@ -698,6 +715,26 @@ const GroupManage: React.FC = () => {
               pagination={false}
               rowKey="key"
               size="middle"
+              rowClassName={(record) => {
+                // Check if this row is in the highlighted set
+                return selectedRowKeys.has(record.key) ? "selected-category-row" : "";
+              }}
+              onRow={(record) => ({
+                onClick: (e) => {
+                  // Don't open drawer if clicking on expand button, action dropdown, or dropdown menu
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest('button') ||
+                    target.closest('.ant-dropdown-trigger') ||
+                    target.closest('.ant-dropdown') ||
+                    target.closest('.ant-dropdown-menu')
+                  ) {
+                    return;
+                  }
+                  openDetailDrawer(record);
+                },
+                style: { cursor: "pointer" },
+              })}
               expandable={{
                 defaultExpandAllRows: false,
                 expandIcon: ({ expanded, onExpand, record }) =>
@@ -705,7 +742,32 @@ const GroupManage: React.FC = () => {
                     <Button
                       type="text"
                       size="small"
-                      onClick={(e) => onExpand(record, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newKeys = new Set(selectedRowKeys);
+
+                        // Helper to get all descendant keys
+                        const getAllDescendantKeys = (node: CategoryNode): string[] => {
+                          const keys: string[] = [node.key];
+                          if (node.children) {
+                            node.children.forEach(child => {
+                              keys.push(...getAllDescendantKeys(child));
+                            });
+                          }
+                          return keys;
+                        };
+
+                        if (expanded) {
+                          // Collapse: remove this row and all its descendants from highlight
+                          getAllDescendantKeys(record).forEach(key => newKeys.delete(key));
+                        } else {
+                          // Expand: add this row and all its descendants to highlight
+                          getAllDescendantKeys(record).forEach(key => newKeys.add(key));
+                        }
+
+                        setSelectedRowKeys(newKeys);
+                        onExpand(record, e);
+                      }}
                       icon={expanded ? <DownOutlined /> : <RightOutlined />}
                       style={{ marginRight: 4 }}
                     />
@@ -826,7 +888,9 @@ const GroupManage: React.FC = () => {
           placement="right"
           width={420}
           open={detailOpen}
-          onClose={() => setDetailOpen(false)}
+          onClose={() => {
+            setDetailOpen(false);
+          }}
         >
           {detailRecord && (
             <div>
