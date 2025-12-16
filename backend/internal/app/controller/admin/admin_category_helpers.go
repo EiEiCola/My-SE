@@ -16,15 +16,20 @@ func parseUintParam(c *gin.Context, name string) (uint, error) {
 	return uint(n), nil
 }
 
-// ดึง adminID จาก context (แก้ key ให้ตรงกับ middleware ของคุณ)
+// ดึง adminID จาก context (ตรงกับ middleware ที่ใช้ key "userID")
 func getAdminID(c *gin.Context) (uint, bool) {
-	v, ok := c.Get("admin_id") // ถ้า middleware คุณใช้ key อื่น เช่น "user_id" ก็เปลี่ยนตรงนี้
+	v, ok := c.Get("userID")
 	if !ok {
 		return 0, false
 	}
-	id, ok := v.(uint)
+	// middleware stores as string, so convert to uint
+	str, ok := v.(string)
 	if !ok {
 		return 0, false
 	}
-	return id, true
+	n, err := strconv.Atoi(str)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return uint(n), true
 }
