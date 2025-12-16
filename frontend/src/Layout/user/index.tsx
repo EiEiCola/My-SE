@@ -33,7 +33,7 @@ const AdminLayout: React.FC = () => {
                 {/* Header - Full Width ของพื้นที่ที่เหลือ */}
                 <div className="sticky top-0 z-20">
                     <Header 
-                        role="ีuser" 
+                        role="user" 
                         username="User" 
                         isCollapsed={isCollapsed}
                     />

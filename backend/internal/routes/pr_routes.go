@@ -43,6 +43,8 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 
 		// PR Submissions Review
 		adminGroup.GET("/pr-submissions", prController.List)
+		adminGroup.GET("/pr-submissions/:id", prController.GetByID)
+		adminGroup.PUT("/pr-submissions/:id", prController.Update) // Register Update
 		adminGroup.POST("/pr-submissions/:id/review", prController.Review)
 	}
 
@@ -52,10 +54,16 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 		c.Next()
 	}
 
+	memberAnnController := member_controller.NewMemberAnnouncementController(annService) // Use member_controller alias
+
 	memberGroup := api.Group("/members", mockMemberAuth)
 	{
 		// PR Submissions (Create/List Own)
 		memberGroup.POST("/pr-submissions", memberPRController.Create)
 		memberGroup.GET("/pr-submissions", memberPRController.List)
+
+		// View Announcements
+		memberGroup.GET("/announcements/:id", memberAnnController.GetByID)
+		memberGroup.GET("/announcements", memberAnnController.List)
 	}
 }

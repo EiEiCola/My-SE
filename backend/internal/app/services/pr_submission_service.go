@@ -36,6 +36,7 @@ func (s *PRSubmissionService) CreateSubmission(memberID uint, in *CreatePRSubmis
 		MemberID: memberID,
 		Title:    in.Title,
 		Content:  in.Content,
+		StatusID: 1, // Default Pending
 	}
 	if in.ReqStartAt != nil {
 		sub.ReqStartAt = *in.ReqStartAt
@@ -65,6 +66,22 @@ func (s *PRSubmissionService) CreateSubmission(memberID uint, in *CreatePRSubmis
 		return nil, err
 	}
 	return s.PRRepo.GetByID(sub.ID)
+}
+
+func (s *PRSubmissionService) UpdateSubmission(id int, title, content string, start, end *time.Time) error {
+	sub, err := s.PRRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	sub.Title = title
+	sub.Content = content
+	if start != nil {
+		sub.ReqStartAt = *start
+	}
+	if end != nil {
+		sub.ReqEndAt = *end
+	}
+	return s.PRRepo.Update(sub)
 }
 
 func (s *PRSubmissionService) GetByID(id int) (*entity.PRSubmission, error) {
