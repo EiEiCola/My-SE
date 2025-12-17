@@ -3,6 +3,8 @@ package entity
 import (
 
 	"gorm.io/gorm"
+	"errors"
+	"strings" 	
 )
 type ReviewVote struct {
 	gorm.Model
@@ -16,4 +18,21 @@ type ReviewVote struct {
 
 	MemberID uint    `json:"member_id" gorm:"not null;uniqueIndex:idx_review_vote_review_member"`
     Member *Member `json:"-" gorm:"foreignKey:MemberID;references:ID"`
+}
+
+func ValidateReviewVote(v ReviewVote) (bool, error) {
+	vt := strings.ToLower(strings.TrimSpace(v.VoteType))
+	if vt == "" {
+		return false, errors.New("VoteType is required")
+	}
+	if vt != "helpful" && vt != "not_helpful" {
+		return false, errors.New("VoteType must be helpful or not_helpful")
+	}
+	if v.ReviewID == 0 {
+		return false, errors.New("ReviewID is required")
+	}
+	if v.MemberID == 0 {
+		return false, errors.New("MemberID is required")
+	}
+	return true, nil
 }

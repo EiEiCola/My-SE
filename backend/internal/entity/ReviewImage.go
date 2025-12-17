@@ -2,6 +2,8 @@ package entity
 
 import (
 	"gorm.io/gorm"	
+	"errors"
+	"strings"
 	
 )
 
@@ -17,3 +19,15 @@ type ReviewImage struct {
 	//Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
 }
 
+func ValidateReviewImage(img ReviewImage) (bool, error) {
+	if strings.TrimSpace(img.URL) == "" {
+		return false, errors.New("URL is required")
+	}
+	if img.ReviewID == 0 {
+		return false, errors.New("ReviewID is required")
+	}
+	if img.SortOrder < 1 {
+		return false, errors.New("SortOrder must be greater than 0")
+	}
+	return true, nil
+}

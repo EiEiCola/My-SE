@@ -65,15 +65,6 @@ func (rc *ReviewController) CreateReview(c *gin.Context) {
 
 	review, err := rc.reviewService.CreateReview(req)
 	if err != nil {
-		// ✅ เพิ่ม: map validation error -> 400
-		var ve services.ValidationError
-		if errors.As(err, &ve) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": ve.Error(),
-			})
-			return
-		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":  "failed to create review",
 			"detail": err.Error(),
@@ -138,14 +129,6 @@ func (rc *ReviewController) DeleteReview(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "not found or not owner"})
 			return
 		}
-
-		// ✅ เพิ่ม: map validation error -> 400 (เผื่อ service ตรวจอะไรเพิ่มในอนาคต)
-		var ve services.ValidationError
-		if errors.As(err, &ve) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": ve.Error()})
-			return
-		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete review", "detail": err.Error()})
 		return
 	}
@@ -235,14 +218,6 @@ func (rc *ReviewController) UploadReviewImages(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "not found or not owner"})
 			return
 		}
-
-		// ✅ เพิ่ม: map validation error -> 400
-		var ve services.ValidationError
-		if errors.As(err, &ve) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": ve.Error()})
-			return
-		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save images", "detail": err.Error()})
 		return
 	}
@@ -300,13 +275,6 @@ func (rc *ReviewController) VoteReview(c *gin.Context) {
 
 	resp, err := rc.reviewService.VoteReview(reviewID, memberID, req.VoteType)
 	if err != nil {
-		// ✅ เพิ่ม: map validation error -> 400
-		var ve services.ValidationError
-		if errors.As(err, &ve) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": ve.Error()})
-			return
-		}
-
 		c.JSON(http.StatusBadRequest, gin.H{"error": "vote failed", "detail": err.Error()})
 		return
 	}

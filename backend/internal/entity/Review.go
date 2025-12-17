@@ -2,6 +2,8 @@ package entity
 
 import (
 	"gorm.io/gorm"
+	"errors"
+	"strings"
 )
 type Review struct {
 	gorm.Model
@@ -32,4 +34,31 @@ type Review struct {
     ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`
 
 	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
+}
+
+func ValidateReview(r Review) (bool, error) {
+	if strings.TrimSpace(r.Title) == "" {
+		return false, errors.New("Title is required")
+	}
+	if strings.TrimSpace(r.Content) == "" {
+		return false, errors.New("Content is required")
+	}
+	if r.Rating < 1 || r.Rating > 5 {
+		return false, errors.New("Rating must be between 1 and 5")
+	}
+	if r.MemberID == 0 {
+		return false, errors.New("MemberID is required")
+	}
+	if r.MainCategoryID == nil || *r.MainCategoryID == 0 {
+		return false, errors.New("MainCategoryID is required")
+	}
+	if r.HelpfulCount < 0 || r.NotHelpfulCount < 0 {
+		return false, errors.New("Vote counts must be non-negative")
+	}
+	if r.SubCategoryL2ID != nil && *r.SubCategoryL2ID != 0 {
+		if r.SubCategoryL1ID == nil || *r.SubCategoryL1ID == 0 {
+			return false, errors.New("SubCategoryL1ID is required when SubCategoryL2ID is provided")
+		}
+	}
+	return true, nil
 }
