@@ -38,10 +38,16 @@ type ReviewImageRequest struct {
 // ------------------------------
 
 type VoteReviewRequest struct {
-    VoteType string `json:"vote_type" binding:"required,oneof=helpful not_helpful"`
-    MemberID uint   `json:"member_id" binding:"required"`
+	VoteType string `json:"vote_type" binding:"required"` // helpful | not_helpful
 }
 
+type VoteReviewResponse struct {
+	ReviewID        uint    `json:"review_id"`
+	HelpfulCount    int     `json:"helpful_count"`
+	NotHelpfulCount int     `json:"not_helpful_count"`
+	MyVoteType      *string `json:"my_vote_type"` // nil = ไม่ได้โหวต
+	Action          string  `json:"action"`       // voted | unvoted | switched
+}
 
 // ------------------------------
 // 3) REVIEW RESPONSE DTO (ส่งกลับ UI)

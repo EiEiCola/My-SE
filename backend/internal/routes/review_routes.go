@@ -29,10 +29,12 @@ func SetupReviewRoutes(api *gin.RouterGroup) {
 	// Member Review Routes
 	memberGroup := api.Group("/member", mockMemberAuth)
 	{
-		// ✅ Create Review
+		// ✅ Create Review List Vote
 		memberGroup.POST("/reviews", reviewController.CreateReview)
-
-		// ✅ List Reviews
 		memberGroup.GET("/reviews", reviewController.ListReviews)
+		memberGroup.DELETE("/reviews/:id", reviewController.DeleteReview)
+		memberGroup.POST("/reviews/:id/images", reviewController.UploadReviewImages)	
+		memberGroup.POST("/reviews/:id/vote", reviewController.VoteReview)
+
 	}
 }

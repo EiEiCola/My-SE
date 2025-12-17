@@ -26,6 +26,8 @@ func main() {
 
 	// 2. Setup Gin
 	r := gin.Default()
+	//Serve static files (uploads) รูปภาพที่อัพโหลด
+	r.Static("/uploads", "./uploads")
 
 	// ✅ CORS (ต้องมาก่อน SetupRoutes)
 	// ✅ CORS

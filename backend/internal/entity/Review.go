@@ -2,7 +2,6 @@ package entity
 
 import (
 	"gorm.io/gorm"
-	"time"
 	"errors"
 	"strings"
 	
@@ -15,7 +14,7 @@ type Review struct {
 	IsAnonymous     bool      `json:"is_anonymous"`
 	HelpfulCount    int       `json:"helpful_count"`
 	NotHelpfulCount int       `json:"not_helpful_count"`
-	CreatedAt       time.Time `json:"created_at"`
+	//CreatedAt       time.Time `json:"created_at"`
 
 	MemberID   uint   `json:"member_id"`  
     Member     Member `gorm:"foreignKey:MemberID;references:ID"`
@@ -30,7 +29,7 @@ type Review struct {
 	SubCategoryL2ID *uint          `json:"sub_category_l2_id"`
 	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID"`
 
-	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID"`
+	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID" `
 	ReviewVotes  []ReviewVote  `gorm:"foreignKey:ReviewID;references:ID"`
 	Tags        []Tag        `gorm:"many2many:review_tags" json:"tags"`
     ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`

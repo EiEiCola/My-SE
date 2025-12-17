@@ -13,12 +13,14 @@ interface ReviewCardProps {
     images: string[];
     helpfulCount: number;
     notHelpfulCount: number;
+    myVoteType?: "helpful" | "not_helpful" | null;
   };
   onReport: () => void;
 
   // ✅ Props สำหรับการลบ
   canDelete?: boolean;
   onDelete?: () => void;
+  onVote?: (type: "helpful" | "not_helpful") => void;
 }
 
 const ReviewCard: React.FC<ReviewCardProps> = ({
@@ -26,6 +28,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   onReport,
   canDelete = false,
   onDelete,
+  onVote,
 }) => {
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -209,15 +212,24 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         {/* Footer */}
         <div className="rc-foot">
           <div className="rc-actions">
-            <button type="button" className="rc-action">
+            <button
+              type="button"
+              className={`rc-action ${review.myVoteType === "helpful" ? "is-active" : ""}`}
+              onClick={() => onVote?.("helpful")}
+            >
               <span className="rc-actionIcon">👍</span>
               <span className="rc-actionNum">{review.helpfulCount}</span>
             </button>
 
-            <button type="button" className="rc-action rc-bad">
+            <button
+              type="button"
+              className={`rc-action rc-bad ${review.myVoteType === "not_helpful" ? "is-active" : ""}`}
+              onClick={() => onVote?.("not_helpful")}
+            >
               <span className="rc-actionIcon">👎</span>
               <span className="rc-actionNum">{review.notHelpfulCount}</span>
             </button>
+
           </div>
 
           <button type="button" onClick={onReport} className="rc-report">
