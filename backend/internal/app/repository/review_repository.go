@@ -3,10 +3,10 @@ package repository
 import (
 	"errors"
 	"strings"
-	"gorm.io/gorm/clause"
+
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
-
+	"gorm.io/gorm/clause"
 )
 
 type ReviewRepository interface {
@@ -28,9 +28,7 @@ type ReviewRepository interface {
 
 	// Vote
 	CreateOrUpdateVote(vote *entity.ReviewVote) error
-
 	ToggleReviewVote(reviewID uint, memberID uint, voteType string) (helpful int, notHelpful int, myVote *string, action string, err error)
-
 }
 
 type reviewRepository struct {
@@ -98,13 +96,16 @@ func (r *reviewRepository) CheckReviewOwner(reviewID uint, memberID uint) error 
 
 // TAG
 func (r *reviewRepository) FindTagByName(name string) (*entity.Tag, error) {
-	var tag entity.Tag
-	err := r.db.Where("name = ?", name).First(&tag).Error
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	var tags []entity.Tag
+	// ใช้ Find แทน First เพื่อไม่ให้พ่น record not found log
+	err := r.db.Where("name = ?", name).Limit(1).Find(&tags).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(tags) == 0 {
 		return nil, nil
 	}
-	return &tag, err
+	return &tags[0], nil
 }
 
 func (r *reviewRepository) CreateTag(tag *entity.Tag) error {
@@ -127,6 +128,7 @@ func (r *reviewRepository) CreateReviewImage(img *entity.ReviewImage) error {
 func (r *reviewRepository) CreateOrUpdateVote(vote *entity.ReviewVote) error {
 	return r.db.Save(vote).Error
 }
+
 // ToggleReviewVote จะจัดการโหวตรีวิวทุกเคส
 func (r *reviewRepository) ToggleReviewVote(
 	reviewID uint,
@@ -144,19 +146,23 @@ func (r *reviewRepository) ToggleReviewVote(
 	action := ""
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// lock review row กัน count เพี้ยน (Postgres/MySQL ชัวร์, SQLite จะเหมือนไม่ lock แต่ยังอยู่ใน tx)
+		// lock review row กัน count เพี้ยน
 		var review entity.Review
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&review, reviewID).Error; err != nil {
 			return err
 		}
 
-		var vote entity.ReviewVote
-		err := tx.Where("review_id = ? AND member_id = ?", reviewID, memberID).First(&vote).Error
+		// ใช้ Find แทน First เพื่อเลี่ยง Log "record not found" ตัวแดง
+		var votes []entity.ReviewVote
+		err := tx.Where("review_id = ? AND member_id = ?", reviewID, memberID).Limit(1).Find(&votes).Error
+		if err != nil {
+			return err
+		}
 
-		// เคส 1: ยังไม่เคยโหวต -> create
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			vote = entity.ReviewVote{ReviewID: reviewID, MemberID: memberID, VoteType: vt}
+		// เคส 1: ยังไม่เคยโหวต (len == 0)
+		if len(votes) == 0 {
+			vote := entity.ReviewVote{ReviewID: reviewID, MemberID: memberID, VoteType: vt}
 			if err := tx.Create(&vote).Error; err != nil {
 				return err
 			}
@@ -169,15 +175,13 @@ func (r *reviewRepository) ToggleReviewVote(
 			myVote = &vt
 			action = "voted"
 
-		} else if err != nil {
-			return err
-
 		} else {
 			// เคส 2: เคยโหวตแล้ว
+			vote := votes[0]
 			if strings.ToLower(vote.VoteType) == vt {
-    // กดซ้ำแบบเดิม = ถอน (hard delete กันชน unique)
-  				if err := tx.Unscoped().Delete(&vote).Error; err != nil {
-        return err
+				// กดซ้ำแบบเดิม = ถอน (ใช้ Unscoped เพื่อ Hard Delete)
+				if err := tx.Unscoped().Delete(&vote).Error; err != nil {
+					return err
 				}
 				if vt == "helpful" && review.HelpfulCount > 0 {
 					review.HelpfulCount--

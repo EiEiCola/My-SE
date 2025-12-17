@@ -242,3 +242,48 @@
   color: #374151;
 }
 .rl-btnGhost:hover{ background: #e5e7eb; }
+/* ตกแต่ง Dropdown */
+.rl-categorySelect {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #eee;
+  background: white;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #444;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.rl-categorySelect:focus {
+  border-color: #ff9800;
+  box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1);
+}
+
+/* สไตล์สำหรับแต่ละระดับใน Dropdown */
+.opt-main {
+  font-weight: 800;
+  color: #ff9800;
+  background-color: #fff8f0;
+}
+
+.opt-l1 {
+  font-weight: 600;
+  color: #333;
+}
+
+.opt-l2 {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* จัดกึ่งกลาง Loading/Error */
+.rl-status {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+.rl-error { color: #e53935; }

@@ -96,3 +96,27 @@ export async function voteReview(reviewId: number, voteType: "helpful" | "not_he
     action: "voted" | "unvoted" | "switched";
   };
 }
+
+
+//เพิ่มตอนseed
+// ฟังก์ชันดึงหมวดหมู่ทั้งหมด
+export async function getCategories() {
+  const res = await fetch(`${API_BASE}/api/member/categories`);
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json?.detail || json?.error || "fetch categories failed");
+  }
+
+  // แปลงข้อมูลจาก Backend (Title) ให้ตรงกับ Frontend (name)
+  // และจัดการโครงสร้าง parent_id ให้ React ใช้งานได้ง่าย
+  
+  const rawData = json.data || [];
+  return rawData.map((item: any) => ({
+    id: item.ID || item.id,
+    name: item.Title || item.name || "", // รองรับ Title จาก Go entity
+    parent_id: item.MainCategoryID || item.SubCategoryL1ID || item.parent_id || null,
+    emoji: item.Emoji || "📁",
+    hint: item.Hint || ""
+  }));
+}
