@@ -4,7 +4,8 @@ import(
  
 	"gorm.io/gorm"
 	"errors"
-	"strings")
+	"strings"
+	)
 
 type Tag struct {
     gorm.Model
@@ -12,7 +13,6 @@ type Tag struct {
 
 	Reviews []Review `gorm:"many2many:review_tags" json:"reviews"`
 }
-
 func (t *Tag) Validate() error {
 	name := strings.TrimSpace(t.Name)
 	if name == "" {

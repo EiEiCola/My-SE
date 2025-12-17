@@ -4,7 +4,6 @@ import (
 	"gorm.io/gorm"
 	"errors"
 	"strings"
-	
 )
 type Review struct {
 	gorm.Model
@@ -67,12 +66,12 @@ func (r *Review) Validate() error {
 		return errors.New("main_category_id is required")
 	}
 
-	// ถ้ามี L2 ต้องมี L1 ด้วย
+	// ถ้ามี L2 ต้องมี L1
 	if r.SubCategoryL2ID != nil && (r.SubCategoryL1ID == nil || *r.SubCategoryL1ID == 0) {
 		return errors.New("sub_category_l1_id is required when sub_category_l2_id is provided")
 	}
 
-	// counts ห้ามติดลบ (กันพังตอน logic vote)
+	// counts ห้ามติดลบ
 	if r.HelpfulCount < 0 || r.NotHelpfulCount < 0 {
 		return errors.New("vote counts cannot be negative")
 	}

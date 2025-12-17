@@ -17,6 +17,7 @@ type ReviewImage struct {
 	Review   Review `json:"-" gorm:"foreignKey:ReviewID;references:ID"`
 	//Review   Review  `gorm:"foreignKey:ReviewID;references:ID" json:"review"`
 }
+
 func (img *ReviewImage) Validate() error {
 	if img.ReviewID == 0 {
 		return errors.New("review_id is required")

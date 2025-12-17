@@ -20,8 +20,6 @@ type ReviewVote struct {
     Member *Member `json:"-" gorm:"foreignKey:MemberID;references:ID"`
 }
 
-
-
 const (
 	VoteHelpful    = "helpful"
 	VoteNotHelpful = "not_helpful"
@@ -39,5 +37,6 @@ func (v *ReviewVote) Validate() error {
 	if vt != VoteHelpful && vt != VoteNotHelpful {
 		return errors.New("vote_type must be 'helpful' or 'not_helpful'")
 	}
+
 	return nil
 }

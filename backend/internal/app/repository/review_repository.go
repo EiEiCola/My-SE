@@ -233,4 +233,3 @@ func (r *reviewRepository) ToggleReviewVote(
 	}
 	return helpful, notHelpful, myVote, action, nil
 }
-
