@@ -45,3 +45,31 @@ func (r *FriendRepository) DeleteRelation(m1, m2 int) error {
 func (r *FriendRepository) CreateBlock(block *entity.Block) error {
 	return r.DB.Create(block).Error
 }
+
+//  Block (Unblock) **
+func (r *FriendRepository) DeleteBlock(blockerID, blockedID int) error {
+	return r.DB.
+		Where("blocker_id = ? AND blocked_id = ?", blockerID, blockedID).
+		Delete(&entity.Block{}).Error
+}
+
+// ---------------- Follow -----------------
+
+// สร้าง Follow (ติดตาม) **
+func (r *FriendRepository) CreateFollow(follow *entity.Follow) error {
+	return r.DB.Create(follow).Error
+}
+
+// ลบ Follow (เลิกติดตาม) **
+func (r *FriendRepository) DeleteFollow(followerID, followedID int) error {
+	return r.DB.
+		Where("follower_id = ? AND followed_id = ?", followerID, followedID).
+		Delete(&entity.Follow{}).Error
+}
+
+// อัปเดต Follow (เช่น Mute) **
+func (r *FriendRepository) UpdateFollowStatus(followerID, followedID int, statusID uint) error {
+	return r.DB.Model(&entity.Follow{}).
+		Where("follower_id = ? AND followed_id = ?", followerID, followedID).
+		Update("follow_status_id", statusID).Error
+}

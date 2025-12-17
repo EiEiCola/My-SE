@@ -25,70 +25,23 @@ const Announcement: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Replace with your actual API endpoint
-        // const response = await fetch('/api/announcements');
-        // const data = await response.json();
-        // setAnnouncements(data);
+        const response = await fetch('/api/members/announcements?page_size=20');
+        if (!response.ok) throw new Error("Failed to fetch announcements");
+        const json = await response.json();
 
-        // Mock data - replace with real API call above
-        const mockData: Announcement[] = [
-          {
-            id: 1,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+1",
-            date: "2025-01-15",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-          {
-            id: 2,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+2",
-            date: "2025-01-14",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-          {
-            id: 3,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+3",
-            date: "2025-01-13",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-          {
-            id: 4,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+4",
-            date: "2025-01-12",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-          {
-            id: 5,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+5",
-            date: "2025-01-11",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-          {
-            id: 6,
-            title: "ประกาศสำคัญ",
-            description: "ข้อมูลประกาศใหม่",
-            image: "https://via.placeholder.com/300x200?text=Announcement+6",
-            date: "2025-01-10",
-            status: "active",
-            content: "รายละเอียดเพิ่มเติมของประกาศ",
-          },
-        ];
+        // Map backend data to frontend
+        const mappedData = (json.data || []).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.content ? item.content.slice(0, 100) + (item.content.length > 100 ? "..." : "") : "",
+          // Use cover url if available
+          image: item.media?.find((m: any) => m.is_cover)?.url || item.media?.[0]?.url || "https://via.placeholder.com/300x200?text=No+Image",
+          date: item.publish_start_at,
+          status: item.status_id === 1 ? "active" : "archived",
+          content: item.content,
+        }));
 
-        setAnnouncements(mockData);
+        setAnnouncements(mappedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch announcements");
       } finally {
@@ -121,12 +74,36 @@ const Announcement: React.FC = () => {
   /* New State for Tab Switching */
   const [activeTab, setActiveTab] = useState<'feed' | 'my_requests'>('feed');
 
-  // Mock My Requests Data
-  const myRequests = [
-    { id: 101, title: 'ขอประชาสัมพันธ์งานกลุ่ม', submittedAt: '2025-12-01', status: 'pending', reason: '-' },
-    { id: 102, title: 'ขายของมือสอง', submittedAt: '2025-11-20', status: 'rejected', reason: 'เนื้อหาไม่เหมาะสม' },
-    { id: 103, title: 'ติวหนังสือ', submittedAt: '2025-11-15', status: 'approved', reason: '-' },
-  ];
+  /* My Requests State */
+  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'my_requests') {
+      const fetchMySubmissions = async () => {
+        try {
+          setSubmissionsLoading(true);
+          const res = await fetch('/api/members/pr-submissions');
+          if (!res.ok) throw new Error("Failed to fetch submissions");
+          const json = await res.json();
+          // Map response
+          const mapped = (json.data || []).map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            submittedAt: item.req_start_at ? new Date(item.req_start_at).toLocaleDateString('th-TH') : "-",
+            status: item.status_id === 1 ? 'pending' : item.status_id === 2 ? 'approved' : 'rejected',
+            reason: item.reject_reason || "-"
+          }));
+          setMySubmissions(mapped);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setSubmissionsLoading(false);
+        }
+      };
+      fetchMySubmissions();
+    }
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -238,36 +215,42 @@ const Announcement: React.FC = () => {
         ) : (
           /* My Requests View */
           <div className="my-requests-table" style={{ marginTop: 20, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: '#f9f9f9', textAlign: 'left' }}>
-                  <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>หัวข้อ</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>วันที่ส่ง</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>สถานะ</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>เหตุผล (ถ้าถูกปฏิเสธ)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myRequests.map((req) => (
-                  <tr key={req.id}>
-                    <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.title}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.submittedAt}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: 4,
-                        fontSize: 12,
-                        background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
-                        color: req.status === 'approved' ? '#166534' : req.status === 'rejected' ? '#991b1b' : '#374151'
-                      }}>
-                        {req.status === 'approved' ? 'อนุมัติ' : req.status === 'rejected' ? 'ปฏิเสธ' : 'รอตรวจสอบ'}
-                      </span>
-                    </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #eee', color: '#666' }}>{req.reason}</td>
+            {submissionsLoading ? (
+              <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>กำลังโหลดข้อมูล...</div>
+            ) : mySubmissions.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#999', border: '1px dashed #ddd', borderRadius: 8 }}>ไม่พบประวัติคำขอ</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: '#f9f9f9', textAlign: 'left' }}>
+                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>หัวข้อ</th>
+                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>วันที่ส่ง</th>
+                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>สถานะ</th>
+                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>เหตุผล (ถ้าถูกปฏิเสธ)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {mySubmissions.map((req) => (
+                    <tr key={req.id}>
+                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.title}</td>
+                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.submittedAt}</td>
+                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
+                          color: req.status === 'approved' ? '#166534' : req.status === 'rejected' ? '#991b1b' : '#374151'
+                        }}>
+                          {req.status === 'approved' ? 'อนุมัติ' : req.status === 'rejected' ? 'ปฏิเสธ' : 'รอตรวจสอบ'}
+                        </span>
+                      </td>
+                      <td style={{ padding: 12, borderBottom: '1px solid #eee', color: '#666' }}>{req.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>

@@ -1,50 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./AnnouncementManage.css";
-
-const mockDetail: {
-  id: number;
-  user: string;
-  title: string;
-  submittedAt: string;
-  date: string;
-  endDate: string;
-  description: string;
-  content: string;
-} = {
-  id: 1,
-  user: "user01",
-  title: "ขอเชิญร่วมงานปฐมนิเทศ",
-  submittedAt: "2025-12-01",
-  date: "2025-12-05",
-  endDate: "2025-12-10",
-  description: "คำอธิบายสั้น ๆ ของประกาศ",
-  content: "เนื้อหาประกาศเต็มรูปแบบที่ผู้ใช้ส่งมา",
-};
 
 const AnnouncementRequestDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [data, setData] = useState<any>(null); // Use proper interface based on backend entity
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>("pending");
   const [processing, setProcessing] = useState(false);
-
-  // editable fields (initialized from mock data)
-  const [title, setTitle] = useState<string>(mockDetail.title);
-  const [description, setDescription] = useState<string>(mockDetail.description);
-  const [content, setContent] = useState<string>(mockDetail.content);
-  const [date, setDate] = useState<string>(mockDetail.date);
-  const [endDate, setEndDate] = useState<string | undefined>(mockDetail.endDate);
-
-  // minimal: mock data used for display of other info
-  const data = mockDetail;
 
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
+  const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/admin/pr-submissions/${id}`);
+        if (!res.ok) throw new Error("Failed to fetch submission");
+        const json = await res.json();
+        setData(json);
+        setTitle(json.title);
+        setContent(json.content);
+        // Assuming backend sends RFC3339, slice to YYYY-MM-DD for input type=date
+        if (json.req_start_at) setDate(json.req_start_at.slice(0, 10));
+        if (json.req_end_at) setEndDate(json.req_end_at.slice(0, 10));
+
+        // Map status ID to string for UI
+        if (json.status_id === 1) setStatus('pending'); // Fixed: 1 is Pending
+        else if (json.status_id === 2) setStatus('approved'); // 2 is Approved
+        else if (json.status_id === 3) setStatus('rejected'); // 3 is Rejected
+        else setStatus('pending');
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchData();
+  }, [id]);
+
   const handleApprove = async () => {
-    // ... same as before
+    if (!window.confirm("ยืนยันการอนุมัติ?")) return;
     setProcessing(true);
-    setTimeout(() => { setStatus('approved'); setProcessing(false); }, 500);
+    try {
+      const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+      setStatus('approved');
+      alert("อนุมัติเรียบร้อย");
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการอนุมัติ");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleRejectClick = () => {
@@ -57,37 +79,58 @@ const AnnouncementRequestDetail: React.FC = () => {
       return;
     }
     setProcessing(true);
-    // In real app: send reject status + reason
-    setTimeout(() => {
-      setStatus('rejected');
-      setProcessing(false);
-      setShowRejectInput(false);
-    }, 500);
-  };
-
-  const handleSave = async () => {
-    setProcessing(true);
     try {
-      // client-side validation
-      if (!title.trim()) throw new Error('กรุณากรอกหัวข้อ');
-      if (endDate && endDate < date) throw new Error('วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่ม');
-
-      // TODO: call backend to save edited fields (PUT/PATCH)
-      // payload example: { title, description, content, date, endDate }
-      await new Promise((res) => setTimeout(res, 600));
-
-      // on success, show updated values (we already set them locally)
-      alert("บันทึกการแก้ไขเรียบร้อยแล้ว");
+      const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status_id: 3, create_announcement: false, comment: rejectReason }), // Status 3 = Rejected
+      });
+      if (!res.ok) throw new Error("Failed to reject");
+      setStatus('rejected');
+      setShowRejectInput(false);
+      alert("ปฏิเสธคำขอเรียบร้อย");
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+      alert("เกิดข้อผิดพลาดในการปฏิเสธ");
     } finally {
       setProcessing(false);
     }
   };
 
+  const handleSave = async () => {
+    if (!title.trim() || !content.trim()) {
+      alert("กรุณากรอกข้อมูลให้ครบ");
+      return;
+    }
+    setProcessing(true);
+    try {
+      const payload = {
+        title,
+        content,
+        req_start_at: date ? new Date(date).toISOString() : null,
+        req_end_at: endDate ? new Date(endDate).toISOString() : null,
+      };
+
+      const res = await fetch(`/api/admin/pr-submissions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to update");
+      const json = await res.json();
+      alert("บันทึกการแก้ไขเรียบร้อย");
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการบันทึก");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error || !data) return <div>Error: {error}</div>;
+
   return (
     <main className="flex-1 bg-transparent p-6">
-      {/* ... header keys ... */}
       <div className="detail-minimal">
         <div className="detail-header">
           <button className="back-link" onClick={() => navigate('/Admin/AnnouncementManage')}>← ย้อนกลับ</button>
@@ -95,27 +138,56 @@ const AnnouncementRequestDetail: React.FC = () => {
         </div>
 
         <div className="detail-card">
-          {/* ... inputs ... */}
-          <label className="form-label">หัวข้อ</label>
-          <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <div className="detail-meta-group" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #eee' }}>
+            {data.member?.member_picture ? (
+              <img src={data.member.member_picture} alt="Member" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {data.member?.username?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{data.member?.username}</div>
+              <div style={{ color: '#666', fontSize: '0.9em' }}>{data.member?.email || 'No Email'} (ID: {data.member_id})</div>
+              <div style={{ color: '#888', fontSize: '0.85em' }}>ส่งเมื่อ: {new Date(data.req_start_at).toLocaleDateString('th-TH')}</div>
+            </div>
+          </div>
 
-          <div className="detail-meta">ผู้ส่ง: {data.user} · ยื่น: {data.submittedAt}</div>
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>หัวข้อประกาศ</label>
+            <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} />
+          </div>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {/* Media Section - Large Cover Style */}
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>รูปภาพปก</label>
+            <div className="media-preview-container">
+              {data.media && data.media.length > 0 ? (
+                data.media.map((m: any, idx: number) => (
+                  <div key={idx} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                    <img src={m.url} alt={`Media ${idx}`} style={{ width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: 40, background: '#f5f5f5', borderRadius: 8, textAlign: 'center', color: '#999', border: '2px dashed #ddd' }}>
+                  ไม่มีรูปภาพประกอบ
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
             <div style={{ flex: 1 }}>
-              <label className="form-label">วันที่เริ่มแสดง</label>
+              <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
               <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div style={{ flex: 1 }}>
               <label className="form-label">วันที่สิ้นสุด</label>
-              <input type="date" className="form-input" value={endDate || ''} onChange={(e) => setEndDate(e.target.value || undefined)} />
+              <input type="date" className="form-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
 
-          <label className="form-label" style={{ marginTop: 10 }}>คำอธิบายสั้น</label>
-          <input className="form-input" value={description} onChange={(e) => setDescription(e.target.value)} />
-
-          <label className="form-label" style={{ marginTop: 10 }}>เนื้อหาประกาศ</label>
+          <label className="form-label" style={{ marginTop: 20 }}>เนื้อหาประกาศ</label>
           <textarea className="form-textarea" rows={8} value={content} onChange={(e) => setContent(e.target.value)} />
 
           {/* Rejection Reason Input Section */}
@@ -139,18 +211,27 @@ const AnnouncementRequestDetail: React.FC = () => {
 
           {/* Action Buttons */}
           {!showRejectInput && (
-            <div className="detail-actions">
-              <button className="btn btn-primary small" onClick={handleSave} disabled={processing}>บันทึกการแก้ไข</button>
+            <div className="detail-actions" style={{ marginTop: 30, borderTop: '1px solid #eee', paddingTop: 20 }}>
+              <button className="btn btn-primary small" onClick={handleSave} disabled={processing} style={{ backgroundColor: '#faad14', borderColor: '#faad14', marginRight: 8 }}>บันทึกการแก้ไข</button>
 
               <button className="btn btn-primary small" onClick={handleApprove} disabled={processing || status === 'approved' || status === 'rejected'}>
-                {status === 'approved' ? 'อนุมัติแล้ว' : 'อนุมัติ'}
+                {status === 'approved' ? 'อนุมัติแล้ว' : 'อนุมัติคำขอ'}
               </button>
 
-              <button className="btn small" onClick={handleRejectClick} disabled={processing || status === 'rejected' || status === 'approved'}>
-                {status === 'rejected' ? 'ปฏิเสธแล้ว' : 'ปฏิเสธ'}
+              <button className="btn small" onClick={handleRejectClick} disabled={processing || status === 'rejected' || status === 'approved'} style={{ background: status === 'rejected' ? '#ccc' : '#ff4d4f', color: 'white', border: 'none' }}>
+                {status === 'rejected' ? 'ปฏิเสธแล้ว' : 'ปฏิเสธคำขอ'}
               </button>
 
-              <span className="detail-status">สถานะ: <strong>{status}</strong></span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className={`status-badge status-${status}`} style={{
+                  padding: '4px 12px', borderRadius: 12, fontSize: '0.9em',
+                  background: status === 'approved' ? '#f6ffed' : status === 'rejected' ? '#fff1f0' : '#e6f7ff',
+                  color: status === 'approved' ? '#52c41a' : status === 'rejected' ? '#cf1322' : '#1890ff',
+                  border: `1px solid ${status === 'approved' ? '#b7eb8f' : status === 'rejected' ? '#ffa39e' : '#91d5ff'}`
+                }}>
+                  {status.toUpperCase()}
+                </span>
+              </div>
             </div>
           )}
         </div>

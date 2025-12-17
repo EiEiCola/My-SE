@@ -11,7 +11,7 @@ interface HeaderProps {
   isCollapsed?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ role, username = "eiei", isCollapsed }) => {
+const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
   const location = useLocation();
   
   // แมพ path กับชื่อเมนู
@@ -33,7 +33,7 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei", isCollapsed })
         "/Admin/ReportManage": "จัดการรายงานปัญหา",
       };
       return adminTitles[path] || "Admin Dashboard";
-    } else {
+    } else if (role === "user") {
       const userTitles: { [key: string]: string } = {
         "/User": "หน้าหลัก",
         "/User/Profile": "โปรไฟล์",
@@ -69,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei", isCollapsed })
             <h1 className="text-xl font-bold text-slate-800">
               {title}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-300">
+            <p className="text-sm text-slate-500">
               {subtitle}
             </p>
           </div>
