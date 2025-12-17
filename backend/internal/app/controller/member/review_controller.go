@@ -2,18 +2,18 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
-	// แก้ path ให้ตรงกับ module ของโปรเจกต์หนู
+	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
-	"github.com/gin-gonic/gin"
 )
 
 type ReviewController struct {
 	reviewService services.ReviewService
 }
 
-// Constructor เอาไว้ให้ router สร้าง controller
+// Constructor
 func NewReviewController(reviewService services.ReviewService) *ReviewController {
 	return &ReviewController{
 		reviewService: reviewService,
@@ -22,25 +22,49 @@ func NewReviewController(reviewService services.ReviewService) *ReviewController
 
 // ------------------------------------------------------
 // POST /api/member/reviews
-// สร้างรีวิวใหม่ (เวอร์ชันพื้นฐานก่อน)
+// สร้างรีวิวใหม่
 // ------------------------------------------------------
 func (rc *ReviewController) CreateReview(c *gin.Context) {
 	var req dto.CreateReviewRequest
 
-	// 1) bind JSON จาก request body → DTO
+	// 1) bind JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request body",
+			"error":  "invalid request body",
 			"detail": err.Error(),
 		})
 		return
 	}
 
-	// TODO ภายหลัง: ดึง memberID จาก JWT แทนการอ่านจาก body
-	// memberIDFromToken, _ := c.Get("member_id")
-	// req.MemberID = memberIDFromToken.(uint)
+	memberIDAny, ok := c.Get("member_id")
+if !ok {
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
+	return
+}
+req.MemberID = memberIDAny.(uint)
 
-	// 2) เรียก service ให้จัดการ logic การสร้างรีวิว
+	// กันพลาด: แปลง type ให้ชัวร์
+	switch v := memberIDAny.(type) {
+	case uint:
+		req.MemberID = v
+	case int:
+		if v < 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+			return
+		}
+		req.MemberID = uint(v)
+	case float64:
+		if v < 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+			return
+		}
+		req.MemberID = uint(v)
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+		return
+	}
+
+	// 3) call service
 	review, err := rc.reviewService.CreateReview(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -50,10 +74,37 @@ func (rc *ReviewController) CreateReview(c *gin.Context) {
 		return
 	}
 
-	// 3) ส่ง response กลับ (ตอนนี้ส่ง entity ตรง ๆ ไปก่อนก็ได้)
-	// ภายหลังค่อย map เป็น dto.ReviewResponse ถ้าอยากควบคุม field ที่โชว์
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "review created successfully",
 		"data":    review,
 	})
+}
+
+// ------------------------------------------------------
+// GET /api/member/reviews?main_category_id=1
+// ดึงรายการรีวิว (สำหรับหน้า list)
+// ------------------------------------------------------
+func (rc *ReviewController) ListReviews(c *gin.Context) {
+	var mainCatID *uint
+
+	if v := c.Query("main_category_id"); v != "" {
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "main_category_id invalid"})
+			return
+		}
+		id := uint(parsed)
+		mainCatID = &id
+	}
+
+	reviews, err := rc.reviewService.ListReviews(mainCatID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "failed to list reviews",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": reviews})
 }

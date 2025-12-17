@@ -27,6 +27,8 @@ func SetupRoutes(
 		SetupAdminUserManageRoutes(api, adminUserController)
 		// เพิ่ม route จัดการหมวดหมู่ (Admin)
 		SetupAdminCategoryRoutes(api, adminCategoryController)
+		// เพิ่ม route รีวิว
+		SetupReviewRoutes(api) 
 	}
 
 	// ของเดิม
