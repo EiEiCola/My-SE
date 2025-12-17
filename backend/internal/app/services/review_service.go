@@ -11,11 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ✅ เพิ่ม: ValidationError (เอาไว้ให้ Controller map เป็น 400)
-type ValidationError struct{ Msg string }
-
-func (e ValidationError) Error() string { return e.Msg }
-
 type ReviewService interface {
 	CreateReview(req dto.CreateReviewRequest) (*entity.Review, error)
 	ListReviews(mainCategoryID *uint) ([]entity.Review, error)
@@ -105,14 +100,13 @@ func isUniqueConstraintError(err error) bool {
 }
 
 func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Review, error) {
-	// ✅ เปลี่ยน: ให้เป็น validation error เพื่อ map เป็น 400
 	if req.MainCategoryID == nil {
-		return nil, ValidationError{Msg: "main_category_id is required"}
+		return nil, errors.New("main_category_id is required")
 	}
 
 	review := &entity.Review{
-		Title:       strings.TrimSpace(req.Title),   // ✅ เพิ่ม trim
-		Content:     strings.TrimSpace(req.Content), // ✅ เพิ่ม trim
+		Title:       req.Title,
+		Content:     req.Content,
 		Rating:      req.Rating,
 		IsAnonymous: req.IsAnonymous,
 
@@ -124,11 +118,6 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 
 		HelpfulCount:    0,
 		NotHelpfulCount: 0,
-	}
-
-	// ✅ เพิ่ม: entity validate (ถ้าหนูแปะ Validate() ใน entity แล้ว)
-	if err := review.Validate(); err != nil {
-		return nil, ValidationError{Msg: err.Error()}
 	}
 
 	// 1) create review ก่อน เพื่อให้ได้ review.ID
@@ -163,12 +152,6 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 			// 2.2 ไม่เจอ -> สร้างใหม่ (แต่ต้องกันชน unique)
 			if tag == nil {
 				newTag := &entity.Tag{Name: name}
-
-				// ✅ เพิ่ม: tag validate (ถ้ามี Validate() ใน Tag)
-				if err := newTag.Validate(); err != nil {
-					return nil, ValidationError{Msg: err.Error()}
-				}
-
 				if err := s.reviewRepo.CreateTag(newTag); err != nil {
 					// ถ้าชน unique เพราะมีคนสร้างพร้อมกัน -> หาใหม่แล้วใช้ต่อ
 					if isUniqueConstraintError(err) {
@@ -234,12 +217,6 @@ func (s *reviewService) AddReviewImages(reviewID uint, memberID uint, images []d
 			SortOrder: sortOrder,
 			ReviewID:  reviewID,
 		}
-
-		// ✅ เพิ่ม: validate image
-		if err := row.Validate(); err != nil {
-			return ValidationError{Msg: err.Error()}
-		}
-
 		if err := s.reviewRepo.CreateReviewImage(row); err != nil {
 			return err
 		}
@@ -262,11 +239,6 @@ func (s *reviewService) DeleteReview(reviewID uint, memberID uint) error {
 func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error) {
 	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)
 	if err != nil {
-		// vote_type ผิด = validation error -> 400
-		msg := strings.ToLower(err.Error())
-		if strings.Contains(msg, "invalid vote_type") {
-			return nil, ValidationError{Msg: err.Error()}
-		}
 		return nil, err
 	}
 
