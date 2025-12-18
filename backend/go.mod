@@ -1,6 +1,6 @@
 module github.com/sut68/team12/backend
 
-go 1.24.4
+go 1.24.4 //อิอิ
 
 require (
 	github.com/gin-contrib/cors v1.7.6
