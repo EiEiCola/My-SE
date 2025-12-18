@@ -154,6 +154,7 @@ func Connect() *gorm.DB {
 	// s.SeedEvent(db)
 
 	dataseed.SeedPRSystem(db)
+	dataseed.SeedPollSystem(db)
 
 	return db
 }

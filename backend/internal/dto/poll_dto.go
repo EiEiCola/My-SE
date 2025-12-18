@@ -26,6 +26,21 @@ type CreatePollRequest struct {
 	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
 }
 
+// สำหรับอัปเดตโพล (DRAFT หรือ REJECTED เท่านั้น)
+type UpdatePollRequest struct {
+	Question      string     `json:"question" binding:"required"`
+	AllowMultiple bool       `json:"allow_multiple"`
+	MaxChoice     *int       `json:"max_choice"`
+	StartAt       *time.Time `json:"start_at"`
+	EndAt         *time.Time `json:"end_at"`
+
+	MainCategoryID  *uint `json:"main_category_id"`
+	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
+	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+
+	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
+}
+
 /* =========================
    LIST / DETAIL RESPONSE
 ========================= */
@@ -53,6 +68,18 @@ type PollResponse struct {
 
 	Options   []PollOptionResponse `json:"options"`
 	CreatedAt time.Time            `json:"created_at"`
+}
+
+// สำหรับรายการโพลของสมาชิก (My Polls)
+type MyPollsResponse struct {
+	ID               uint       `json:"id"`
+	Question         string     `json:"question"`
+	StatusID         uint       `json:"status_id"`
+	StatusName       string     `json:"status_name"`
+	LastRejectReason string     `json:"last_reject_reason,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	StartAt          *time.Time `json:"start_at"`
+	EndAt            *time.Time `json:"end_at"`
 }
 
 /* =========================

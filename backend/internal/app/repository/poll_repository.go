@@ -10,12 +10,17 @@ type PollRepository interface {
 	CreatePoll(poll *entity.Poll) error
 	GetPollByID(id uint) (*entity.Poll, error)
 	ListPolls(statusID *uint, search *string) ([]entity.Poll, error)
+	ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error) // NEW: My Polls
 	UpdatePoll(poll *entity.Poll) error
+	DeletePoll(pollID uint) error // NEW: Delete poll
 
 	HasVoted(pollID uint, memberID uint) (bool, error)
 	CreateVotes(votes []entity.PollVote) error
 
 	CountVotesByOption(pollID uint) ([]PollResultRow, error)
+
+	// NEW: Poll History
+	CreateHistory(history *entity.PollHistory) error
 }
 
 type pollRepository struct {
@@ -114,4 +119,37 @@ func (r *pollRepository) CountVotesByOption(pollID uint) ([]PollResultRow, error
 		Scan(&results).Error
 
 	return results, err
+}
+
+/* =========================
+   MY POLLS (MEMBER)
+========================= */
+
+func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	query := r.db.
+		Preload("Options").
+		Preload("PollStatus").
+		Model(&entity.Poll{}).
+		Where("member_id = ?", memberID)
+
+	if statusID != nil {
+		query = query.Where("poll_status_id = ?", *statusID)
+	}
+
+	err := query.Order("created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+func (r *pollRepository) DeletePoll(pollID uint) error {
+	return r.db.Delete(&entity.Poll{}, pollID).Error
+}
+
+/* =========================
+   POLL HISTORY
+========================= */
+
+func (r *pollRepository) CreateHistory(history *entity.PollHistory) error {
+	return r.db.Create(history).Error
 }

@@ -41,9 +41,24 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 
 	memberGroup := api.Group("/members", mockMemberAuth)
 	{
-		memberGroup.POST("/polls", memberPollController.CreateRequest)
+
+		// Public / Published
 		memberGroup.GET("/polls", memberPollController.ListPublished)
 		memberGroup.POST("/polls/:id/vote", memberPollController.Vote)
 		memberGroup.GET("/polls/:id/results", memberPollController.Results)
+
+		// Draft & Management
+		memberGroup.POST("/polls/draft", memberPollController.SaveDraft)            // Save Draft
+		memberGroup.PUT("/polls/:id", memberPollController.UpdateDraft)             // Update Draft
+		memberGroup.DELETE("/polls/:id", memberPollController.DeletePoll)           // Delete Poll
+		memberGroup.POST("/polls/:id/submit", memberPollController.SubmitForReview) // Submit
+		memberGroup.POST("/polls/:id/cancel", memberPollController.CancelRequest)   // Cancel
+
+		// My Polls
+		memberGroup.GET("/polls/my", memberPollController.GetMyPolls)        // My Polls List
+		memberGroup.GET("/polls/my/:id", memberPollController.GetMyPollByID) // My Poll Detail
+
+		// Deprecated (Keep for backward compatibility if needed, or remove)
+		memberGroup.POST("/polls", memberPollController.CreateRequest)
 	}
 }
