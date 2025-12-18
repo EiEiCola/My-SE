@@ -28,6 +28,12 @@ import AnnouncementCreate from "../app/(protected)/User/Announcement/Announcemen
 import Report from "../app/(protected)/User/Report";
 import Post from "../app/(protected)/User/Post";
 
+// Poll System
+import PollList from "../app/(protected)/User/Poll/PollList";
+import MyPolls from "../app/(protected)/User/Poll/MyPolls";
+import PollCreate from "../app/(protected)/User/Poll/PollCreate";
+import PollDetail from "../app/(protected)/User/Poll/PollDetail";
+
 function UserRoutes() {
   return (
     <Routes>
@@ -63,7 +69,14 @@ function UserRoutes() {
 
         <Route path="/User/Review" element={<Review />} />
 
-        <Route path="/User/Voting" element={<Voting />} />
+        {/* <Route path="/User/Voting" element={<Voting />} /> */}
+
+        {/* Poll System Routes */}
+        <Route path="/User/Polls" element={<PollList />} />
+        <Route path="/User/Polls/my" element={<MyPolls />} />
+        <Route path="/User/Polls/create" element={<PollCreate />} />
+        <Route path="/User/Polls/edit/:id" element={<PollCreate />} />
+        <Route path="/User/Polls/:id" element={<PollDetail />} />
 
         <Route path="/User/Announcement" element={<Announcement />} />
 

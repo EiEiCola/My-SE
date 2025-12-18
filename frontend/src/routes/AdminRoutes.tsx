@@ -6,7 +6,7 @@ import EditAdminProfile from "../app/(protected)/Admin/ProfileManage/EditProfile
 
 import RewardManage from "../app/(protected)/Admin/RewardManage";
 import PointRuleManage from "../app/(protected)/Admin/RewardManage/PointRuleManage";
- 
+
 
 import MessageManage from "../app/(protected)/Admin/MessageManage";
 import FriendsManage from "../app/(protected)/Admin/FriendManage";
@@ -17,9 +17,10 @@ import VotingManage from "../app/(protected)/Admin/VotingManage";
 import AnnouncementManage from "../app/(protected)/Admin/AnnouncementManage";
 import AnnouncementRequestDetail from "../app/(protected)/Admin/AnnouncementManage/AnnouncementRequestDetail";
 import ReportManage from "../app/(protected)/Admin/ReportManage";
+import AdminPollList from "../app/(protected)/Admin/Poll/AdminPollList";
 function AdminRoutes() {
   return (
-   <Routes>
+    <Routes>
       {/* Layout ของ Admin ครอบทุก route ที่ขึ้นต้น /Admin */}
       <Route element={<AdminLayout />}>
         <Route path="/Admin" element={<Home />} />
@@ -29,7 +30,7 @@ function AdminRoutes() {
 
         <Route path="/Admin/RewardManage" element={<RewardManage />} />
 
-        <Route 
+        <Route
           path="/Admin/RewardManage/PointRule" element={<PointRuleManage />} />
 
 
@@ -43,7 +44,8 @@ function AdminRoutes() {
 
         <Route path="/Admin/ReviewManage" element={<ReviewManage />} />
 
-        <Route path="/Admin/VotingManage" element={<VotingManage />} />
+        {/* <Route path="/Admin/VotingManage" element={<VotingManage />} /> */}
+        <Route path="/Admin/Polls" element={<AdminPollList />} />
 
         <Route path="/Admin/AnnouncementManage" element={<AnnouncementManage />} />
         <Route path="/Admin/AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />

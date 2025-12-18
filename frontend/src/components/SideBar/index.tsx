@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-    Home, 
+import {
+    Home,
     AccountCircle,
     CardGiftcard,
     Forum,
@@ -42,10 +42,10 @@ const UserItems: MenuItem[] = [
     { name: "สะสมแต้ม", path: "/User/Reward", icon: <CardGiftcard /> },
     { name: "ข้อความ", path: "/User/Message", icon: <Forum /> },
     // เมนูเพื่อน (Friends) มี Path หลัก และ SubItems
-    { 
-        name: "เพื่อน", 
-        path: "/User/Friends", 
-        icon: <Group />, 
+    {
+        name: "เพื่อน",
+        path: "/User/Friends",
+        icon: <Group />,
         subItems: [
             { name: "คำขอเป็นเพื่อน", path: "/User/Friends/Request" },
             { name: "เพื่อนแนะนำ", path: "/User/Friends/Popular" },
@@ -53,10 +53,18 @@ const UserItems: MenuItem[] = [
             { name: "วันเกิด", path: "/User/Friends/FriendBirthday" },
         ]
     },
-    { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal />},
+    { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal /> },
     { name: "กลุ่ม", path: "/User/Group", icon: <Groups /> },
     { name: "รีวิว", path: "/User/Review", icon: <Reviews /> },
-    { name: "โพล", path: "/User/Voting", icon: <InsertChartOutlined /> },
+    {
+        name: "โพล",
+        path: "/User/Polls",
+        icon: <InsertChartOutlined />,
+        subItems: [
+            { name: "ฟีดโพล", path: "/User/Polls" },
+            { name: "My Polls", path: "/User/Polls/my" },
+        ]
+    },
     { name: "ประชาสัมพันธ์", path: "/User/Announcement", icon: <Campaign /> },
     { name: "รายงานปัญหา", path: "/User/Report", icon: <ReportProblem /> },
 ];
@@ -70,7 +78,7 @@ const AdminItems: MenuItem[] = [
     { name: "จัดการโพสต์", path: "/Admin/PostManage", icon: <BroadcastOnPersonal /> },
     { name: "จัดการกลุ่ม", path: "/Admin/GroupManage", icon: <Groups /> },
     { name: "จัดการรีวิว", path: "/Admin/ReviewManage", icon: <Reviews /> },
-    { name: "จัดการโพล", path: "/Admin/VotingManage", icon: <InsertChartOutlined /> },
+    { name: "จัดการโพล", path: "/Admin/Polls", icon: <InsertChartOutlined /> },
     { name: "จัดการประชาสัมพันธ์", path: "/Admin/AnnouncementManage", icon: <Campaign /> },
     { name: "จัดการรายงานปัญหา", path: "/Admin/ReportManage", icon: <ReportProblem /> },
 ];
@@ -78,11 +86,11 @@ const AdminItems: MenuItem[] = [
 const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
     const menuItems = role === 'admin' ? AdminItems : UserItems;
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
-    const location = useLocation(); 
+    const location = useLocation();
 
     const toggleDropdown = (itemName: string) => {
-        setOpenDropdowns(prev => 
-            prev.includes(itemName) 
+        setOpenDropdowns(prev =>
+            prev.includes(itemName)
                 ? prev.filter(name => name !== itemName)
                 : [...prev, itemName]
         );
@@ -90,8 +98,8 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
 
     // ตรวจสอบว่าเมนูหลัก (Parent) ควร Active/Highlighted หรือไม่
     const isParentActive = (item: MenuItem): boolean => {
-        if (!item.path) return false; 
-        
+        if (!item.path) return false;
+
         // 1. เช็คว่า Path หลัก Active ไหม (end: true สำหรับ path หลัก)
         if (item.path === location.pathname) return true;
 
@@ -101,7 +109,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
         }
         return false;
     };
-    
+
     // ขยาย Dropdown อัตโนมัติ หาก URL ตรงกับเมนูย่อย เมื่อโหลดครั้งแรก
     useEffect(() => {
         menuItems.forEach(item => {
@@ -109,7 +117,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                 setOpenDropdowns(prev => [...prev, item.name]);
             }
         });
-    }, [location.pathname, role]); 
+    }, [location.pathname, role]);
 
     const isDropdownItem = (item: MenuItem) => !!item.subItems;
 
@@ -152,8 +160,8 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                             </div>
                         </>
                     )}
-                    
-                    <button 
+
+                    <button
                         className="rounded-lg hover:bg-slate-100 p-2 flex-shrink-0 transition-colors"
                         onClick={onToggle}
                     >
@@ -166,24 +174,24 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
             <nav className="flex-1 p-2 overflow-y-auto">
                 {menuItems.map((item) => (
                     <div key={item.name}>
-                        
+
                         {isDropdownItem(item) && item.path ? (
                             // เมนู Dropdown ที่คลิกไปยัง Path หลักได้ (เช่น "เพื่อน")
                             <div className={`relative ${isCollapsed ? 'justify-center' : ''}`}>
                                 <NavLink
                                     to={item.path}
-                                    className={({ isActive }) => navLinkClass(isActive, isParentActive(item))} 
-                                    // end={true} ถูกนำออกเพื่อให้เมนูยัง Active อยู่เมื่ออยู่หน้าย่อยของมัน
-                                    // แต่ NavLink จะถูกไฮไลท์ด้วย isParentActive(item) แทน
+                                    className={({ isActive }) => navLinkClass(isActive, isParentActive(item))}
+                                // end={true} ถูกนำออกเพื่อให้เมนูยัง Active อยู่เมื่ออยู่หน้าย่อยของมัน
+                                // แต่ NavLink จะถูกไฮไลท์ด้วย isParentActive(item) แทน
                                 >
                                     <span className={`text-xl ${isCollapsed ? "mx-auto" : ""}`}>{item.icon}</span>
                                     {!isCollapsed && <span className="font-medium text-sm flex-1">{item.name}</span>}
-                                    
+
                                     {/* ปุ่มขยาย/ยุบ */}
                                     {!isCollapsed && (
                                         <button
                                             onClick={(e) => {
-                                                e.preventDefault(); 
+                                                e.preventDefault();
                                                 toggleDropdown(item.name);
                                             }}
                                             className="p-1 -mr-1 rounded-md hover:bg-blue-700/50 transition-colors flex-shrink-0"
@@ -215,7 +223,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                                             <NavLink
                                                 key={subItem.path}
                                                 to={subItem.path}
-                                                className={({ isActive }) => 
+                                                className={({ isActive }) =>
                                                     `flex items-center space-x-2 p-2 rounded-lg transition duration-150 ease-in-out text-sm
                                                     ${isActive
                                                         ? "bg-blue-100 text-blue-600 font-medium"
@@ -233,12 +241,12 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                         ) : (
                             // Regular NavLink (เมนูที่ไม่มีเมนูย่อย)
                             <NavLink
-                                to={item.path!} 
+                                to={item.path!}
                                 className={({ isActive }) => navLinkClass(isActive, false)}
                                 end={item.path === "/Admin" || item.path === "/User"}
                             >
                                 <span className={`text-xl ${isCollapsed ? "mx-auto" : ""}`}>{item.icon}</span>
-                                
+
                                 {!isCollapsed && <span className="font-medium text-sm flex-1">{item.name}</span>}
 
                                 {isCollapsed && (
