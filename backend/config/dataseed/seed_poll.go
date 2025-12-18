@@ -173,6 +173,8 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 		AllowMultiple:  false,
 		MemberID:       member1ID,
 		MainCategoryID: &mainCatID,
+		SubCategoryL1ID: &subL1ID,
+		SubCategoryL2ID: &subL2ID,
 		PollStatusID:   5, // CLOSED
 	}
 	if err := db.Where("question = ? AND member_id = ?", poll5.Question, poll5.MemberID).FirstOrCreate(&poll5).Error; err == nil {
