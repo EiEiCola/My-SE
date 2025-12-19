@@ -2,9 +2,9 @@ package controller
 
 import (
 	"net/http"
-	 
-	"github.com/sut68/team12/backend/internal/dto"
+
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -42,4 +42,26 @@ func (ctl *FriendRequestController) Cancel(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": ctl.Service.CancelRequest(body)})
+}
+
+// GetSentRequests เรียกดูคำขอที่เราส่งไปหาคนอื่น
+func (ctl *FriendRequestController) GetSentRequests(c *gin.Context) {
+	memberID := 1
+	requests, err := ctl.Service.Repo.GetFriendRequests(memberID, "sent")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, requests)
+}
+
+// GetReceivedRequests เรียกดูคำขอที่มีคนส่งมาหาเรา
+func (ctl *FriendRequestController) GetReceivedRequests(c *gin.Context) {
+	memberID := 1
+	requests, err := ctl.Service.Repo.GetFriendRequests(memberID, "received")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, requests)
 }

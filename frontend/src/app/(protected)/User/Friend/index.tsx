@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { PersonAdd, Person, Image } from '@mui/icons-material';
+import { Image } from '@mui/icons-material';
 
 interface FriendRequest {
   id: number;

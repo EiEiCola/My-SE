@@ -28,6 +28,6 @@ func (r *rewardRepository) GetRewardByID(id uint) (*entity.Reward, error) {
 
 func (r *rewardRepository) GetAllReward() ([]entity.Reward, error) {
 	var rewards []entity.Reward
-	err := r.db.Find(&rewards).Error
+	err := r.db.Order("created_at DESC").Find(&rewards).Error
 	return rewards, err
 }

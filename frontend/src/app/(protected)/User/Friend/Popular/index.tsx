@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, Image } from "lucide-react";
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import { useNavigate } from 'react-router-dom'
 
 const FriendPopular = () => {
   const [requests, setRequests] = useState([
@@ -26,6 +27,8 @@ const FriendPopular = () => {
     setRequests(requests.filter(req => req.id !== id));
   };
 
+  const navigate = useNavigate()
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Friend Request List */}
@@ -36,7 +39,7 @@ const FriendPopular = () => {
         border-t-0 border-slate-200/50 border-solid">
           <div className="flex items-center gap-4 mb-2">
             <button className="hover:bg-orange-200 rounded-full p-1 transition-colors">
-              <ArrowLeft className="w-6 h-6 text-gray-700" />
+              <ArrowLeft className="w-6 h-6 text-gray-700" onClick={() => navigate('/User/Friends')}/>
             </button>
             <h1 className="text-xl font-bold text-gray-800">เพื่อนยอดนิยม</h1>
           </div>

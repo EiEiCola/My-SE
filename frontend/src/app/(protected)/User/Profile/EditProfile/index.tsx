@@ -10,11 +10,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 // ✅ use separated API (edit profile)
 import { editProfileAPI } from "../../../../../services/http/edit_profile";
 
+// ✅ decode user_id from JWT
+import { getUserIdFromToken } from "../../../../../utils/jwt";
+
 const { Title } = Typography;
 const { TextArea } = Input;
-
-// 👇 ใช้ id ของ mock account ที่เนยสร้างใน table member_accounts
-const ACCOUNT_ID = 201; //ถ้าใช้เลขอื่นก็แก้ตรงนี้ตัวเดียว
 
 const readOnlyStyle: React.CSSProperties = {
   marginTop: 5,
@@ -39,7 +39,7 @@ function EditProfile() {
     firstName: "",
     lastName: "",
     nationalID: "",
-    genderId: 0, // number
+    genderId: "" as string, // ✅ ใช้ string ใน UI ให้ชัวร์
     dob: "",
     bio: "",
     avatar: "",
@@ -51,22 +51,33 @@ function EditProfile() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  // ⭐ โหลดข้อมูลจาก backend มาเติมฟอร์ม
+  // ⭐ โหลดข้อมูลจาก backend มาเติมฟอร์ม (ใช้ token จริง)
   useEffect(() => {
+    const userId = getUserIdFromToken();
+    if (!userId) {
+      navigate("/login");
+      return;
+    }
+
     editProfileAPI
-      .get(ACCOUNT_ID)
+      .getMe()
       .then((res) => {
-        console.log("edit profile data:", res.data); // debug ดูใน console ได้
         const d = res.data;
+
+        // ✅ บังคับ gender_id ให้เป็น string เพื่อ match options
+        const gid =
+          d.gender_id === null || d.gender_id === undefined
+            ? ""
+            : String(d.gender_id);
 
         setForm({
           email: d.email || "",
           studentID: d.student_id || "",
           username: d.username || "",
-          firstName: d.first_name || d.firstname || "",
-          lastName: d.last_name || d.lastname || "",
+          firstName: d.first_name || "",
+          lastName: d.last_name || "",
           nationalID: d.national_id || "",
-          genderId: d.gender_id || 0,
+          genderId: gid, // ✅ "1" | "2" | "3"
           dob: d.dob || "",
           bio: d.bio || "",
           avatar: d.member_picture || "",
@@ -74,11 +85,27 @@ function EditProfile() {
       })
       .catch((err) => {
         console.error("Failed to load profile for editing:", err);
+
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }
       });
-  }, []);
+  }, [navigate]);
 
   const handleSave = async () => {
     try {
+      const userId = getUserIdFromToken();
+      if (!userId) {
+        navigate("/login");
+        return;
+      }
+
+      if (!form.genderId) {
+        alert("กรุณาเลือกเพศก่อนบันทึก");
+        return;
+      }
+
       setSaving(true);
 
       const payload = {
@@ -86,19 +113,23 @@ function EditProfile() {
         last_name: form.lastName,
         username: form.username,
         bio: form.bio,
-        dob: form.dob, // "YYYY-MM-DD"
-        gender_id: Number(form.genderId),
-        member_picture: form.avatar, // ส่งรูปไปที่ backend
+        dob: form.dob,
+        gender_id: Number(form.genderId), // ✅ แปลงเป็น number ตอนส่ง backend
+        member_picture: form.avatar,
       };
 
-      console.log("PUT payload:", payload);
-
-      await editProfileAPI.update(ACCOUNT_ID, payload);
+      await editProfileAPI.updateMe(payload);
 
       alert("Profile updated!");
       navigate("/User/Profile/post");
     } catch (err: any) {
       console.error("Update profile error:", err?.response?.status, err?.response?.data);
+
+      if (err?.response?.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
 
       const backendError =
         err?.response?.data?.error || "อัปเดตโปรไฟล์ไม่สำเร็จ ลองใหม่อีกครั้งนะ";
@@ -115,8 +146,6 @@ function EditProfile() {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        // ✅ เอาพื้นหลังสุดออก (ถ้าอยากให้ขาวใส่ "#fff" ได้)
-        // backgroundColor: "#fff",
         display: "flex",
         justifyContent: "center",
       }}
@@ -226,14 +255,7 @@ function EditProfile() {
           </div>
 
           {/* FORM GRID */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 25,
-            }}
-          >
-            {/* ⬅️ LEFT COLUMN: Email, National ID, First Name, Bio */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 25 }}>
             <div>
               <label>Email</label>
               <Input value={form.email} disabled style={readOnlyStyle} />
@@ -257,7 +279,6 @@ function EditProfile() {
               />
             </div>
 
-            {/* ➡️ RIGHT COLUMN: Student ID, Username, Last Name, DOB, Gender */}
             <div>
               <label>Student ID</label>
               <Input value={form.studentID} disabled style={readOnlyStyle} />
@@ -286,12 +307,12 @@ function EditProfile() {
               <label style={{ marginTop: 20, display: "block" }}>Gender</label>
               <Select
                 value={form.genderId || undefined}
-                onChange={(value) => handleChange("genderId", Number(value))}
+                onChange={(value) => setForm((prev) => ({ ...prev, genderId: value }))}
                 style={{ width: "100%", ...editableStyle }}
                 options={[
-                  { value: 1, label: "Male" },
-                  { value: 2, label: "Female" },
-                  { value: 3, label: "Other" },
+                  { value: "1", label: "Male" },
+                  { value: "2", label: "Female" },
+                  { value: "3", label: "Other" },
                 ]}
               />
             </div>
