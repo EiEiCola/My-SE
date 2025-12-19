@@ -41,6 +41,8 @@ func SetupRoutes(
 		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
 
+    SetupFriendRoutes(api) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
+    
 		// ✅ admin routes (ย้ายมาอยู่ใต้ adminAPI)
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
