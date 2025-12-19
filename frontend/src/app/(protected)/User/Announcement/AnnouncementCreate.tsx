@@ -83,6 +83,7 @@ const AnnouncementCreate: React.FC = () => {
         <form className="create-form" onSubmit={handleSubmit}>
           <label className="form-label">หัวข้อประกาศ</label>
           <input
+            id="title"
             className="form-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -91,6 +92,7 @@ const AnnouncementCreate: React.FC = () => {
 
           <label className="form-label">หมวดหมู่</label>
           <select
+            id="category"
             className="form-select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -104,6 +106,7 @@ const AnnouncementCreate: React.FC = () => {
 
           <label className="form-label">คำอธิบายสั้นๆ</label>
           <input
+            id="description"
             className="form-input"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -113,6 +116,7 @@ const AnnouncementCreate: React.FC = () => {
           <label className="form-label">รูปภาพปก</label>
           <div className="file-upload-wrapper">
             <input
+              id="image"
               type="file"
               accept="image/*"
               className="form-input"
@@ -132,6 +136,7 @@ const AnnouncementCreate: React.FC = () => {
 
           <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
           <input
+            id="start-date"
             type="date"
             className="form-input"
             value={date}
@@ -140,6 +145,7 @@ const AnnouncementCreate: React.FC = () => {
 
           <label className="form-label">วันที่สิ้นสุด</label>
           <input
+            id="end-date"
             type="date"
             className="form-input"
             value={endDate}
@@ -148,6 +154,7 @@ const AnnouncementCreate: React.FC = () => {
 
           <label className="form-label">เนื้อหาประกาศ</label>
           <textarea
+            id="content"
             className="form-textarea"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -170,6 +177,7 @@ const AnnouncementCreate: React.FC = () => {
             </button>
 
             <button
+              id="submit-btn"
               type="submit"
               className="btn btn-primary"
               disabled={submitting}
