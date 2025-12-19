@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Card, Input, Button, Typography, Space } from "antd";
+import React, { useMemo, useState } from "react";
+import { Card, Input, Button, Typography, Space, message, Alert } from "antd";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -10,20 +10,65 @@ export default function ForgotPassword() {
   const [identifier, setIdentifier] = useState("");
   const [nationalID, setNationalID] = useState("");
 
+  // ✅ เพิ่ม state สำหรับแจ้งเตือนบนหน้า UI
+  const [uiError, setUiError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const isNationalIdValid = useMemo(
+    () => /^\d{13}$/.test(nationalID.trim()),
+    [nationalID]
+  );
+
   const handleVerify = async () => {
+    // ✅ เคลียร์ error เดิมก่อนทุกครั้งที่กด
+    setUiError(null);
+
+    // basic validate
+    if (!identifier.trim()) {
+      const msg = "Please enter email or student ID";
+      setUiError(msg);
+      return message.error(msg);
+    }
+
+    if (!isNationalIdValid) {
+      const msg = "National ID must be 13 digits";
+      setUiError(msg);
+      return message.error(msg);
+    }
+
     try {
-      const res = await axios.post("http://localhost:8080/auth/verify-reset", {
-        identifier,
-        national_id: nationalID,
+      setLoading(true);
+
+      // ✅ แนะนำให้ใช้ /api/auth/... ให้สอดคล้องกับ register/login ของคุณ
+      const res = await axios.post("http://localhost:8080/api/auth/verify-reset", {
+        identifier: identifier.trim(),
+        national_id: nationalID.trim(),
       });
 
-      if (res.data.success) {
-        navigate("/reset-password", {
-          state: { memberID: res.data.member_id },
-        });
+      // ✅ รูปแบบ response ที่แนะนำ: { data: { reset_token: "..." } }
+      const resetToken = res?.data?.data?.reset_token;
+
+      if (!resetToken) {
+        const msg = "Verification failed. Please try again.";
+        setUiError(msg);
+        message.error(msg);
+        return;
       }
-    } catch (error) {
-      alert("Verification failed. Please check your information.");
+
+      message.success("Verified!");
+      navigate("/reset-password", { state: { resetToken } });
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ||
+        "Verification failed. Please check your information.";
+
+      // ✅ แจ้งเตือนบนหน้า UI
+      setUiError(msg);
+
+      // ✅ ยังใช้ toast ได้เหมือนเดิม
+      message.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,13 +108,27 @@ export default function ForgotPassword() {
             display: "block",
             textAlign: "center",
             color: "#6D6D6D",
-            marginBottom: 40,
+            marginBottom: 24,
             fontWeight: 600,
             fontSize: 17,
           }}
         >
           Verify your identity to reset password
         </Text>
+
+        {/* ✅ ALERT แสดงแจ้งเตือนบนหน้า UI เมื่อ verify ไม่ผ่าน */}
+        {uiError && (
+          <div style={{ marginBottom: 18 }}>
+            <Alert
+              type="error"
+              showIcon
+              message="Verification failed"
+              description={uiError}
+              closable
+              onClose={() => setUiError(null)}
+            />
+          </div>
+        )}
 
         {/* IDENTIFIER */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 25 }}>
@@ -80,7 +139,10 @@ export default function ForgotPassword() {
             placeholder="Enter your email or student ID"
             size="large"
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            onChange={(e) => {
+              setIdentifier(e.target.value);
+              if (uiError) setUiError(null);
+            }}
             style={{
               borderRadius: 10,
               height: 46,
@@ -99,7 +161,13 @@ export default function ForgotPassword() {
             size="large"
             value={nationalID}
             maxLength={13}
-            onChange={(e) => setNationalID(e.target.value)}
+            inputMode="numeric"
+            onChange={(e) => {
+              // ✅ กันพิมพ์ตัวอักษรหลุด (optional)
+              const onlyDigits = e.target.value.replace(/\D/g, "");
+              setNationalID(onlyDigits);
+              if (uiError) setUiError(null);
+            }}
             style={{
               borderRadius: 10,
               height: 46,
@@ -114,6 +182,7 @@ export default function ForgotPassword() {
             type="primary"
             size="large"
             onClick={handleVerify}
+            loading={loading}
             style={{
               backgroundColor: "#C42E0A",
               borderRadius: 10,

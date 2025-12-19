@@ -5,6 +5,17 @@ import axios from "axios";
 
 const { Title, Text } = Typography;
 
+// ✅ base64url-safe JWT payload decode
+const parseJwtPayload = (token: string) => {
+  const base64Url = token.split(".")[1];
+  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(
+    base64.length + (4 - (base64.length % 4)) % 4,
+    "="
+  );
+  return JSON.parse(atob(padded));
+};
+
 function Login() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
@@ -12,17 +23,32 @@ function Login() {
 
   const handleLogin = async () => {
     try {
-      const res = await axios.post("http://localhost:8080/auth/login", {
-        identifier,
+      const res = await axios.post("http://localhost:8080/api/auth/login", {
+        identifier, // ✅ ส่งตัวเดียวพอ (gmail หรือ student id)
         password,
       });
 
-      const role = res.data?.member_account?.role_id;
+      const token = res.data?.data?.token;
+      if (!token) {
+        alert("Login สำเร็จแต่ไม่พบ token");
+        return;
+      }
 
-      if (role === 1) navigate("/admin/dashboard");
-      else navigate("/user/home");
-    } catch (err) {
-      alert("Invalid login");
+      localStorage.setItem("token", token);
+
+      // ✅ decode role จาก token ที่เพิ่งได้ทันที
+      const payload = parseJwtPayload(token);
+      console.log("JWT payload:", payload);
+
+      if (payload?.role === "admin") {
+        window.location.href = "/Admin";
+        return;
+      }
+
+      window.location.href = "/User";
+    } catch (err: any) {
+      console.error("Login error:", err);
+      alert(err?.response?.data?.message || "Invalid login");
     }
   };
 
@@ -45,7 +71,6 @@ function Login() {
           boxShadow: "0px 8px 20px rgba(0,0,0,0.08)",
         }}
       >
-        {/* HEADER */}
         <Title
           level={2}
           style={{
@@ -71,13 +96,11 @@ function Login() {
           Login to your account
         </Text>
 
-        {/* EMAIL / STUDENT ID */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 25 }}>
           <Text style={{ fontWeight: 600, fontSize: 15 }}>
             Email or Student ID
           </Text>
           <Input
-          
             size="large"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
@@ -89,12 +112,10 @@ function Login() {
           />
         </Space>
 
-        {/* PASSWORD */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 10 }}>
           <Text style={{ fontWeight: 600, fontSize: 15 }}>Password</Text>
 
           <Input.Password
-        
             size="large"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -107,7 +128,6 @@ function Login() {
           />
         </Space>
 
-        {/* FORGOT PASSWORD */}
         <div
           style={{
             width: "100%",
@@ -130,7 +150,6 @@ function Login() {
           </span>
         </div>
 
-        {/* LOGIN BUTTON */}
         <div style={{ display: "flex", justifyContent: "center" }}>
           <Button
             type="primary"
@@ -150,7 +169,6 @@ function Login() {
           </Button>
         </div>
 
-        {/* REGISTER LINK */}
         <div style={{ textAlign: "center" }}>
           <Text style={{ fontWeight: 600, color: "#8E8E93" }}>
             Don’t have an account ?{" "}
@@ -169,17 +187,10 @@ function Login() {
           </Text>
         </div>
 
-        {/* INLINE STYLE FIX FOR PASSWORD INPUT */}
         <style>
           {`
-            .custom-password input {
-              font-weight: 600 !important;
-            }
-
-            .custom-password input::placeholder {
-              font-weight: 600 !important;
-              opacity: 0.8;
-            }
+            .custom-password input { font-weight: 600 !important; }
+            .custom-password input::placeholder { font-weight: 600 !important; opacity: 0.8; }
           `}
         </style>
       </Card>

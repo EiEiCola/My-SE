@@ -15,11 +15,8 @@ func SetupMemberRewardRoutes(r *gin.RouterGroup) {
 	svc := services.NewMemberRewardService(db, repo)
 	ctrl := memberctl.NewMemberRewardController(svc)
 
-	member := r.Group("/member")
-	{
-		member.POST("/rewards/:id/redeem", ctrl.Redeem)
-		member.GET("/my-stickers", ctrl.MyStickers)
-		member.GET("/points", ctrl.MyPoints)
-
-	}
+	// ✅ r ที่ส่งเข้ามา “คือ /api/member แล้ว” (จาก router.go)
+	r.POST("/rewards/:id/redeem", ctrl.Redeem)
+	r.GET("/my-stickers", ctrl.MyStickers)
+	r.GET("/points", ctrl.MyPoints)
 }

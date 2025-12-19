@@ -1,67 +1,61 @@
 package repository
 
 import (
-    "github.com/sut68/team12/backend/internal/entity"
-    "gorm.io/gorm"
+	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
-// interface สำหรับจัดการข้อมูล Member 
 type MemberRepository interface {
-    // FindByID ดึงข้อมูล Member จาก primary key(ID)
-    FindByID(id uint) (*entity.Member, error)
-
-    // FindByAccountID ดึงโปรไฟล์จาก MemberAccountID
-    FindByAccountID(accountID uint) (*entity.Member, error)
-
-    // Update แก้ไขข้อมูล Member ที่มีอยู่ในฐานข้อมูล
-    Update(member *entity.Member) error
+	FindByID(id uint) (*entity.Member, error)
+	FindByAccountID(accountID uint) (*entity.Member, error)
+	Update(member *entity.Member) error
 }
 
 type memberRepository struct {
-    db *gorm.DB
+	db *gorm.DB
 }
 
 func NewMemberRepository(db *gorm.DB) MemberRepository {
-    return &memberRepository{db: db}
+	return &memberRepository{db: db}
 }
 
-// FindByID
-// ดึง Member จาก ID พร้อม preload ความสัมพันธ์ที่สำคัญ
 func (r *memberRepository) FindByID(id uint) (*entity.Member, error) {
-    var m entity.Member
-    if err := r.db.
-        Preload("Gender").
-        Preload("ActiveStatus").
-        Preload("MemberAccount").
-        First(&m, id).Error; err != nil {
-        return nil, err
-    }
-    return &m, nil
+	var m entity.Member
+	if err := r.db.
+		Preload("Gender").
+		Preload("ActiveStatus").
+		Preload("MemberAccount").
+		First(&m, id).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
-// FindByAccountID
-// ดึง Member โดยใช้ค่า accountID จากตาราง member_accounts
-// โครง FK ใน entity คือ member_accounts.member_id -> members.id
-// เลยต้อง JOIN เอา ไม่สามารถ Where("member_account_id = ?") ได้
+// ✅ สำคัญ: ใช้ members.member_account_id ตรง ๆ
 func (r *memberRepository) FindByAccountID(accountID uint) (*entity.Member, error) {
-    var m entity.Member
-
-    err := r.db.
-        Joins("JOIN member_accounts ma ON ma.member_id = members.id").
-        Preload("Gender").
-        Preload("ActiveStatus").
-        Preload("MemberAccount").
-        Where("ma.id = ?", accountID).
-        First(&m).Error
-
-    if err != nil {
-        return nil, err
-    }
- 
-    return &m, nil
+	var m entity.Member
+	if err := r.db.
+		Preload("Gender").
+		Preload("ActiveStatus").
+		Preload("MemberAccount").
+		Where("member_account_id = ?", accountID).
+		First(&m).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
-// ใช้สำหรับบันทึกการเปลี่ยนแปลงของ Member กลับไปที่ฐานข้อมูล
+// ✅ เปลี่ยนจาก Save() -> Updates() เพื่อบังคับ update field ที่ต้องการแน่นอน
 func (r *memberRepository) Update(member *entity.Member) error {
-    return r.db.Save(member).Error
+	return r.db.Model(&entity.Member{}).
+		Where("id = ?", member.ID).
+		Updates(map[string]interface{}{
+			"first_name":      member.FirstName,
+			"last_name":       member.LastName,
+			"username":        member.Username,
+			"bio":             member.Bio,
+			"dob":             member.Dob,
+			"gender_id":       member.GenderID,      // ✅ ตัวที่ต้องเปลี่ยน
+			"member_picture":  member.MemberPicture,
+		}).Error
 }

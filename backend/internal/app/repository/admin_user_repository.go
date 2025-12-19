@@ -24,7 +24,6 @@ func NewAdminUserRepository(db *gorm.DB) AdminUserRepository {
 	return &adminUserRepository{db: db}
 }
 
-// ✅ IMPORTANT: ปรับ field code ให้ตรง DB จริงของเนย
 // ตอนนี้ใช้ members.student_id เป็น "รหัสนักศึกษา"
 func (r *adminUserRepository) Search(email, code string) ([]AdminUserRow, error) {
 	q := r.db.Table("member_accounts AS ma").
@@ -35,14 +34,16 @@ func (r *adminUserRepository) Search(email, code string) ([]AdminUserRow, error)
 			COALESCE(m.student_id, '') AS code,
 			ma.is_locked AS is_locked
 		`).
-		Joins("LEFT JOIN members m ON m.id = ma.member_id").
+		// ✅ FIX: join ให้ผูก members กับ member_accounts ให้ถูก
+		Joins("LEFT JOIN members m ON m.member_account_id = ma.id").
 		Where("ma.deleted_at IS NULL")
 
+	// ✅ FIX: ILIKE ใช้ได้เฉพาะ Postgres -> เปลี่ยนเป็น LIKE ให้ใช้ได้ทุก DB
 	if email != "" {
-		q = q.Where("ma.email ILIKE ?", "%"+email+"%")
+		q = q.Where("ma.email LIKE ?", "%"+email+"%")
 	}
 	if code != "" {
-		q = q.Where("m.student_id ILIKE ?", "%"+code+"%")
+		q = q.Where("m.student_id LIKE ?", "%"+code+"%")
 	}
 
 	var out []AdminUserRow

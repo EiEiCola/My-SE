@@ -12,18 +12,19 @@ type Member struct {
 
 	FirstName string `json:"first_name" valid:"required~FirstName is required"`
 	LastName  string `json:"last_name" valid:"required~LastName is required"`
-	Username  string `json:"username" gorm:"unique" valid:"required~Username is required"`
+	Username  string `json:"username" gorm:"uniqueIndex;not null" valid:"required~Username is required"`
 
 	Dob time.Time `json:"dob" valid:"required~Dob is required"`
 
 	Bio           string `json:"bio"`
 	MemberPicture string `json:"member_picture"`
 
-	NationalID string `json:"national_id" valid:"required~NationalID is required,length(13|13)~NationalID must be 13 digits"`
-	StudentID  string `json:"student_id" gorm:"unique" valid:"required~StudentID is required"`
+	NationalID string `json:"national_id" gorm:"uniqueIndex;not null" valid:"required~NationalID is required,length(13|13)~NationalID must be 13 digits"`
+	StudentID  string `json:"student_id" gorm:"uniqueIndex;not null" valid:"required~StudentID is required"`
 
-	// 1:1 กับ MemberAccount
-	MemberAccount *MemberAccount `gorm:"foreignKey:MemberID;references:ID"`
+	// ✅ 1:1 กับ Account
+	MemberAccountID uint `json:"member_account_id" gorm:"not null;uniqueIndex"`
+    MemberAccount   *MemberAccount `json:"-" gorm:"foreignKey:MemberAccountID;references:ID"`
 
 	GenderID uint   `json:"gender_id" valid:"required~GenderID is required"`
 	Gender   Gender `gorm:"foreignKey:GenderID;references:ID"`
@@ -50,10 +51,6 @@ type Member struct {
 	Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
 
 	ReceivedReports []Report `gorm:"polymorphic:Target;" json:"received_reports"`
-}
-
-func init() {
-	govalidator.SetFieldsRequiredByDefault(false)
 }
 
 func ValidateMember(m Member) (bool, error) {

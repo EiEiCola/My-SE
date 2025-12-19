@@ -14,11 +14,15 @@ import (
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/routes"
+	"github.com/sut68/team12/backend/config/dataseed"
+	"github.com/joho/godotenv" 
 )
 
 const PORT = "8080"
 
 func main() {
+	_ = godotenv.Load()
+
 	// 1. Setup Database
 	config.Connect()
 
@@ -46,6 +50,8 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	dataseed.SeedAll(config.DB)
+
 	// 4. Build dependencies (Repo -> Service -> Controller)
 
 	// ---- Admin Profile ----
@@ -70,4 +76,6 @@ func main() {
 
 	// 6. Run
 	r.Run(":" + PORT)
+
+	
 }

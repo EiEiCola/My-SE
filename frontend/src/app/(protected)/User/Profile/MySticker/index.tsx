@@ -5,7 +5,7 @@ const MySticker: React.FC = () => {
   return (
     <Card>
       <p>My Sticker</p>
-      <p style={{ color: "#999" }}>Coming soon</p>
+      <p style={{ color: "#999" }}> </p>
     </Card>
   );
 };

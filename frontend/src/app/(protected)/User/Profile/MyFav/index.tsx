@@ -4,8 +4,8 @@ import { Card } from "antd";
 const MyFav: React.FC = () => {
   return (
     <Card>
-      <p>My Favorite</p>
-      <p style={{ color: "#999" }}>Coming soon</p>
+      <p>My Favorite Post</p>
+      <p style={{ color: "#999" }}> </p>
     </Card>
   );
 };

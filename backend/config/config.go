@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/sut68/team12/backend/config/dataseed"
+	// "github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
 
@@ -151,7 +151,7 @@ func Connect() *gorm.DB {
 	// s.SeedClubMember(db)
 	// s.SeedEvent(db)
 
-	dataseed.SeedPRSystem(db)
+	// dataseed.SeedPRSystem(db)
 
 	return db
 }

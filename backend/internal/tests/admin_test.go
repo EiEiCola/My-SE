@@ -11,12 +11,7 @@ func TestAdminValid(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	a := entity.Admin{
-		Username:        "admin01",
-		NationalIDHash:  "hashed_value",
-		NationalIDLast4: "1234",
-		FirstName:       "John",
-		LastName:        "Doe",
-		PhoneNumber:     "0999999999",
+		Username:        "admin1",
 		MemberAccountID: 1,
 	}
 
@@ -31,8 +26,7 @@ func TestAdminMissingUsername(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	a := entity.Admin{
-		Username:        "",
-		NationalIDHash:  "hashed_value",
+		Username:        "   ",
 		MemberAccountID: 1,
 	}
 
@@ -44,47 +38,11 @@ func TestAdminMissingUsername(t *testing.T) {
 	g.Expect(err.Error()).To(Equal("Username is required"))
 }
 
-func TestAdminMissingNationalIDHash(t *testing.T) {
+func TestAdminMissingAccountID(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	a := entity.Admin{
-		Username:        "admin01",
-		NationalIDHash:  "",
-		MemberAccountID: 1,
-	}
-
-	ok, err := entity.ValidateAdmin(a)
-	t.Logf("ok=%v err=%v", ok, err)
-
-	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
-	g.Expect(err.Error()).To(Equal("NationalIDHash is required"))
-}
-
-func TestAdminNationalIDLast4InvalidLength(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	a := entity.Admin{
-		Username:        "admin01",
-		NationalIDHash:  "hashed_value",
-		NationalIDLast4: "123", // ต้อง 4 ตัว
-		MemberAccountID: 1,
-	}
-
-	ok, err := entity.ValidateAdmin(a)
-	t.Logf("ok=%v err=%v", ok, err)
-
-	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
-	g.Expect(err.Error()).To(Equal("NationalIDLast4 must be 4 characters"))
-}
-
-func TestAdminMissingMemberAccountID(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	a := entity.Admin{
-		Username:       "admin01",
-		NationalIDHash: "hashed_value",
+		Username:        "admin1",
 		MemberAccountID: 0,
 	}
 
@@ -93,5 +51,7 @@ func TestAdminMissingMemberAccountID(t *testing.T) {
 
 	g.Expect(ok).To(BeFalse())
 	g.Expect(err).ToNot(BeNil())
+
+	// ✅ ให้ตรงกับ ValidateAdmin() ใน entity ตอนนี้
 	g.Expect(err.Error()).To(Equal("MemberAccountID is required"))
 }
