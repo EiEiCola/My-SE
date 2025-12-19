@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, Search, MoreHorizontal, MessageCircle, UserMinus, UserPlus } from "lucide-react";
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import { useNavigate } from 'react-router-dom'
 
 const FriendRelation = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +31,7 @@ const FriendRelation = () => {
     setActiveMenu(null);
   };
 
+  const navigate = useNavigate()
   return (
     <div className="flex h-screen bg-gray-100" onClick={handleClickOutside}>
       {/* Friends List Sidebar */}
@@ -40,7 +42,7 @@ const FriendRelation = () => {
         border-t-0 border-slate-200/50 border-solid">
           <div className="flex items-center gap-3 mb-4">
             <button className="hover:bg-gray-100 rounded-full p-2 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-700" />
+              <ArrowLeft className="w-5 h-5 text-gray-700" onClick={() => navigate('/User/Friends')}/>
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-800">เพื่อนทั้งหมด</h1>

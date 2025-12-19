@@ -312,16 +312,6 @@ const ProfileManage: React.FC = () => {
           const lockedNow = isLocked((record as any).is_locked);
           return (
             <Space>
-              <Button
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/Admin/Users/${record.id}`);
-                }}
-              >
-                View
-              </Button>
-
               {lockedNow ? (
                 <Button
                   size="small"

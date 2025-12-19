@@ -36,8 +36,8 @@ function UserRoutes() {
 
         {/* ⭐ PROFILE (Nested Routes) */}
         <Route path="/User/Profile" element={<Profile />}>
-          <Route index element={<Post />} />      // ⭐ default
-          <Route path="post" element={<Post />} />
+          <Route index element={<MyPost />} />      // ⭐ default
+          <Route path="post" element={<MyPost />} />
           <Route path="fav" element={<MyFav />} />
           <Route path="sticker" element={<MySticker />} />
         </Route>

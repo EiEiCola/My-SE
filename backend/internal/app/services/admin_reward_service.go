@@ -1,62 +1,50 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/entity"
 )
 
 type AdminRewardService interface {
-	CreateReward(reward *entity.Reward) (*entity.Reward, error)
-	UpdateReward(id uint, data *entity.Reward) (*entity.Reward, error)
+	CreateReward(payload *entity.Reward) (*entity.Reward, error)
+	UpdateReward(id uint, payload *entity.Reward) (*entity.Reward, error)
 	DeleteReward(id uint) error
-	GetRewardByID(id uint) (*entity.Reward, error)
+
 	GetAllReward() ([]entity.Reward, error)
+	GetRewardByID(id uint) (*entity.Reward, error)
 }
 
 type adminRewardService struct {
-	adminRewardRepo repository.AdminRewardRepository
+	repo repository.AdminRewardRepository
 }
 
-func NewAdminRewardService(adminRewardRepo repository.AdminRewardRepository) AdminRewardService {
-	return &adminRewardService{
-		adminRewardRepo: adminRewardRepo,
-	}
+func NewAdminRewardService(r repository.AdminRewardRepository) AdminRewardService {
+	return &adminRewardService{repo: r}
 }
 
-func (s *adminRewardService) CreateReward(reward *entity.Reward) (*entity.Reward, error) {
-	if err := s.adminRewardRepo.CreateReward(reward); err != nil {
+func (s *adminRewardService) CreateReward(payload *entity.Reward) (*entity.Reward, error) {
+	if err := s.repo.Create(payload); err != nil {
 		return nil, err
 	}
-	return reward, nil
+	return payload, nil
 }
 
-func (s *adminRewardService) UpdateReward(id uint, data *entity.Reward) (*entity.Reward, error) {
-	reward, err := s.adminRewardRepo.GetRewardByID(id)
-	if err != nil {
-		return nil, errors.New("reward not found")
-	}
-
-	reward.RewardName = data.RewardName
-	reward.PointRequired = data.PointRequired
-	reward.RewardPicture = data.RewardPicture
-	reward.AdminID = data.AdminID
-
-	if err := s.adminRewardRepo.UpdateReward(reward); err != nil {
+func (s *adminRewardService) UpdateReward(id uint, payload *entity.Reward) (*entity.Reward, error) {
+	if err := s.repo.Update(id, payload); err != nil {
 		return nil, err
 	}
-	return reward, nil
+	return s.repo.GetByID(id)
 }
 
 func (s *adminRewardService) DeleteReward(id uint) error {
-	return s.adminRewardRepo.DeleteReward(id)
+	return s.repo.Delete(id)
 }
 
+// ✅ admin เห็นเฉพาะที่ยังอยู่
 func (s *adminRewardService) GetAllReward() ([]entity.Reward, error) {
-	return s.adminRewardRepo.GetAllReward()
+	return s.repo.GetAll()
 }
 
 func (s *adminRewardService) GetRewardByID(id uint) (*entity.Reward, error) {
-	return s.adminRewardRepo.GetRewardByID(id)
+	return s.repo.GetByID(id)
 }

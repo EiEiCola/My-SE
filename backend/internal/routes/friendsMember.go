@@ -9,48 +9,52 @@ import (
 )
 
 // SetupFriendRoutes จะทำการตั้งค่า routes สำหรับระบบจัดการเพื่อนทั้งหมด
-func SetupFriendRoutes(r *gin.Engine) {
-	db := config.DB 
-
+func SetupFriendRoutes(api *gin.RouterGroup) {
+	db := config.DB
 	repo := repository.NewFriendRepository(db)
 	friendService := services.NewFriendService(repo)
 
-	// Controllers ที่เกี่ยวข้อง
 	friendReqCtl := controller.NewFriendRequestController(friendService)
 	friendshipCtl := controller.NewFriendshipController(friendService)
 	blockCtl := controller.NewBlockController(friendService)
-	
-	// ** เพิ่ม Follow Controller **
-	followCtl := controller.NewFollowController(friendService) 
+	followCtl := controller.NewFollowController(friendService)
+	// 3. จัดกลุ่มเส้นทางภายใต้ /api
 
-	api := r.Group("/api")
-	// api.Use(middlewares.Authorizes()) // ใส่ Authentication middleware ที่นี่
-	{
-		// ------------------ Friend Requests (คำขอเป็นเพื่อน) ------------------
-		api.POST("/friend-requests", friendReqCtl.Send)
-		api.POST("/friend-requests/respond", friendReqCtl.Respond)
-		// ใช้ DELETE เพื่อยกเลิก (เป็นการลบทิ้ง)
-		api.DELETE("/friend-requests/cancel", friendReqCtl.Cancel) 
-		
-		// ------------------ Relations (ความสัมพันธ์/เพื่อน) ------------------
-		// ใช้ DELETE เพื่อลบความสัมพันธ์ (Unfriend)
-		api.DELETE("/friendships/unfriend", friendshipCtl.Unfriend)
-		
-		// ------------------ Follow (ติดตาม/เลิกติดตาม) ------------------
-		// POST /api/follows 		-> ติดตาม
-		api.POST("/follows", followCtl.Follow)
-		// DELETE /api/follows 	-> เลิกติดตาม (Unfollow/Mute)
-		api.DELETE("/follows", followCtl.Unfollow)
+	// api.Use(middlewares.Authorizes()) // เปิดใช้งานหากมี middleware ตรวจสอบ token
+	// ------------------ Friend Requests (คำขอเป็นเพื่อน) ------------------
+	// ส่งคำขอ บันทึกเป็น Pending (status 1)
+	api.POST("/friend-requests", friendReqCtl.Send)
 
-		// POST /api/follows/mute 	-> ซ่อนโพสต์
-		api.POST("/follows/mute", followCtl.Mute)
-		// DELETE /api/follows/mute -> ยกเลิกการซ่อนโพสต์ (Unmute)
-		api.DELETE("/follows/mute", followCtl.Unmute)
+	// ตอบรับ (Accepted: 2) หรือ ปฏิเสธ (Rejected: 3)
+	api.POST("/friend-requests/respond", friendReqCtl.Respond)
 
-		// ------------------ Block (บล็อก/เลิกบล็อก) ------------------
-		// POST /api/blocks 		-> บล็อก
-		api.POST("/blocks", blockCtl.Block)
-		// DELETE /api/blocks 	-> เลิกบล็อก
-		api.DELETE("/blocks", blockCtl.Unblock) 
-	}
+	// ยกเลิกคำขอ (Hard Delete เฉพาะกรณีที่ส่งผิดและยังไม่ได้รับการตอบรับ)
+	api.DELETE("/friend-requests/cancel", friendReqCtl.Cancel)
+
+	// ------------------ Relations (ความสัมพันธ์/เพื่อน) ------------------
+	// เลิกเป็นเพื่อน (Update Active เป็น 0 เพื่อเก็บประวัติให้ Admin ดู)
+	api.DELETE("/friendships/unfriend", friendshipCtl.Unfriend)
+
+	// ------------------ Follow (ติดตาม/เลิกติดตาม) ------------------
+	api.POST("/follows", followCtl.Follow)
+	api.DELETE("/follows", followCtl.Unfollow)
+	api.POST("/follows/mute", followCtl.Mute)
+	api.DELETE("/follows/unmute", followCtl.Unmute)
+
+	// ------------------ Block (บล็อก/เลิกบล็อก) ------------------
+	// บล็อก (สร้างบันทึกใหม่ Active: 1 และตัดความสัมพันธ์เพื่อน)
+	api.POST("/blocks", blockCtl.Block)
+
+	// เลิกบล็อก (Update Active เป็น 0)
+	api.DELETE("/blocks", blockCtl.Unblock)
+
+	// ------------------ ค้นหา/เรียกดูข้อมูล (GET) ------------------
+	// มุมมอง User: เห็นเฉพาะข้อมูลที่ Active หรือ Pending
+	api.GET("/members", friendshipCtl.GetAllMembers)                          // ทั้งหมดในระบบ
+	api.GET("/my/friends", friendshipCtl.GetMyFriends)                        // เพื่อนปัจจุบัน (Active: 1)
+	api.GET("/my/followers", friendshipCtl.GetMyFollowers)                    // คนที่ติดตามเรา
+	api.GET("/my/following", friendshipCtl.GetMyFollowing)                    // คนที่เราติดตาม
+	api.GET("/my/blocks", blockCtl.GetMyBlockedList)                          // รายการที่เราบล็อก (Active: 1)
+	api.GET("/my/friend-requests/sent", friendReqCtl.GetSentRequests)         // คำขอที่เราส่ง
+	api.GET("/my/friend-requests/received", friendReqCtl.GetReceivedRequests) // คำขอที่มีคนส่งมา
 }

@@ -7,20 +7,21 @@ import (
 
 type RewardService interface {
 	GetAllReward() ([]entity.Reward, error)
+	GetRewardByID(id uint) (*entity.Reward, error)
 }
 
 type rewardService struct {
 	rewardRepo repository.RewardRepository
 }
 
-func NewRewardService(
-	rewardRepo repository.RewardRepository,
-) RewardService {
-	return &rewardService{
-		rewardRepo: rewardRepo,
-	}
+func NewRewardService(r repository.RewardRepository) RewardService {
+	return &rewardService{rewardRepo: r}
 }
 
 func (s *rewardService) GetAllReward() ([]entity.Reward, error) {
 	return s.rewardRepo.GetAllReward()
+}
+
+func (s *rewardService) GetRewardByID(id uint) (*entity.Reward, error) {
+	return s.rewardRepo.GetRewardByID(id)
 }
