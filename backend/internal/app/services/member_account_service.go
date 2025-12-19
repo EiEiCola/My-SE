@@ -31,7 +31,7 @@ func (s *memberAccountService) Register(email, password string, roleID uint) (*e
 
     acc := &entity.MemberAccount{
         Email:    email,
-        Password: hashed,
+        PasswordHash: hashed,
         RoleID:   roleID,
         // MemberID ให้ไปเซ็ตเองใน DB ชั่วคราว
     }
@@ -45,7 +45,7 @@ func (s *memberAccountService) Register(email, password string, roleID uint) (*e
 
 func (s *memberAccountService) Login(email, password string) (*entity.MemberAccount, error) {
     acc, err := s.memberAccountRepo.FindByEmail(email)
-    if err != nil || acc.Password != password {
+    if err != nil || acc.PasswordHash != password {
         return nil, errors.New("invalid email or password")
     }
 

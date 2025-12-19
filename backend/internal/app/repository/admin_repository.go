@@ -1,4 +1,4 @@
-// backend/internal/repository/admin_repository.go
+// backend/internal/app/repository/admin_repository.go
 package repository
 
 import (
@@ -9,7 +9,12 @@ import (
 )
 
 type AdminRepository interface {
+	// เดิม (ตาม admins.id)
 	GetByIDWithAccount(id uint) (*entity.Admin, error)
+
+	// ✅ ใหม่ (ตาม member_account_id จาก JWT)
+	GetByMemberAccountIDWithAccount(memberAccountID uint) (*entity.Admin, error)
+
 	UpdateProfile(id uint, patch map[string]any) error
 	UpdateNationalID(id uint, hash string, last4 string) error
 }
@@ -22,18 +27,16 @@ func NewAdminRepository(db *gorm.DB) AdminRepository {
 	return &adminRepository{db: db}
 }
 
+// ✅ ใช้ admins.member_account_id ให้ถูกต้อง (ไม่ผูก admins.id = member_accounts.id)
 func (r *adminRepository) GetByIDWithAccount(id uint) (*entity.Admin, error) {
 	var admin entity.Admin
 
-	// ✅ ใช้ JOIN + Preload เพื่อให้ email ติดมาแน่ และกัน password หลุด
-	// - JOIN: ช่วยให้ relation ถูกผูกแม้ preload มี issue
-	// - Preload: ให้ admin.MemberAccount ถูกเติมค่าใน struct
 	err := r.db.
 		Model(&entity.Admin{}).
 		Joins("LEFT JOIN member_accounts ON member_accounts.id = admins.member_account_id").
 		Preload("MemberAccount", func(db *gorm.DB) *gorm.DB {
-			// เลือกเฉพาะ field ที่จำเป็น (กัน password หลุด)
-			return db.Select("id", "email", "role_id", "member_id", "created_at", "updated_at", "deleted_at")
+			// เลือกเท่าที่จำเป็น (กัน password หลุด)
+			return db.Select("id", "email", "role_id", "created_at", "updated_at", "deleted_at")
 		}).
 		Where("admins.id = ?", id).
 		First(&admin).Error
@@ -42,13 +45,40 @@ func (r *adminRepository) GetByIDWithAccount(id uint) (*entity.Admin, error) {
 		return nil, err
 	}
 
-	// ✅ ถ้าไม่มี member_account ผูกไว้ให้ชัดเจน (กัน null แปลกๆ)
-	if admin.MemberAccountID == 0 {
-		return &admin, nil
+	// fallback กรณี preload ไม่มา
+	if admin.MemberAccountID != 0 && (admin.MemberAccount.ID == 0 || admin.MemberAccount.Email == "") {
+		var email string
+		e := r.db.Table("member_accounts").
+			Select("email").
+			Where("id = ?", admin.MemberAccountID).
+			Scan(&email).Error
+		if e == nil && email != "" {
+			admin.MemberAccount.Email = email
+		}
 	}
 
-	// ✅ บางเคส preload อาจไม่เติม (เช่น tag relation ไม่ตรง) -> fallback query email
-	if admin.MemberAccount.ID == 0 || admin.MemberAccount.Email == "" {
+	return &admin, nil
+}
+
+// ✅ ใหม่: ดึง admin ด้วย member_account_id (ใช้กับ JWT user_id)
+func (r *adminRepository) GetByMemberAccountIDWithAccount(memberAccountID uint) (*entity.Admin, error) {
+	var admin entity.Admin
+
+	err := r.db.
+		Model(&entity.Admin{}).
+		Joins("LEFT JOIN member_accounts ON member_accounts.id = admins.member_account_id").
+		Preload("MemberAccount", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "email", "role_id", "created_at", "updated_at", "deleted_at")
+		}).
+		Where("admins.member_account_id = ?", memberAccountID).
+		First(&admin).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// fallback กรณี preload ไม่มา
+	if admin.MemberAccountID != 0 && (admin.MemberAccount.ID == 0 || admin.MemberAccount.Email == "") {
 		var email string
 		e := r.db.Table("member_accounts").
 			Select("email").
@@ -67,15 +97,12 @@ func (r *adminRepository) UpdateProfile(id uint, patch map[string]any) error {
 		return nil
 	}
 
-	// ✅ whitelist fields ที่แก้ได้ (กันส่ง patch มาแก้ field สำคัญ)
 	allowed := map[string]bool{
-		"username":         true,
-		"first_name":       true,
-		"last_name":        true,
-		"profile_picture":  true,
-		"phone_number":     true,
-		// ห้ามแก้:
-		// "member_account_id", "national_id_hash", "national_id_last4", "created_at", ฯลฯ
+		"username":        true,
+		"first_name":      true,
+		"last_name":       true,
+		"profile_picture": true,
+		"phone_number":    true,
 	}
 
 	safe := map[string]any{}
