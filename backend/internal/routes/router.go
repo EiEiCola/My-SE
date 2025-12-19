@@ -20,7 +20,7 @@ func SetupRoutes(
 		SetupPollRoutes(api)
 		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
-
+		SetupFriendRoutes(api) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		// เพิ่ม route แก้ไขโปรไฟล์แอดมิน
 		SetupAdminProfileRoutes(api, adminProfileController)
 		// เพิ่ม route จัดการบัญชีผู้ใช้ (Search + Lock/Unlock)
