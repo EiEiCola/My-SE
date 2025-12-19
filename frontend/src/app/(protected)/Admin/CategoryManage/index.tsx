@@ -53,21 +53,37 @@ type CategoryNode = {
 
 type ModalMode = "create-root" | "create-sub" | "edit";
 
-// ---------- Icon options ----------
+// ---------- Icon options (must match backend validation) ----------
 const ICON_OPTIONS = [
-  "📚",
-  "☕️",
-  "🍜",
-  "⚽️",
-  "🎬",
-  "🎧",
-  "💻",
-  "🎵",
-  "📷",
-  "🚌",
-  "🏕️",
-  "🏫",
-];
+  "Book", "School", "Tech", "Music", "Food", "Travel",
+  "Shopping", "Health", "Sports", "Movie", "Game", "Beauty",
+  "Home", "Car", "Pet", "Fashion", "Finance", "Art",
+  "Photography", "News"
+] as const;
+
+// Icon display mapping (key -> emoji for visual display)
+const ICON_DISPLAY_MAP: Record<string, string> = {
+  Book: "📚",
+  School: "🏫",
+  Tech: "💻",
+  Music: "🎵",
+  Food: "🍜",
+  Travel: "🏕️",
+  Shopping: "🛒",
+  Health: "🏥",
+  Sports: "⚽️",
+  Movie: "🎬",
+  Game: "🎮",
+  Beauty: "💄",
+  Home: "🏠",
+  Car: "🚗",
+  Pet: "🐕",
+  Fashion: "👗",
+  Finance: "💰",
+  Art: "🎨",
+  Photography: "📷",
+  News: "📰",
+};
 
 // ---------- Helper ----------
 const flattenCategories = (nodes: CategoryNode[]): CategoryNode[] => {
@@ -378,7 +394,7 @@ const GroupManage: React.FC = () => {
       const values = await form.validateFields();
       const { name, description, icon } = values as {
         name: string;
-        description?: string;
+        description: string;
         icon?: string;
       };
 
@@ -387,7 +403,7 @@ const GroupManage: React.FC = () => {
       if (modalMode === "create-root") {
         await mainCategoryAPI.create({
           title: name,
-          description: description || "",
+          description: description,
           icon: icon || "",
           order_index: categories.length,
         });
@@ -396,14 +412,14 @@ const GroupManage: React.FC = () => {
         if (parentRecord.level === 1) {
           await subCategoryL1API.create({
             title: name,
-            description: description || "",
+            description: description,
             main_category_id: parentRecord.id,
             order_index: 0,
           });
         } else if (parentRecord.level === 2) {
           await subCategoryL2API.create({
             title: name,
-            description: description || "",
+            description: description,
             sub_category_l1_id: parentRecord.id,
             order_index: 0,
           });
@@ -413,18 +429,18 @@ const GroupManage: React.FC = () => {
         if (currentRecord.level === 1) {
           await mainCategoryAPI.update(currentRecord.id, {
             title: name,
-            description: description || "",
+            description: description,
             icon: icon || "",
           });
         } else if (currentRecord.level === 2) {
           await subCategoryL1API.update(currentRecord.id, {
             title: name,
-            description: description || "",
+            description: description,
           });
         } else {
           await subCategoryL2API.update(currentRecord.id, {
             title: name,
-            description: description || "",
+            description: description,
           });
         }
         messageApi.success("แก้ไขหมวดหมู่สำเร็จ");
@@ -463,7 +479,7 @@ const GroupManage: React.FC = () => {
                   "linear-gradient(135deg, rgba(248,250,252,1), rgba(241,245,249,1))",
               }}
             >
-              {record.icon}
+              {ICON_DISPLAY_MAP[record.icon] || record.icon}
             </div>
           )}
           <div>
@@ -755,23 +771,45 @@ const GroupManage: React.FC = () => {
             <Form.Item
               label="ระบุชื่อหมวดหมู่"
               name="name"
-              rules={[{ required: true, message: "กรุณากรอกชื่อหมวดหมู่" }]}
+              rules={[
+                { required: true, message: "กรุณากรอกชื่อหมวดหมู่" },
+                { min: 2, message: "ชื่อหมวดหมู่ต้องมีอย่างน้อย 2 ตัวอักษร" },
+                { max: 60, message: "ชื่อหมวดหมู่ต้องไม่เกิน 60 ตัวอักษร" },
+              ]}
             >
               <Input
                 size="large"
                 placeholder="เช่น กีฬา, การศึกษา, อาหาร"
+                maxLength={60}
+                showCount
               />
             </Form.Item>
 
-            <Form.Item label="ใส่คำอธิบายหมวดหมู่" name="description">
+            <Form.Item
+              label="ใส่คำอธิบายหมวดหมู่"
+              name="description"
+              rules={[
+                { required: true, message: "กรุณากรอกคำอธิบายหมวดหมู่" },
+                { min: 1, message: "คำอธิบายต้องมีอย่างน้อย 1 ตัวอักษร" },
+                { max: 300, message: "คำอธิบายต้องไม่เกิน 300 ตัวอักษร" },
+              ]}
+            >
               <TextArea
                 rows={3}
                 placeholder="อธิบายหมวดหมู่สั้น ๆ เช่น ใช้สำหรับโพสต์เกี่ยวกับกีฬาและกิจกรรมออกกำลังกาย"
+                maxLength={300}
+                showCount
               />
             </Form.Item>
 
             {(modalMode === "create-root" || (modalMode === "edit" && currentRecord?.level === 1)) && (
-              <Form.Item label="เลือก icon สำหรับหมวดหมู่" name="icon">
+              <Form.Item
+                label="เลือก icon สำหรับหมวดหมู่"
+                name="icon"
+                rules={[
+                  { required: true, message: "กรุณาเลือก icon สำหรับหมวดหมู่" },
+                ]}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -780,15 +818,17 @@ const GroupManage: React.FC = () => {
                     marginTop: 4,
                   }}
                 >
-                  {ICON_OPTIONS.map((icon) => {
-                    const active = selectedIcon === icon;
+                  {ICON_OPTIONS.map((iconKey) => {
+                    const active = selectedIcon === iconKey;
+                    const emoji = ICON_DISPLAY_MAP[iconKey] || iconKey;
                     return (
                       <button
-                        key={icon}
+                        key={iconKey}
                         type="button"
+                        title={iconKey}
                         onClick={() => {
-                          setSelectedIcon(icon);
-                          form.setFieldValue("icon", icon);
+                          setSelectedIcon(iconKey);
+                          form.setFieldValue("icon", iconKey);
                         }}
                         style={{
                           width: 46,
@@ -810,7 +850,7 @@ const GroupManage: React.FC = () => {
                             : "none",
                         }}
                       >
-                        {icon}
+                        {emoji}
                       </button>
                     );
                   })}
@@ -847,7 +887,7 @@ const GroupManage: React.FC = () => {
                         "linear-gradient(135deg, #f9fafb, #e5e7eb)",
                     }}
                   >
-                    {detailRecord.icon}
+                    {ICON_DISPLAY_MAP[detailRecord.icon] || detailRecord.icon}
                   </div>
                 )}
                 <div>
