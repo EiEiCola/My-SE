@@ -52,6 +52,36 @@ const getIconForCategory = (title: string): React.ReactNode => {
   return <BookOutlined />;
 };
 
+// Icon display mapping (key -> emoji for visual display)
+const ICON_DISPLAY_MAP: Record<string, string> = {
+  Book: "📚",
+  School: "🏫",
+  Tech: "💻",
+  Music: "🎵",
+  Food: "🍜",
+  Travel: "🏕️",
+  Shopping: "🛒",
+  Health: "🏥",
+  Sports: "⚽️",
+  Movie: "🎬",
+  Game: "🎮",
+  Beauty: "💄",
+  Home: "🏠",
+  Car: "🚗",
+  Pet: "🐕",
+  Fashion: "👗",
+  Finance: "💰",
+  Art: "🎨",
+  Photography: "📷",
+  News: "📰",
+};
+
+// Get emoji from icon key
+const getEmojiIcon = (iconKey?: string): string | null => {
+  if (!iconKey) return null;
+  return ICON_DISPLAY_MAP[iconKey] || iconKey;
+};
+
 // ---------- Types ----------
 type ContentType = "post" | "review" | "poll";
 
@@ -159,7 +189,7 @@ const Group: React.FC = () => {
         id: main.ID,
         key: String(main.ID),
         icon: main.icon ? null : getIconForCategory(main.title),
-        emojiIcon: main.icon || undefined,
+        emojiIcon: getEmojiIcon(main.icon) || undefined,
         name: main.title,
         slug: main.title.toLowerCase().replace(/\s+/g, "-"),
         description: main.description || "หมวดหมู่ " + main.title,
