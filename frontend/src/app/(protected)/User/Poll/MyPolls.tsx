@@ -217,14 +217,14 @@ const MyPolls: React.FC = () => {
 
   const handleCancel = (id: number) => {
     openConfirm(
-      "Cancel Request?",
-      "This will cancel your submission and move it back to Draft.",
+       "Withdraw submission?",
+      "This will withdraw your request and move the poll back to Draft so you can edit it.",
       true,
       async () => {
-        await pollAPI.cancelRequest(id);
-        await fetchPolls(activeTab === 0 ? undefined : activeTab);
-      }
-    );
+      await pollAPI.cancelRequest(id);
+      await fetchPolls(activeTab === 0 ? undefined : activeTab);
+  }
+);
   };
 
   const openDetail = (p: Poll) => {
@@ -241,7 +241,12 @@ const MyPolls: React.FC = () => {
     return s === "DRAFT" || s === "REJECTED";
   };
   const canCancel = (p: Poll) => getStatus(p) === "PENDING_REVIEW";
-  const canViewResult = (p: Poll) => getStatus(p) === "PUBLISHED";
+
+  // ✅ ปรับ: PUBLISHED + CLOSED ควรดูผลได้ (PUBLISHED อาจโดน backend บังคับ "ต้องโหวตก่อน")
+  const canViewResult = (p: Poll) => {
+    const s = getStatus(p);
+    return s === "PUBLISHED" || s === "CLOSED";
+  };
 
   return (
     <div className="my-polls-page">
@@ -289,6 +294,12 @@ const MyPolls: React.FC = () => {
         <div className="stat">
           <div className="k">Rejected</div>
           <div className="v">{stats.rejected}</div>
+        </div>
+
+        {/* ✅ แนะนำ: เพิ่ม Closed ให้ตรงกับ tab */}
+        <div className="stat">
+          <div className="k">Closed</div>
+          <div className="v">{stats.closed}</div>
         </div>
       </div>
 
@@ -364,9 +375,10 @@ const MyPolls: React.FC = () => {
 
                       <td style={{ textAlign: "right" }}>
                         <div className="actions">
-                          <button className="icon-action" onClick={() => openDetail(p)} type="button" title="Detail">
-                            👁
-                          </button>
+                          <button className="btn btn-outline" onClick={() => openDetail(p)} type="button" title="Detail">
+  👁 Detail
+</button>
+
 
                           {canEditSubmitDelete(p) && (
                             <>

@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -10,24 +11,20 @@ import (
 )
 
 type PollService interface {
-	// Member - DRAFT management
 	SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error)
 	UpdateDraft(memberID uint, pollID uint, req dto.UpdatePollRequest) (*dto.PollResponse, error)
 	SubmitForReview(memberID uint, pollID uint) (*dto.PollResponse, error)
 	CancelRequest(memberID uint, pollID uint) (*dto.PollResponse, error)
 	DeletePoll(memberID uint, pollID uint) error
 
-	// Member - My Polls
 	GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsResponse, error)
 	GetMyPollByID(memberID uint, pollID uint) (*dto.PollResponse, error)
 
-	// Member - Public (keep existing)
-	CreateRequest(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) // Deprecated: Use SaveDraft + SubmitForReview
+	CreateRequest(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) // Deprecated
 	ListPublished() ([]dto.PollResponse, error)
 	Vote(memberID uint, pollID uint, req dto.VotePollRequest) (*dto.VotePollResponse, error)
-	Results(pollID uint) (*dto.PollResultsResponse, error)
+	Results(memberID uint, pollID uint) (*dto.PollResultsResponse, error)
 
-	// Admin
 	ListForAdmin(statusID *uint) ([]dto.PollResponse, error)
 	Approve(adminID uint, pollID uint) (*dto.PollResponse, error)
 	Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error)
@@ -43,7 +40,7 @@ func NewPollService(pollRepo repository.PollRepository) PollService {
 }
 
 /* =========================
-   MEMBER - DRAFT MANAGEMENT
+   STATUS CONST
 ========================= */
 
 const (
@@ -55,7 +52,10 @@ const (
 	StatusCANCELED       = uint(6)
 )
 
-// SaveDraft: บันทึกโพลเป็น DRAFT (ไม่ต้อง validate เข้มงวด)
+/* =========================
+   MEMBER - DRAFT MANAGEMENT
+========================= */
+
 func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) {
 	poll := entity.Poll{
 		Question:        req.Question,
@@ -86,8 +86,7 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:     "SAVE_DRAFT",
 		PollID:     poll.ID,
 		ToStatusID: &poll.PollStatusID,
@@ -96,26 +95,21 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 	return mapPollToResponse(&poll), nil
 }
 
-// UpdateDraft: แก้ไขโพลที่เป็น DRAFT หรือ REJECTED
 func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePollRequest) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
 
-	// ตรวจสอบ ownership
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
 	}
-
-	// ตรวจสอบสถานะ: แก้ไขได้เฉพาะ DRAFT หรือ REJECTED
 	if poll.PollStatusID != StatusDRAFT && poll.PollStatusID != StatusREJECTED {
 		return nil, errors.New("can only update poll in DRAFT or REJECTED status")
 	}
 
 	oldStatusID := poll.PollStatusID
 
-	// อัปเดตข้อมูล
 	poll.Question = req.Question
 	poll.AllowMultiple = req.AllowMultiple
 	poll.MaxChoice = req.MaxChoice
@@ -125,7 +119,8 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 	poll.SubCategoryL1ID = req.SubCategoryL1ID
 	poll.SubCategoryL2ID = req.SubCategoryL2ID
 
-	// ลบ options เดิมแล้วสร้างใหม่ (ทำให้ง่ายขึ้น)
+	// NOTE: ของเดิมคุณลบ poll ทั้งแถว (เสี่ยง) — รอบนี้ยังไม่ refactor ใหญ่
+	// แนะนำทำ Replace Options แบบถูกต้องด้วย transaction ในรอบถัดไป
 	if err := s.pollRepo.DeletePoll(pollID); err == nil {
 		poll.Options = nil
 		for i, opt := range req.Options {
@@ -145,8 +140,7 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "UPDATE_DRAFT",
 		PollID:       poll.ID,
 		FromStatusID: &oldStatusID,
@@ -156,94 +150,94 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 	return mapPollToResponse(poll), nil
 }
 
-// SubmitForReview: ส่งโพลให้แอดมินตรวจ (validate เข้มงวด)
 func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
-
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
 	}
-
-	// ต้องเป็น DRAFT เท่านั้น
 	if poll.PollStatusID != StatusDRAFT {
 		return nil, errors.New("can only submit poll in DRAFT status")
 	}
-
-	// Strict validation
 	if err := validatePollForSubmission(poll); err != nil {
 		return nil, err
 	}
 
 	oldStatusID := poll.PollStatusID
-	poll.PollStatusID = StatusPENDING_REVIEW
+	newStatusID := StatusPENDING_REVIEW
 
-	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+	// ✅ แนะนำ: อัปเดต status แบบเจาะจง (ชัวร์กว่า UpdatePoll ทั่วไป)
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "SUBMIT",
 		PollID:       poll.ID,
 		FromStatusID: &oldStatusID,
-		ToStatusID:   &poll.PollStatusID,
+		ToStatusID:   &newStatusID,
 	})
 
-	return mapPollToResponse(poll), nil
+	// ✅ สำคัญ: re-fetch เพื่อให้ poll_status_id / poll_status relation เป็นค่าล่าสุด
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapPollToResponse(updated), nil
 }
 
-// CancelRequest: ยกเลิกคำขอ (PENDING_REVIEW → CANCELED)
+
 func (s *pollService) CancelRequest(memberID uint, pollID uint) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
-
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
 	}
-
 	if poll.PollStatusID != StatusPENDING_REVIEW {
 		return nil, errors.New("can only cancel poll in PENDING_REVIEW status")
 	}
 
 	oldStatusID := poll.PollStatusID
-	poll.PollStatusID = StatusCANCELED
+	newStatusID := StatusDRAFT
 
-	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+	// ✅ update เฉพาะ poll_status_id ให้ชัวร์
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
-		Action:       "CANCEL",
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
+		Action:       "WITHDRAW",
 		PollID:       poll.ID,
 		FromStatusID: &oldStatusID,
-		ToStatusID:   &poll.PollStatusID,
+		ToStatusID:   &newStatusID,
 	})
 
-	return mapPollToResponse(poll), nil
+	// ✅ ดึงใหม่ให้ response เป็นค่าล่าสุดชัวร์
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapPollToResponse(updated), nil
 }
 
-// DeletePoll: ลบโพล (เฉพาะ DRAFT หรือ REJECTED)
+
 func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return err
 	}
-
 	if poll.MemberID != memberID {
 		return errors.New("you are not the owner of this poll")
 	}
-
-	// ลบได้เฉพาะ DRAFT หรือ REJECTED
 	if poll.PollStatusID != StatusDRAFT && poll.PollStatusID != StatusREJECTED {
 		return errors.New("can only delete poll in DRAFT or REJECTED status")
 	}
-
 	return s.pollRepo.DeletePoll(pollID)
 }
 
@@ -251,7 +245,6 @@ func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
    MEMBER - MY POLLS
 ========================= */
 
-// GetMyPolls: ดูโพลของตัวเอง (filter ได้ตามสถานะ)
 func (s *pollService) GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsResponse, error) {
 	polls, err := s.pollRepo.ListPollsByMember(memberID, statusID)
 	if err != nil {
@@ -264,7 +257,6 @@ func (s *pollService) GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsRe
 		if poll.PollStatus != nil {
 			statusName = poll.PollStatus.Name
 		}
-
 		result = append(result, dto.MyPollsResponse{
 			ID:               poll.ID,
 			Question:         poll.Question,
@@ -276,32 +268,25 @@ func (s *pollService) GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsRe
 			EndAt:            poll.EndAt,
 		})
 	}
-
 	return result, nil
 }
 
-// GetMyPollByID: ดูโพลของตัวเอง (ต้องเป็น owner)
 func (s *pollService) GetMyPollByID(memberID uint, pollID uint) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
-
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
 	}
-
 	return mapPollToResponse(poll), nil
 }
 
 /* =========================
-   MEMBER - PUBLIC (EXISTING)
+   MEMBER - PUBLIC
 ========================= */
 
 func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) {
-	// PENDING_REVIEW = 1
-	pendingStatusID := uint(1)
-
 	poll := entity.Poll{
 		Question:      req.Question,
 		AllowMultiple: req.AllowMultiple,
@@ -309,7 +294,7 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 		StartAt:       req.StartAt,
 		EndAt:         req.EndAt,
 		MemberID:      memberID,
-		PollStatusID:  pendingStatusID,
+		PollStatusID:  StatusPENDING_REVIEW,
 	}
 
 	for i, opt := range req.Options {
@@ -317,7 +302,6 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 		if opt.SortOrder != nil {
 			sort = *opt.SortOrder
 		}
-
 		poll.Options = append(poll.Options, entity.PollOption{
 			Label:     opt.Label,
 			ImgURL:    opt.ImgURL,
@@ -328,31 +312,26 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 	if err := s.pollRepo.CreatePoll(&poll); err != nil {
 		return nil, err
 	}
-
 	return mapPollToResponse(&poll), nil
 }
 
 func (s *pollService) ListPublished() ([]dto.PollResponse, error) {
-	// PUBLISHED = 2
-	publishedStatusID := uint(2)
-
-	polls, err := s.pollRepo.ListPolls(&publishedStatusID, nil)
+	statusID := StatusPUBLISHED
+	polls, err := s.pollRepo.ListPolls(&statusID, nil)
 	if err != nil {
 		return nil, err
 	}
-
 	return mapPollsToResponse(polls), nil
 }
 
+// ✅ Vote: 1 PollVote ต่อ poll+member และเลือกหลาย option ผ่าน PollVoteOption
 func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) (*dto.VotePollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
 
-	// PUBLISHED = 2
-	publishedStatusID := uint(2)
-	if poll.PollStatusID != publishedStatusID {
+	if poll.PollStatusID != StatusPUBLISHED {
 		return nil, errors.New("poll is not open for voting")
 	}
 
@@ -369,42 +348,92 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, err
 	}
 	if voted {
-		return nil, errors.New("you already voted this poll")
+		return nil, errors.New("already voted")
 	}
 
-	if !poll.AllowMultiple && len(req.OptionIDs) != 1 {
-		return nil, errors.New("only one option is allowed")
+	// dedupe option_ids
+	seen := map[uint]bool{}
+	optionIDs := make([]uint, 0, len(req.OptionIDs))
+	for _, id := range req.OptionIDs {
+		if id == 0 {
+			continue
+		}
+		if !seen[id] {
+			seen[id] = true
+			optionIDs = append(optionIDs, id)
+		}
 	}
-	if poll.AllowMultiple && poll.MaxChoice != nil && len(req.OptionIDs) > *poll.MaxChoice {
-		return nil, errors.New("exceed max choice")
+	if len(optionIDs) == 0 {
+		return nil, errors.New("option_ids is required")
 	}
 
-	var votes []entity.PollVote
-	for _, optID := range req.OptionIDs {
-		votes = append(votes, entity.PollVote{
-			PollID:       pollID,
-			PollOptionID: optID,
-			MemberID:     memberID,
-			VotedAt:      time.Now(),
-		})
+	if !poll.AllowMultiple {
+		if len(optionIDs) != 1 {
+			return nil, errors.New("only one option is allowed")
+		}
+	} else {
+		if poll.MaxChoice != nil && len(optionIDs) > *poll.MaxChoice {
+			return nil, errors.New("exceed max choice")
+		}
 	}
 
-	if err := s.pollRepo.CreateVotes(votes); err != nil {
+	validCount, err := s.pollRepo.CountValidOptions(pollID, optionIDs)
+	if err != nil {
 		return nil, err
+	}
+	if int(validCount) != len(optionIDs) {
+		return nil, errors.New("invalid option id")
+	}
+
+	_, err = s.pollRepo.CreateVoteWithOptions(pollID, memberID, optionIDs)
+	if err != nil {
+		low := strings.ToLower(err.Error())
+		if strings.Contains(low, "duplicate") || strings.Contains(low, "unique") {
+			return nil, errors.New("already voted")
+		}
+		return nil, err
+	}
+
+	// ✅ Results แบบ B
+	results, err := s.Results(memberID, pollID)
+	if err != nil {
+		// vote success แล้ว แต่ results error (ไม่ควรเกิด) — ส่ง vote success อย่างเดียวก็ได้
+		return &dto.VotePollResponse{
+			PollID:    pollID,
+			MemberID:  memberID,
+			OptionIDs: optionIDs,
+			Message:   "vote_success",
+		}, nil
 	}
 
 	return &dto.VotePollResponse{
 		PollID:    pollID,
 		MemberID:  memberID,
-		OptionIDs: req.OptionIDs,
+		OptionIDs: optionIDs,
 		Message:   "vote_success",
+		Results:   results,
 	}, nil
 }
 
-func (s *pollService) Results(pollID uint) (*dto.PollResultsResponse, error) {
+func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
+	}
+
+	switch poll.PollStatusID {
+	case StatusCLOSED:
+		// ok
+	case StatusPUBLISHED:
+		voted, err := s.pollRepo.HasVoted(pollID, memberID)
+		if err != nil {
+			return nil, err
+		}
+		if !voted {
+			return nil, errors.New("must vote to see results")
+		}
+	default:
+		return nil, errors.New("results not available")
 	}
 
 	rows, err := s.pollRepo.CountVotesByOption(pollID)
@@ -412,18 +441,18 @@ func (s *pollService) Results(pollID uint) (*dto.PollResultsResponse, error) {
 		return nil, err
 	}
 
-	var total int64
-	for _, r := range rows {
-		total += r.Count
+	// ✅ total = จำนวนคนโหวต (voters)
+	totalVoters, err := s.pollRepo.CountTotalVoters(pollID)
+	if err != nil {
+		return nil, err
 	}
 
-	var items []dto.PollResultItem
+	items := make([]dto.PollResultItem, 0, len(rows))
 	for _, r := range rows {
 		percent := 0.0
-		if total > 0 {
-			percent = float64(r.Count) * 100 / float64(total)
+		if totalVoters > 0 {
+			percent = float64(r.Count) * 100 / float64(totalVoters)
 		}
-
 		items = append(items, dto.PollResultItem{
 			OptionID: r.OptionID,
 			Label:    r.Label,
@@ -436,7 +465,7 @@ func (s *pollService) Results(pollID uint) (*dto.PollResultsResponse, error) {
 	return &dto.PollResultsResponse{
 		PollID:   poll.ID,
 		Question: poll.Question,
-		Total:    total,
+		Total:    totalVoters, // json:"total_votes" (ความหมายแบบ B)
 		Items:    items,
 	}, nil
 }
@@ -466,15 +495,13 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "APPROVE",
 		PollID:       poll.ID,
 		AdminID:      &adminID,
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &poll.PollStatusID,
 	})
-
 	return mapPollToResponse(poll), nil
 }
 
@@ -492,8 +519,7 @@ func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.Pol
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "REJECT",
 		PollID:       poll.ID,
 		AdminID:      &adminID,
@@ -501,7 +527,6 @@ func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.Pol
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &poll.PollStatusID,
 	})
-
 	return mapPollToResponse(poll), nil
 }
 
@@ -518,33 +543,28 @@ func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error
 		return nil, err
 	}
 
-	// Log history
-	s.pollRepo.CreateHistory(&entity.PollHistory{
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "CLOSE",
 		PollID:       poll.ID,
 		AdminID:      &adminID,
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &poll.PollStatusID,
 	})
-
 	return mapPollToResponse(poll), nil
 }
 
 /* =========================
-   HELPERS
+   HELPERS + MAPPER
 ========================= */
 
-// validatePollForSubmission: Strict validation สำหรับตอนส่งตรวจ
 func validatePollForSubmission(poll *entity.Poll) error {
 	if poll.Question == "" {
 		return errors.New("question is required")
 	}
-
 	if len(poll.Options) < 2 {
 		return errors.New("at least 2 options required")
 	}
 
-	// ตรวจสอบตัวเลือกซ้ำ
 	seen := make(map[string]bool)
 	for _, opt := range poll.Options {
 		if opt.Label == "" {
@@ -556,7 +576,6 @@ func validatePollForSubmission(poll *entity.Poll) error {
 		seen[opt.Label] = true
 	}
 
-	// ตรวจสอบ MaxChoice
 	if poll.AllowMultiple {
 		if poll.MaxChoice == nil {
 			return errors.New("max_choice must be specified when allow_multiple is true")
@@ -566,7 +585,6 @@ func validatePollForSubmission(poll *entity.Poll) error {
 		}
 	}
 
-	// ตรวจสอบ Start/End dates
 	if poll.StartAt != nil && poll.EndAt != nil {
 		if poll.EndAt.Before(*poll.StartAt) {
 			return errors.New("end_at must be after start_at")
@@ -575,10 +593,6 @@ func validatePollForSubmission(poll *entity.Poll) error {
 
 	return nil
 }
-
-/* =========================
-   MAPPER
-========================= */
 
 func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 	res := &dto.PollResponse{

@@ -5,9 +5,12 @@ import api from "./api";
 export interface PollOption {
   id: number;
   label: string;
-  vote_count: number;
-  poll_id: number;
+  img_url?: string;
+  sort_order?: number;
+  vote_count?: number; // เผื่อบาง endpoint ส่งมา
+  poll_id?: number;
 }
+
 
 export interface Poll {
   id: number;
@@ -52,26 +55,50 @@ export interface CreatePollRequest {
   question: string;
   description?: string;
   allow_multiple: boolean;
-  max_choice?: number;
-  start_at?: string;
-  end_at?: string;
-  options: { label: string }[];
-  main_category_id?: number;
-  sub_category_l1_id?: number;
-  sub_category_l2_id?: number;
+  max_choice?: number | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  options: { label: string; img_url?: string; sort_order?: number }[];
+  main_category_id?: number | null;
+  sub_category_l1_id?: number | null;
+  sub_category_l2_id?: number | null;
 }
 
 export interface UpdatePollRequest {
   question?: string;
   description?: string;
   allow_multiple?: boolean;
-  max_choice?: number;
-  start_at?: string;
-  end_at?: string;
-  options?: { label: string }[]; // Replace all options
+  max_choice?: number | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  options?: { label: string; img_url?: string; sort_order?: number }[];
+  main_category_id?: number | null;
+  sub_category_l1_id?: number | null;
+  sub_category_l2_id?: number | null;
+}
+
+export interface PollResultItem {
+  option_id: number;
+  label: string;
+  img_url?: string;
+  count: number;
+  percent: number;
+}
+
+export interface PollResultsResponse {
+  poll_id: number;
+  question: string;
+  total_votes: number;
+  items: PollResultItem[];
 }
 
 export interface VotePollRequest {
+  option_ids: number[];
+}
+
+// ✅ เพิ่ม: response สำหรับเช็คว่า user โหวตแล้วไหม (ใช้ตอน OPEN ซ่อนผลก่อนโหวต)
+export interface MyVoteResponse {
+  has_voted: boolean;
   option_ids: number[];
 }
 
@@ -87,6 +114,23 @@ const getHeaders = () => ({
 export const pollAPI = {
   // Public / Published
   listPublished: () => api.get<Poll[]>("/members/polls"),
+
+  // ✅ เพิ่ม: list โพลที่ปิดแล้ว (ใช้หน้า /User/Polls/archive)
+  // ต้องมี backend route: GET /members/polls/closed
+  listClosed: () => api.get<Poll[]>("/members/polls/closed"),
+
+  // ✅ เพิ่ม: ดึงโพล published รายตัว (ถ้าต้องการ)
+  // ต้องมี backend route: GET /members/polls/:id
+  getPublishedById: (id: number) => api.get<Poll>(`/members/polls/${id}`),
+
+  // ✅ เพิ่ม: ดึงรายละเอียดโพล (รวม options/vote_count ถ้า backend preload)
+  // ใช้ได้กับหน้า detail หรือ refresh หลังโหวต
+  // ต้องมี backend route: GET /members/polls/:id
+  getPollDetail: (id: number) => api.get<Poll>(`/members/polls/${id}`),
+
+  // ✅ เพิ่ม: เช็คว่า user โหวตโพลนี้แล้วหรือยัง (policy OPEN ต้องโหวตก่อนดูผล)
+  // ต้องมี backend route: GET /members/polls/:id/my-vote
+  getMyVote: (id: number) => api.get<MyVoteResponse>(`/members/polls/${id}/my-vote`, { headers: getHeaders() }),
 
   getResults: (id: number) => api.get<{ poll: Poll; results: any[] }>(`/members/polls/${id}/results`),
 

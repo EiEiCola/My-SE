@@ -31,10 +31,10 @@ func SeedPollSystem(db *gorm.DB) {
 	// 2. Ensure we have members for sample polls
 	member1, member2 := ensurePollMembers(db)
 
-	// 3. Ensure we have admin for approvals
+	// 3. Ensure we have admin for approvals (✅ do NOT create new admin)
 	adminID := ensurePollAdmin(db)
 
-	// 4. Ensure we have categories
+	// 4. Ensure we have categories (if your project already seeds categories, this will just reuse them)
 	mainCat, subL1, subL2 := ensurePollCategories(db, adminID)
 
 	// 5. Create sample polls in different states
@@ -54,22 +54,41 @@ func ensurePollMembers(db *gorm.DB) (entity.Member, entity.Member) {
 	return m1, m2
 }
 
-// Helper: Ensure admin exists
+// ✅ Helper: Use existing admin (avoid unique constraint on phone_number/member_account_id)
 func ensurePollAdmin(db *gorm.DB) uint {
-	admin := entity.Admin{FirstName: "Poll", LastName: "Admin"}
-	db.Where("first_name = ? AND last_name = ?", admin.FirstName, admin.LastName).FirstOrCreate(&admin)
-	return admin.ID
+	var admin entity.Admin
+	if err := db.Order("id ASC").First(&admin).Error; err == nil {
+		return admin.ID
+	}
+	log.Println("⚠️ No admin found in DB. Some seeded category fields may be skipped.")
+	return 0
 }
 
 // Helper: Ensure categories exist
 func ensurePollCategories(db *gorm.DB, adminID uint) (entity.MainCategory, entity.SubCategoryL1, entity.SubCategoryL2) {
-	main := entity.MainCategory{Title: "กิจกรรม", CreatedByAdmin: adminID}
+	var main entity.MainCategory
+	var l1 entity.SubCategoryL1
+	var l2 entity.SubCategoryL2
+
+	// ถ้ามี adminID=0 (ไม่มี admin) ให้ “พยายามดึงที่มีอยู่” อย่างเดียว ไม่สร้างใหม่
+	if adminID == 0 {
+		_ = db.Where("title = ?", "กิจกรรม").First(&main).Error
+		if main.ID != 0 {
+			_ = db.Where("title = ? AND main_category_id = ?", "กิจกรรมชมรม", main.ID).First(&l1).Error
+		}
+		if l1.ID != 0 {
+			_ = db.Where("title = ? AND sub_category_l1_id = ?", "กิจกรรมกีฬา", l1.ID).First(&l2).Error
+		}
+		return main, l1, l2
+	}
+
+	main = entity.MainCategory{Title: "กิจกรรม", CreatedByAdmin: adminID}
 	db.Where("title = ?", main.Title).FirstOrCreate(&main)
 
-	l1 := entity.SubCategoryL1{Title: "กิจกรรมชมรม", MainCategoryID: main.ID, CreatedByAdmin: adminID}
+	l1 = entity.SubCategoryL1{Title: "กิจกรรมชมรม", MainCategoryID: main.ID, CreatedByAdmin: adminID}
 	db.Where("title = ? AND main_category_id = ?", l1.Title, l1.MainCategoryID).FirstOrCreate(&l1)
 
-	l2 := entity.SubCategoryL2{Title: "กิจกรรมกีฬา", SubCategoryL1ID: l1.ID, CreatedByAdmin: adminID}
+	l2 = entity.SubCategoryL2{Title: "กิจกรรมกีฬา", SubCategoryL1ID: l1.ID, CreatedByAdmin: adminID}
 	db.Where("title = ? AND sub_category_l1_id = ?", l2.Title, l2.SubCategoryL1ID).FirstOrCreate(&l2)
 
 	return main, l1, l2
@@ -77,17 +96,20 @@ func ensurePollCategories(db *gorm.DB, adminID uint) (entity.MainCategory, entit
 
 // Helper: Seed sample polls
 func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL1ID, subL2ID uint) {
-	// Poll 1: DRAFT (member สร้างไว้แต่ยังไม่ได้ส่ง)
+	// Poll 1: DRAFT
 	poll1 := entity.Poll{
-		Question:        "ชอบสีเสื้อทีมสีไหนมากที่สุด?",
-		AllowMultiple:   false,
-		MemberID:        member1ID,
-		MainCategoryID:  &mainCatID,
-		SubCategoryL1ID: &subL1ID,
-		PollStatusID:    1, // DRAFT
+		Question:      "ชอบสีเสื้อทีมสีไหนมากที่สุด?",
+		AllowMultiple: false,
+		MemberID:      member1ID,
+		PollStatusID:  1, // DRAFT
+	}
+	if mainCatID != 0 {
+		poll1.MainCategoryID = &mainCatID
+	}
+	if subL1ID != 0 {
+		poll1.SubCategoryL1ID = &subL1ID
 	}
 	if err := db.Where("question = ? AND member_id = ?", poll1.Question, poll1.MemberID).FirstOrCreate(&poll1).Error; err == nil {
-		// Add options
 		opts1 := []entity.PollOption{
 			{PollID: poll1.ID, Label: "สีแดง", SortOrder: 1},
 			{PollID: poll1.ID, Label: "สีน้ำเงิน", SortOrder: 2},
@@ -98,15 +120,21 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 		}
 	}
 
-	// Poll 2: PENDING_REVIEW (รอแอดมินอนุมัติ)
+	// Poll 2: PENDING_REVIEW
 	poll2 := entity.Poll{
-		Question:        "ควรจัดกิจกรรมกีฬาสีในเดือนไหน?",
-		AllowMultiple:   false,
-		MemberID:        member2ID,
-		MainCategoryID:  &mainCatID,
-		SubCategoryL1ID: &subL1ID,
-		SubCategoryL2ID: &subL2ID,
-		PollStatusID:    2, // PENDING_REVIEW
+		Question:      "ควรจัดกิจกรรมกีฬาสีในเดือนไหน?",
+		AllowMultiple: false,
+		MemberID:      member2ID,
+		PollStatusID:  2, // PENDING_REVIEW
+	}
+	if mainCatID != 0 {
+		poll2.MainCategoryID = &mainCatID
+	}
+	if subL1ID != 0 {
+		poll2.SubCategoryL1ID = &subL1ID
+	}
+	if subL2ID != 0 {
+		poll2.SubCategoryL2ID = &subL2ID
 	}
 	if err := db.Where("question = ? AND member_id = ?", poll2.Question, poll2.MemberID).FirstOrCreate(&poll2).Error; err == nil {
 		opts2 := []entity.PollOption{
@@ -119,16 +147,21 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 		}
 	}
 
-	// Poll 3: PUBLISHED (ผ่านการอนุมัติแล้ว เปิดให้โหวต)
+	// Poll 3: PUBLISHED (multi-choice)
 	poll3 := entity.Poll{
-		Question:        "อยากให้ชมรมจัดกิจกรรมอะไรบ้าง? (เลือกได้มากกว่า 1)",
-		AllowMultiple:   true,
-		MaxChoice:       intPtr(2),
-		MemberID:        member1ID,
-		MainCategoryID:  &mainCatID,
-		SubCategoryL1ID: &subL1ID,
-		PollStatusID:    3, // PUBLISHED
+		Question:      "อยากให้ชมรมจัดกิจกรรมอะไรบ้าง? (เลือกได้มากกว่า 1)",
+		AllowMultiple: true,
+		MaxChoice:     intPtr(2),
+		MemberID:      member1ID,
+		PollStatusID:  3, // PUBLISHED
 	}
+	if mainCatID != 0 {
+		poll3.MainCategoryID = &mainCatID
+	}
+	if subL1ID != 0 {
+		poll3.SubCategoryL1ID = &subL1ID
+	}
+
 	if err := db.Where("question = ? AND member_id = ?", poll3.Question, poll3.MemberID).FirstOrCreate(&poll3).Error; err == nil {
 		opts3 := []entity.PollOption{
 			{PollID: poll3.ID, Label: "กิจกรรมกีฬา", SortOrder: 1},
@@ -140,16 +173,18 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 			db.Where("poll_id = ? AND label = ?", opt.PollID, opt.Label).FirstOrCreate(&opt)
 		}
 
-		// Seed some votes
+		// ✅ Seed vote: 1 คน 1 โพล 1 ครั้ง แต่เลือกได้หลาย option ผ่าน PollVoteOption
+		var picked []uint
 		if opt1 := getOptionByLabel(db, poll3.ID, "กิจกรรมกีฬา"); opt1 != nil {
-			seedVote(db, poll3.ID, opt1.ID, member2ID)
+			picked = append(picked, opt1.ID)
 		}
 		if opt2 := getOptionByLabel(db, poll3.ID, "กิจกรรมดนตรี"); opt2 != nil {
-			seedVote(db, poll3.ID, opt2.ID, member2ID)
+			picked = append(picked, opt2.ID)
 		}
+		seedVote(db, poll3.ID, picked, member2ID)
 	}
 
-	// Poll 4: REJECTED (ไม่ผ่านการอนุมัติ)
+	// Poll 4: REJECTED
 	poll4 := entity.Poll{
 		Question:         "ควรยกเลิกการสอบไหม?",
 		AllowMultiple:    false,
@@ -167,16 +202,23 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 		}
 	}
 
-	// Poll 5: CLOSED (ปิดโหวตแล้ว)
+	// Poll 5: CLOSED
 	poll5 := entity.Poll{
-		Question:       "อยากให้เปิดร้านอาหารประเภทไหนในมหาวิทยาลัย?",
-		AllowMultiple:  false,
-		MemberID:       member1ID,
-		MainCategoryID: &mainCatID,
-		SubCategoryL1ID: &subL1ID,
-		SubCategoryL2ID: &subL2ID,
-		PollStatusID:   5, // CLOSED
+		Question:     "อยากให้เปิดร้านอาหารประเภทไหนในมหาวิทยาลัย?",
+		AllowMultiple:false,
+		MemberID:     member1ID,
+		PollStatusID: 5, // CLOSED
 	}
+	if mainCatID != 0 {
+		poll5.MainCategoryID = &mainCatID
+	}
+	if subL1ID != 0 {
+		poll5.SubCategoryL1ID = &subL1ID
+	}
+	if subL2ID != 0 {
+		poll5.SubCategoryL2ID = &subL2ID
+	}
+
 	if err := db.Where("question = ? AND member_id = ?", poll5.Question, poll5.MemberID).FirstOrCreate(&poll5).Error; err == nil {
 		opts5 := []entity.PollOption{
 			{PollID: poll5.ID, Label: "ร้านอาหารญี่ปุ่น", SortOrder: 1},
@@ -186,15 +228,22 @@ func seedSamplePolls(db *gorm.DB, member1ID, member2ID, adminID, mainCatID, subL
 		for _, opt := range opts5 {
 			db.Where("poll_id = ? AND label = ?", opt.PollID, opt.Label).FirstOrCreate(&opt)
 		}
+
+		// seed votes for closed poll
+		if o1 := getOptionByLabel(db, poll5.ID, "ร้านอาหารญี่ปุ่น"); o1 != nil {
+			seedVote(db, poll5.ID, []uint{o1.ID}, member2ID)
+		}
+		if o2 := getOptionByLabel(db, poll5.ID, "ร้านอาหารไทย"); o2 != nil {
+			seedVote(db, poll5.ID, []uint{o2.ID}, member1ID)
+		}
 	}
 
 	log.Println("✅ Sample polls seeded successfully")
 }
 
-// Helper functions
-func intPtr(i int) *int {
-	return &i
-}
+// -------------------- Helpers --------------------
+
+func intPtr(i int) *int { return &i }
 
 func getOptionByLabel(db *gorm.DB, pollID uint, label string) *entity.PollOption {
 	var opt entity.PollOption
@@ -204,12 +253,35 @@ func getOptionByLabel(db *gorm.DB, pollID uint, label string) *entity.PollOption
 	return &opt
 }
 
-func seedVote(db *gorm.DB, pollID, optionID, memberID uint) {
-	vote := entity.PollVote{
-		PollID:       pollID,
-		PollOptionID: optionID,
-		MemberID:     memberID,
+// ✅ 1 คน 1 โพล = 1 PollVote และเลือกหลายช้อยผ่าน PollVoteOption
+func seedVote(db *gorm.DB, pollID uint, optionIDs []uint, memberID uint) {
+	if len(optionIDs) == 0 {
+		return
 	}
-	// uniqueIndex จะป้องกันการโหวตซ้ำ
-	db.Where("poll_id = ? AND member_id = ?", vote.PollID, vote.MemberID).FirstOrCreate(&vote)
+
+	// ✅ ใช้ FirstOrCreate เพื่อไม่ให้ log "record not found"
+	vote := entity.PollVote{
+		PollID:   pollID,
+		MemberID: memberID,
+	}
+
+	if err := db.
+		Where("poll_id = ? AND member_id = ?", pollID, memberID).
+		Attrs(entity.PollVote{PollID: pollID, MemberID: memberID}).
+		FirstOrCreate(&vote).Error; err != nil {
+		return
+	}
+
+	for _, oid := range optionIDs {
+		attachVoteOption(db, vote.ID, oid)
+	}
+}
+
+
+func attachVoteOption(db *gorm.DB, pollVoteID uint, pollOptionID uint) {
+	row := entity.PollVoteOption{
+		PollVoteID:   pollVoteID,
+		PollOptionID: pollOptionID,
+	}
+	db.Where("poll_vote_id = ? AND poll_option_id = ?", pollVoteID, pollOptionID).FirstOrCreate(&row)
 }

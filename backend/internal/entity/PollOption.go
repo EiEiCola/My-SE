@@ -16,5 +16,6 @@ type PollOption struct {
 	Poll   Poll `gorm:"foreignKey:PollID;references:ID" json:"poll"`
 
 	// ความสัมพันธ์กับการโหวต
-	Votes []PollVote `gorm:"foreignKey:PollOptionID;references:ID" json:"votes"`
+	//Votes []PollVote `gorm:"foreignKey:PollOptionID;references:ID" json:"votes"`
+	VoteOptions []PollVoteOption `gorm:"foreignKey:PollOptionID;references:ID" json:"vote_options"`	
 }

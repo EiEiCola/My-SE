@@ -95,6 +95,8 @@ type VotePollResponse struct {
 	MemberID  uint   `json:"member_id"`
 	OptionIDs []uint `json:"option_ids"`
 	Message   string `json:"message"`
+
+	Results *PollResultsResponse `json:"results,omitempty"`
 }
 
 /* =========================

@@ -275,7 +275,6 @@ func (ctl *PollController) Vote(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
-
 func (ctl *PollController) Results(c *gin.Context) {
 	pollID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -284,7 +283,18 @@ func (ctl *PollController) Results(c *gin.Context) {
 	}
 	pollID := uint(pollID64)
 
-	res, err := ctl.pollService.Results(pollID)
+	memberIDAny, ok := c.Get("member_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "member_id not found"})
+		return
+	}
+	memberID, ok := memberIDAny.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+		return
+	}
+
+	res, err := ctl.pollService.Results(memberID, pollID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -292,3 +302,4 @@ func (ctl *PollController) Results(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+	

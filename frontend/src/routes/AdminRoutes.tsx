@@ -1,13 +1,10 @@
-import { Routes, Route } from 'react-router-dom'
-import Home from '../app/(protected)/Admin/Home/HomeAdmin'
-import AdminLayout from '../Layout/admin'
+import { Routes, Route } from "react-router-dom";
+import Home from "../app/(protected)/Admin/Home/HomeAdmin";
+import AdminLayout from "../Layout/admin";
 import ProfileManage from "../app/(protected)/Admin/ProfileManage";
 import EditAdminProfile from "../app/(protected)/Admin/ProfileManage/EditProfile";
-
 import RewardManage from "../app/(protected)/Admin/RewardManage";
 import PointRuleManage from "../app/(protected)/Admin/RewardManage/PointRuleManage";
-
-
 import MessageManage from "../app/(protected)/Admin/MessageManage";
 import FriendsManage from "../app/(protected)/Admin/FriendManage";
 import GroupManage from "../app/(protected)/Admin/CategoryManage";
@@ -18,43 +15,33 @@ import AnnouncementManage from "../app/(protected)/Admin/AnnouncementManage";
 import AnnouncementRequestDetail from "../app/(protected)/Admin/AnnouncementManage/AnnouncementRequestDetail";
 import ReportManage from "../app/(protected)/Admin/ReportManage";
 import AdminPollList from "../app/(protected)/Admin/Poll/AdminPollList";
+
 function AdminRoutes() {
   return (
     <Routes>
-      {/* Layout ของ Admin ครอบทุก route ที่ขึ้นต้น /Admin */}
-      <Route element={<AdminLayout />}>
-        <Route path="/Admin" element={<Home />} />
+      <Route path="/Admin/*" element={<AdminLayout />}>
+        <Route index element={<Home />} />
 
-        <Route path="/Admin/ProfileManage" element={<ProfileManage />} />
-        <Route path="/Admin/Profile/Edit" element={<EditAdminProfile />} />
+        <Route path="ProfileManage" element={<ProfileManage />} />
+        <Route path="Profile/Edit" element={<EditAdminProfile />} />
 
-        <Route path="/Admin/RewardManage" element={<RewardManage />} />
+        <Route path="RewardManage" element={<RewardManage />} />
+        <Route path="RewardManage/PointRule" element={<PointRuleManage />} />
 
-        <Route
-          path="/Admin/RewardManage/PointRule" element={<PointRuleManage />} />
+        <Route path="MessageManage" element={<MessageManage />} />
+        <Route path="FriendsManage" element={<FriendsManage />} />
+        <Route path="GroupManage" element={<GroupManage />} />
+        <Route path="PostManage" element={<PostManage />} />
+        <Route path="ReviewManage" element={<ReviewManage />} />
+        <Route path="VotingManage" element={<VotingManage />} />
+        <Route path="PollManage" element={<AdminPollList />} />
+        <Route path="AnnouncementManage" element={<AnnouncementManage />} />
+        <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
 
-
-        <Route path="/Admin/MessageManage" element={<MessageManage />} />
-
-        <Route path="/Admin/FriendsManage" element={<FriendsManage />} />
-
-        <Route path="/Admin/GroupManage" element={<GroupManage />} />
-
-        <Route path="/Admin/PostManage" element={<PostManage />} />
-
-        <Route path="/Admin/ReviewManage" element={<ReviewManage />} />
-
-        {/* <Route path="/Admin/VotingManage" element={<VotingManage />} /> */}
-        <Route path="/Admin/Polls" element={<AdminPollList />} />
-
-        <Route path="/Admin/AnnouncementManage" element={<AnnouncementManage />} />
-        <Route path="/Admin/AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
-
-        <Route path="/Admin/ReportManage" element={<ReportManage />} />
-
+        <Route path="ReportManage" element={<ReportManage />} />
       </Route>
     </Routes>
-  )
+  );
 }
 
-export default AdminRoutes
+export default AdminRoutes;

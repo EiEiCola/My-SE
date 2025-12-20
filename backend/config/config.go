@@ -54,6 +54,7 @@ func Connect() *gorm.DB {
 	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
+	//dataseed.ResetDatabaseByDROP(db)
 
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
@@ -129,6 +130,7 @@ func Connect() *gorm.DB {
 		// --- 10. ตาราง Poll (ต้องอยู่ท้ายสุดเพราะอ้างอิงหลายตาราง) ---
 		&entity.PollOption{},
 		&entity.PollVote{},
+		&entity.PollVoteOption{}, 
 		&entity.PollHistory{}, // <--- อ้างอิง Admin, Poll, PollStatus (ควรอยู่ท้ายสุด)
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
