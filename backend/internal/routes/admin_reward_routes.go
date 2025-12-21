@@ -9,19 +9,18 @@ import (
 	"github.com/sut68/team12/backend/internal/app/services"
 )
 
-func SetupAdminRewardRoutes(r *gin.RouterGroup) {
+// ✅ รับ group ที่ถูก protect แล้ว (เช่น /api/admin)
+func SetupAdminRewardRoutes(adminAPI *gin.RouterGroup) {
 	db := config.DB
 
 	repo := repository.NewAdminRewardRepository(db)
 	svc := services.NewAdminRewardService(repo)
 	ctrl := appcontroller.NewAdminRewardController(svc)
 
-	admin := r.Group("/admin")
-	{
-		admin.POST("/reward", ctrl.CreateReward)
-		admin.GET("/reward", ctrl.GetAllReward)
-		admin.GET("/reward/:id", ctrl.GetRewardByID)
-		admin.PUT("/reward/:id", ctrl.UpdateReward)
-		admin.DELETE("/reward/:id", ctrl.DeleteReward)
-	}
+	// ✅ อยู่ใต้ /api/admin โดยตรง
+	adminAPI.POST("/reward", ctrl.CreateReward)
+	adminAPI.GET("/reward", ctrl.GetAllReward)
+	adminAPI.GET("/reward/:id", ctrl.GetRewardByID)
+	adminAPI.PUT("/reward/:id", ctrl.UpdateReward)
+	adminAPI.DELETE("/reward/:id", ctrl.DeleteReward)
 }
