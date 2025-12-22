@@ -18,4 +18,4 @@ type PollOption struct {
 	// ความสัมพันธ์กับการโหวต
 	//Votes []PollVote `gorm:"foreignKey:PollOptionID;references:ID" json:"votes"`
 	VoteOptions []PollVoteOption `gorm:"foreignKey:PollOptionID;references:ID" json:"vote_options"`	
-}
+}	

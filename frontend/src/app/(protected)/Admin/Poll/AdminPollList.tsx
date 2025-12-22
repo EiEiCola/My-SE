@@ -71,8 +71,20 @@ const AdminPollList: React.FC = () => {
     const getQuestion = (p: Poll) => (p as any).question ?? "";
     const getAuthorId = (p: Poll) => (p as any).member_id ?? "-";
     const getCreatedAt = (p: Poll) => (p as any).created_at ?? (p as any).CreatedAt ?? null;
-    const getStatus = (p: Poll): StatusName =>
-        ((p as any).poll_status?.name as StatusName) || "UNKNOWN";
+    const getStatus = (p: Poll): StatusName => {
+        const name = (p as any)?.poll_status?.name as StatusName | undefined;
+         if (name) return name;
+
+         const sid = (p as any)?.status_id ?? (p as any)?.poll_status_id ?? (p as any)?.StatusID;
+        switch (Number(sid)) {
+            case 1: return "DRAFT";
+            case 2: return "PENDING_REVIEW";
+            case 3: return "PUBLISHED";
+            case 4: return "REJECTED";
+            case 5: return "CLOSED";
+            default: return "UNKNOWN";
+  }
+};
 
     // optional: backend อาจส่งชื่อมา
     const getAuthorName = (p: Poll) =>
@@ -416,7 +428,8 @@ const AdminPollList: React.FC = () => {
                                         getOptions(selectedPoll).map((opt: any) => (
                                             <div className="option-item" key={opt.ID || opt.id || opt.text}>
                                                 <div className="option-dot" />
-                                                <div className="option-text">{opt.text || opt.title || "-"}</div>
+                                               <div className="option-text">{opt.label || opt.text || opt.title || "-"}</div>
+
                                                 {opt.image_url && <img className="option-img" src={opt.image_url} alt="" />}
                                             </div>
                                         ))

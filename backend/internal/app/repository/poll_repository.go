@@ -7,12 +7,18 @@ import (
 )
 
 type PollRepository interface {
+	// Poll
 	CreatePoll(poll *entity.Poll) error
 	GetPollByID(id uint) (*entity.Poll, error)
 	ListPolls(statusID *uint, search *string) ([]entity.Poll, error)
 	ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error)
 	UpdatePoll(poll *entity.Poll) error
 	DeletePoll(pollID uint) error
+
+	// Admin (robust)
+	ListPendingForAdmin() ([]entity.Poll, error)
+	// ✅ เก็บโค้ด robust join เดิมของหนูไว้ (ไม่ตัด) แต่เปลี่ยนชื่อให้ไม่ชน ListPolls
+	ListPollsPendingByName(search *string) ([]entity.Poll, error)
 
 	// Voting
 	HasVoted(pollID uint, memberID uint) (bool, error)
@@ -26,9 +32,11 @@ type PollRepository interface {
 	// History
 	CreateHistory(history *entity.PollHistory) error
 
-	// UpdatePollStatus updates the status of a poll
+	// Status
 	UpdatePollStatus(pollID uint, statusID uint) error
 
+	// Options
+	ReplacePollOptions(pollID uint, options []entity.PollOption) error
 }
 
 type pollRepository struct {
@@ -50,9 +58,12 @@ func (r *pollRepository) CreatePoll(poll *entity.Poll) error {
 func (r *pollRepository) GetPollByID(id uint) (*entity.Poll, error) {
 	var poll entity.Poll
 	err := r.db.
-		Preload("Options").
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Preload("PollStatus").
 		First(&poll, id).Error
+
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +74,9 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 	var polls []entity.Poll
 
 	query := r.db.
-		Preload("Options").
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Preload("PollStatus").
 		Model(&entity.Poll{})
 
@@ -71,7 +84,8 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 		query = query.Where("poll_status_id = ?", *statusID)
 	}
 	if search != nil && *search != "" {
-		query = query.Where("question LIKE ?", "%"+*search+"%")
+		// Postgres แนะนำ ILIKE (case-insensitive)
+		query = query.Where("question ILIKE ?", "%"+*search+"%")
 	}
 
 	err := query.Order("created_at DESC").Find(&polls).Error
@@ -82,7 +96,9 @@ func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]ent
 	var polls []entity.Poll
 
 	query := r.db.
-		Preload("Options").
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Preload("PollStatus").
 		Model(&entity.Poll{}).
 		Where("member_id = ?", memberID)
@@ -96,11 +112,44 @@ func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]ent
 }
 
 func (r *pollRepository) UpdatePoll(poll *entity.Poll) error {
-	return r.db.Save(poll).Error
+	return r.db.Omit("Options").Save(poll).Error
 }
 
 func (r *pollRepository) DeletePoll(pollID uint) error {
 	return r.db.Delete(&entity.Poll{}, pollID).Error
+}
+
+/* =========================
+   ADMIN (ROBUST)
+========================= */
+
+// ✅ โค้ด robust join เดิมของหนู (เก็บไว้ครบ) แค่เปลี่ยนชื่อไม่ให้ชน ListPolls
+func (r *pollRepository) ListPollsPendingByName(search *string) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	query := r.db.
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("PollStatus").
+		Model(&entity.Poll{})
+
+	// robust: filter ด้วยชื่อ
+	query = query.
+		Joins("JOIN poll_statuses ps ON ps.id = polls.poll_status_id").
+		Where("ps.name = ?", "PENDING_REVIEW")
+
+	if search != nil && *search != "" {
+		query = query.Where("polls.question ILIKE ?", "%"+*search+"%")
+	}
+
+	err := query.Order("polls.created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+func (r *pollRepository) ListPendingForAdmin() ([]entity.Poll, error) {
+	// ✅ reuse robust function
+	return r.ListPollsPendingByName(nil)
 }
 
 /* =========================
@@ -204,12 +253,47 @@ func (r *pollRepository) CreateHistory(history *entity.PollHistory) error {
 	return r.db.Create(history).Error
 }
 
-
 /* =========================
    UPDATE POLL STATUS
 ========================= */
+
 func (r *pollRepository) UpdatePollStatus(pollID uint, statusID uint) error {
 	return r.db.Model(&entity.Poll{}).
 		Where("id = ?", pollID).
 		Update("poll_status_id", statusID).Error
+}
+
+/* =========================
+   REPLACE OPTIONS
+========================= */
+
+func (r *pollRepository) ReplacePollOptions(pollID uint, options []entity.PollOption) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1) ลบ options เก่าทิ้งก่อน
+		if err := tx.Unscoped().
+			Where("poll_id = ?", pollID).
+			Delete(&entity.PollOption{}).Error; err != nil {
+			return err
+		}
+
+		// 2) ใส่ options ใหม่ (ถ้าไม่มี ก็จบ)
+		if len(options) == 0 {
+			return nil
+		}
+
+		// กันพลาด: ensure poll_id/sort_order
+		for i := range options {
+			options[i].ID = 0 // ✅ บังคับให้เป็น record ใหม่เสมอ
+			options[i].PollID = pollID
+			if options[i].SortOrder == 0 { // ถ้าไม่ได้ส่งมา
+				options[i].SortOrder = i + 1
+			}
+		}
+
+		if err := tx.Create(&options).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

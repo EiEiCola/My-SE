@@ -40,6 +40,8 @@ const MyPolls: React.FC = () => {
   // detail modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
 
   // confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -227,10 +229,27 @@ const MyPolls: React.FC = () => {
 );
   };
 
-  const openDetail = (p: Poll) => {
-    setSelectedPoll(p);
-    setDetailOpen(true);
-  };
+  const openDetail = async (p: Poll) => {
+  const id = getId(p);
+
+  setDetailOpen(true);
+  setDetailLoading(true);
+  setSelectedPoll(null); // เคลียร์ก่อน กันเห็นข้อมูลเก่าค้าง
+
+  try {
+    const res = await pollAPI.getMyPollByID(id);
+    const payload = (res as any)?.data?.data ?? (res as any)?.data; // กัน shape
+    setSelectedPoll(payload);
+  } catch (e) {
+    console.error(e);
+    alert("Failed to load poll detail");
+    setDetailOpen(false);
+  } finally {
+    setDetailLoading(false);
+  }
+};
+
+
   const closeDetail = () => {
     setDetailOpen(false);
     setSelectedPoll(null);
@@ -429,82 +448,102 @@ const MyPolls: React.FC = () => {
       </div>
 
       {/* DETAIL CARD MODAL */}
-      {detailOpen && selectedPoll && (
-        <div className="card-backdrop" onMouseDown={closeDetail}>
-          <div className="card-modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="card-head">
-              <div>
-                <div className="card-title">Poll Detail</div>
-                <div className="card-sub">
-                  ID #{getId(selectedPoll)} • Created{" "}
-                  {getCreatedAt(selectedPoll) ? dayjs(getCreatedAt(selectedPoll)).format("DD/MM/YYYY") : "-"}
-                </div>
-              </div>
+    {detailOpen && (
+  <div className="card-backdrop" onMouseDown={closeDetail}>
+    <div className="card-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="card-head">
+        <div>
+          <div className="card-title">Poll Detail</div>
 
-              <button className="icon-btn" onClick={closeDetail} type="button">
-                ✕
-              </button>
-            </div>
-
-            <div className="card-body">
-              <div className="detail-block">
-                <div className="detail-label">Question</div>
-                <div className="detail-value">{getQuestion(selectedPoll)}</div>
-              </div>
-
-              <div className="detail-grid">
-                <div className="detail-block">
-                  <div className="detail-label">Status</div>
-                  <div className="detail-value">
-                    <StatusBadge status={getStatus(selectedPoll)} />
-                  </div>
-                </div>
-
-                <div className="detail-block">
-                  <div className="detail-label">Allow Multiple</div>
-                  <div className="detail-value">{getAllowMultiple(selectedPoll) ? "Yes" : "No"}</div>
-                </div>
-
-                <div className="detail-block">
-                  <div className="detail-label">Max Choice</div>
-                  <div className="detail-value">{getMaxChoice(selectedPoll) ?? "-"}</div>
-                </div>
-
-                <div className="detail-block">
-                  <div className="detail-label">Time Range</div>
-                  <div className="detail-value muted">
-                    {getStartAt(selectedPoll) ? dayjs(getStartAt(selectedPoll)).format("DD/MM/YYYY HH:mm") : "-"}{" "}
-                    →{" "}
-                    {getEndAt(selectedPoll) ? dayjs(getEndAt(selectedPoll)).format("DD/MM/YYYY HH:mm") : "-"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="detail-block" style={{ marginTop: 10 }}>
-                <div className="detail-label">Options</div>
-                <div className="opt-list">
-                  {getOptions(selectedPoll).length ? (
-                    getOptions(selectedPoll).map((opt, idx) => (
-                      <div className="opt-item" key={idx}>
-                        <span className="opt-dot" />
-                        <span className="opt-text">{optionLabel(opt)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="muted">No options in payload (backend may not preload options).</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="card-actions">
-                <button className="btn btn-outline" onClick={closeDetail} type="button">
-                  Close
-                </button>
-              </div>
-            </div>
+          {/* ถ้า selectedPoll ยังไม่มา ให้โชว์ - */}
+          <div className="card-sub">
+            ID #{selectedPoll ? getId(selectedPoll) : "-"} • Created{" "}
+            {selectedPoll && getCreatedAt(selectedPoll)
+              ? dayjs(getCreatedAt(selectedPoll)).format("DD/MM/YYYY")
+              : "-"}
           </div>
         </div>
-      )}
+
+        <button className="icon-btn" onClick={closeDetail} type="button">
+          ✕
+        </button>
+      </div>
+
+      <div className="card-body">
+        {detailLoading ? (
+          <div className="muted">Loading detail...</div>
+        ) : selectedPoll ? (
+          <>
+            {/* ✅ เดิมทั้งหมดของ detail ที่เคยอยู่ใน modal ใส่ไว้ตรงนี้ */}
+            <div className="detail-block">
+              <div className="detail-label">Question</div>
+              <div className="detail-value">{getQuestion(selectedPoll)}</div>
+            </div>
+
+            <div className="detail-grid">
+              <div className="detail-block">
+                <div className="detail-label">Status</div>
+                <div className="detail-value">
+                  <StatusBadge status={getStatus(selectedPoll)} />
+                </div>
+              </div>
+
+              <div className="detail-block">
+                <div className="detail-label">Allow Multiple</div>
+                <div className="detail-value">
+                  {getAllowMultiple(selectedPoll) ? "Yes" : "No"}
+                </div>
+              </div>
+
+              <div className="detail-block">
+                <div className="detail-label">Max Choice</div>
+                <div className="detail-value">{getMaxChoice(selectedPoll) ?? "-"}</div>
+              </div>
+
+              <div className="detail-block">
+                <div className="detail-label">Time Range</div>
+                <div className="detail-value muted">
+                  {getStartAt(selectedPoll)
+                    ? dayjs(getStartAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
+                    : "-"}{" "}
+                  →{" "}
+                  {getEndAt(selectedPoll)
+                    ? dayjs(getEndAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
+                    : "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="detail-block" style={{ marginTop: 10 }}>
+              <div className="detail-label">Options</div>
+              <div className="opt-list">
+                {getOptions(selectedPoll).length ? (
+                  getOptions(selectedPoll).map((opt, idx) => (
+                    <div className="opt-item" key={idx}>
+                      <span className="opt-dot" />
+                      <span className="opt-text">{optionLabel(opt)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="muted">No options in payload.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="card-actions">
+              <button className="btn btn-outline" onClick={closeDetail} type="button">
+                Close
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="muted">No data</div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* CONFIRM MODAL */}
       {confirmOpen && (

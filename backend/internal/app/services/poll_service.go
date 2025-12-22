@@ -15,6 +15,7 @@ type PollService interface {
 	UpdateDraft(memberID uint, pollID uint, req dto.UpdatePollRequest) (*dto.PollResponse, error)
 	SubmitForReview(memberID uint, pollID uint) (*dto.PollResponse, error)
 	CancelRequest(memberID uint, pollID uint) (*dto.PollResponse, error)
+
 	DeletePoll(memberID uint, pollID uint) error
 
 	GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsResponse, error)
@@ -56,43 +57,44 @@ const (
    MEMBER - DRAFT MANAGEMENT
 ========================= */
 
-func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) {
-	poll := entity.Poll{
-		Question:        req.Question,
-		AllowMultiple:   req.AllowMultiple,
-		MaxChoice:       req.MaxChoice,
-		StartAt:         req.StartAt,
-		EndAt:           req.EndAt,
-		MainCategoryID:  req.MainCategoryID,
-		SubCategoryL1ID: req.SubCategoryL1ID,
-		SubCategoryL2ID: req.SubCategoryL2ID,
-		MemberID:        memberID,
-		PollStatusID:    StatusDRAFT,
-	}
-
-	for i, opt := range req.Options {
-		sort := i
-		if opt.SortOrder != nil {
-			sort = *opt.SortOrder
+	func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.PollResponse, error) {
+		poll := entity.Poll{
+			Question:        req.Question,
+			AllowMultiple:   req.AllowMultiple,
+			MaxChoice:       req.MaxChoice,
+			StartAt:         req.StartAt,
+			EndAt:           req.EndAt,
+			MainCategoryID:  req.MainCategoryID,
+			SubCategoryL1ID: req.SubCategoryL1ID,
+			SubCategoryL2ID: req.SubCategoryL2ID,
+			MemberID:        memberID,
+			PollStatusID:    StatusDRAFT,
 		}
-		poll.Options = append(poll.Options, entity.PollOption{
-			Label:     opt.Label,
-			ImgURL:    opt.ImgURL,
-			SortOrder: sort,
+
+		for i, opt := range req.Options {
+    sort := i + 1 // ✅ เริ่มที่ 1
+    if opt.SortOrder != nil {
+        sort = *opt.SortOrder
+    }
+    poll.Options = append(poll.Options, entity.PollOption{
+        Label:     opt.Label,
+        ImgURL:    opt.ImgURL,
+        SortOrder: sort,
+    })
+}
+
+
+		if err := s.pollRepo.CreatePoll(&poll); err != nil {
+			return nil, err
+		}
+
+		_ = s.pollRepo.CreateHistory(&entity.PollHistory{
+			Action:     "SAVE_DRAFT",
+			PollID:     poll.ID,
+			ToStatusID: &poll.PollStatusID,
 		})
-	}
 
-	if err := s.pollRepo.CreatePoll(&poll); err != nil {
-		return nil, err
-	}
-
-	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
-		Action:     "SAVE_DRAFT",
-		PollID:     poll.ID,
-		ToStatusID: &poll.PollStatusID,
-	})
-
-	return mapPollToResponse(&poll), nil
+		return mapPollToResponse(&poll), nil
 }
 
 func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePollRequest) (*dto.PollResponse, error) {
@@ -110,6 +112,7 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 
 	oldStatusID := poll.PollStatusID
 
+	// 1) update poll fields (ไม่ยุ่ง options)
 	poll.Question = req.Question
 	poll.AllowMultiple = req.AllowMultiple
 	poll.MaxChoice = req.MaxChoice
@@ -119,24 +122,25 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 	poll.SubCategoryL1ID = req.SubCategoryL1ID
 	poll.SubCategoryL2ID = req.SubCategoryL2ID
 
-	// NOTE: ของเดิมคุณลบ poll ทั้งแถว (เสี่ยง) — รอบนี้ยังไม่ refactor ใหญ่
-	// แนะนำทำ Replace Options แบบถูกต้องด้วย transaction ในรอบถัดไป
-	if err := s.pollRepo.DeletePoll(pollID); err == nil {
-		poll.Options = nil
-		for i, opt := range req.Options {
-			sort := i
-			if opt.SortOrder != nil {
-				sort = *opt.SortOrder
-			}
-			poll.Options = append(poll.Options, entity.PollOption{
-				Label:     opt.Label,
-				ImgURL:    opt.ImgURL,
-				SortOrder: sort,
-			})
-		}
+	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+		return nil, err
 	}
 
-	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+	// 2) replace options จริง ๆ
+	opts := make([]entity.PollOption, 0, len(req.Options))
+	for i, opt := range req.Options {
+		sort := i + 1
+		if opt.SortOrder != nil {
+			sort = *opt.SortOrder
+		}
+		opts = append(opts, entity.PollOption{
+			Label:     opt.Label,
+			ImgURL:    opt.ImgURL,
+			SortOrder: sort,
+		})
+	}
+
+	if err := s.pollRepo.ReplacePollOptions(pollID, opts); err != nil {
 		return nil, err
 	}
 
@@ -147,7 +151,13 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 		ToStatusID:   &poll.PollStatusID,
 	})
 
-	return mapPollToResponse(poll), nil
+	// 3) re-fetch ให้ options ล่าสุดชัวร์
+	updated, err := s.pollRepo.GetPollByID(pollID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapPollToResponse(updated), nil
 }
 
 func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResponse, error) {
@@ -225,8 +235,6 @@ func (s *pollService) CancelRequest(memberID uint, pollID uint) (*dto.PollRespon
 
 	return mapPollToResponse(updated), nil
 }
-
-
 func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
@@ -238,8 +246,19 @@ func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
 	if poll.PollStatusID != StatusDRAFT && poll.PollStatusID != StatusREJECTED {
 		return errors.New("can only delete poll in DRAFT or REJECTED status")
 	}
+
+	// (optional) เก็บ history
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
+		Action:       "DELETE",
+		PollID:       poll.ID,
+		FromStatusID: &poll.PollStatusID,
+	})
+
 	return s.pollRepo.DeletePoll(pollID)
 }
+
+
+
 
 /* =========================
    MEMBER - MY POLLS
@@ -594,11 +613,31 @@ func validatePollForSubmission(poll *entity.Poll) error {
 	return nil
 }
 
+import "sort" // ใส่ไว้บนสุดของไฟล์ ถ้ายังไม่มี
+
 func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
+	// ✅ status_name
+	statusName := ""
+	if poll.PollStatus != nil {
+		statusName = poll.PollStatus.Name
+	}
+
+	// ✅ กัน options nil + (optional) sort ตาม sort_order
+	opts := poll.Options
+	if opts == nil {
+		opts = []entity.PollOption{}
+	}
+	sort.Slice(opts, func(i, j int) bool {
+		return opts[i].SortOrder < opts[j].SortOrder
+	})
+
 	res := &dto.PollResponse{
 		ID:       poll.ID,
 		Question: poll.Question,
-		StatusID: poll.PollStatusID,
+
+		StatusID:   poll.PollStatusID,
+		StatusName: statusName, // ✅ เพิ่ม
+
 		MemberID: poll.MemberID,
 
 		AllowMultiple: poll.AllowMultiple,
@@ -608,9 +647,11 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 
 		LastRejectReason: poll.LastRejectReason,
 		CreatedAt:        poll.CreatedAt,
+
+		Options: make([]dto.PollOptionResponse, 0, len(opts)), // ✅ กัน nil
 	}
 
-	for _, opt := range poll.Options {
+	for _, opt := range opts {
 		res.Options = append(res.Options, dto.PollOptionResponse{
 			ID:        opt.ID,
 			Label:     opt.Label,
@@ -623,9 +664,9 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 }
 
 func mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
-	var res []dto.PollResponse
-	for _, p := range polls {
-		res = append(res, *mapPollToResponse(&p))
+	res := make([]dto.PollResponse, 0, len(polls))
+	for i := range polls {
+		res = append(res, *mapPollToResponse(&polls[i]))
 	}
 	return res
 }

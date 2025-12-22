@@ -68,6 +68,8 @@ type PollResponse struct {
 
 	Options   []PollOptionResponse `json:"options"`
 	CreatedAt time.Time            `json:"created_at"`
+	
+	StatusName string `json:"status_name"`
 }
 
 // สำหรับรายการโพลของสมาชิก (My Polls)
