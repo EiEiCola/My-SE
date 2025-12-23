@@ -9,6 +9,7 @@ export const memberRewardAPI = {
     }),
 
   myStickers: () => api.get("/member/my-stickers"),
-  points: () => api.get("/member/points"),
 
+  // ✅ baseURL มี /api อยู่แล้ว -> ใช้ /member/points
+  points: () => api.get("/member/points"),
 };

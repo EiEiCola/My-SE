@@ -160,7 +160,6 @@ function Profile() {
               size={150}
               src={profile.avatar || undefined}
               style={{
-                backgroundColor: "#C42E0A",
                 fontSize: 40,
                 fontWeight: 700,
               }}

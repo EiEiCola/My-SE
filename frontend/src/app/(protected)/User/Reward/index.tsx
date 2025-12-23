@@ -1,13 +1,17 @@
 //reward
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Typography, Button, message, Modal } from "antd";
+import { Card, Typography, Button, message, Modal, Input, Select } from "antd";
 import StarsIcon from "@mui/icons-material/Stars";
+import DomainVerificationIcon from "@mui/icons-material/DomainVerification";
 
 // ✅ shop: GET /api/rewards
 import { rewardShopAPI } from "../../../../services/http/reward_shop";
 
 // ✅ redeem + my sticker + points
 import { memberRewardAPI } from "../../../../services/http/member_reward";
+
+// ✅ popup rules
+import PointRuleModal from "./PointRule";
 
 const { Title, Text } = Typography;
 
@@ -96,23 +100,51 @@ const getStickerName = (it: MyStickerItem) => {
 const getStickerImg = (it: MyStickerItem) => {
   const rw: any = it?.reward ?? (it as any)?.Reward;
 
-  return (
-    it?.reward_picture ??
-    rw?.reward_picture ??
-    rw?.RewardPicture ??
-    ""
-  );
+  return it?.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
+};
+
+// ✅ NEW: ดึงแต้มสติ๊กเกอร์ใน MySticker (flat + nested + snapshot)
+const getStickerPoints = (it: MyStickerItem) => {
+  const rw: any = it?.reward ?? (it as any)?.Reward;
+
+  const raw =
+    it?.point_required ??
+    rw?.point_required ??
+    rw?.PointRequired ??
+    it?.point_required_snapshot ??
+    rw?.point_required_snapshot ??
+    rw?.PointRequiredSnapshot;
+
+  return toNumber(raw);
 };
 
 const getRewardIdFromSticker = (it: MyStickerItem) => {
   const rw: any = it?.reward ?? (it as any)?.Reward;
-  const rid = Number(
-    it?.reward_id ??
-      rw?.id ??
-      rw?.ID ??
-      (it as any)?.RewardID
-  );
+  const rid = Number(it?.reward_id ?? rw?.id ?? rw?.ID ?? (it as any)?.RewardID);
   return Number.isFinite(rid) && rid > 0 ? rid : 0;
+};
+
+// ✅ parse helper สำหรับ /member/points (รองรับ object / string / wrapped data)
+const parseTotalPoint = (payload: any): number => {
+  try {
+    const body = typeof payload === "string" ? JSON.parse(payload) : payload;
+
+    const raw =
+      body?.total_point ??
+      body?.TotalPoint ??
+      body?.totalPoint ??
+      body?.data?.total_point ??
+      body?.data?.TotalPoint ??
+      body?.data?.totalPoint ??
+      body?.point ??
+      body?.data?.point;
+
+    const p = Number(raw);
+    return Number.isFinite(p) ? p : 0;
+  } catch {
+    const p = Number(payload);
+    return Number.isFinite(p) ? p : 0;
+  }
 };
 
 const Reward: React.FC = () => {
@@ -123,9 +155,16 @@ const Reward: React.FC = () => {
   const [myStickers, setMyStickers] = useState<MyStickerItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Filter/Sort (Shop only)
+  const [searchText, setSearchText] = useState("");
+  const [sortPoints, setSortPoints] = useState<"asc" | "desc">("asc");
+
   // ✅ Confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selected, setSelected] = useState<RewardItem | null>(null);
+
+  // ✅ Point Rule popup open/close
+  const [ruleOpen, setRuleOpen] = useState(false);
 
   // -------------------- Load --------------------
   const loadRewards = async () => {
@@ -154,21 +193,25 @@ const Reward: React.FC = () => {
     }
   };
 
-  // ✅ ดึงแต้มจริงจาก backend (ต้องมี GET /member/points)
   const loadMyPoints = async () => {
     try {
       const res = await memberRewardAPI.points();
-      const p = Number(res?.data?.total_point);
-      if (Number.isFinite(p)) setMyPoints(p);
-    } catch (err) {
-      // เงียบไว้ได้
+      const p = parseTotalPoint(res?.data);
+      setMyPoints(p);
+    } catch (err: any) {
+      console.log(
+        "GET /member/points error =>",
+        err?.response?.status,
+        err?.response?.data
+      );
+      setMyPoints(0);
     }
   };
 
   useEffect(() => {
     loadRewards();
     loadMyStickers();
-    loadMyPoints(); // ✅ sync แต้มจาก DB ตอนเปิดหน้า
+    loadMyPoints();
   }, []);
 
   // -------------------- Derived --------------------
@@ -184,6 +227,20 @@ const Reward: React.FC = () => {
   }, [myStickers]);
 
   const isOwned = (rewardId: number) => ownedRewardIds.has(rewardId);
+
+  const filteredRewards = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+
+    const bySearch = q
+      ? rewards.filter((r) => r.name.toLowerCase().includes(q))
+      : rewards;
+
+    const sorted = [...bySearch].sort((a, b) => {
+      return sortPoints === "asc" ? a.points - b.points : b.points - a.points;
+    });
+
+    return sorted;
+  }, [rewards, searchText, sortPoints]);
 
   // -------------------- Action --------------------
   const handleClickPurchase = (item: RewardItem) => {
@@ -204,17 +261,18 @@ const Reward: React.FC = () => {
 
     try {
       const idemKey = `redeem-${selected.id}-${Date.now()}`;
-
       const res = await memberRewardAPI.redeem(selected.id, idemKey);
 
-      // ✅ อัปเดตแต้มจาก response ก่อน (ไว)
-      const newBal = Number(res?.data?.new_point_balance);
+      const rawNewBal =
+        res?.data?.new_point_balance ??
+        res?.data?.data?.new_point_balance ??
+        res?.data?.newBalance ??
+        res?.data?.data?.newBalance;
+
+      const newBal = Number(rawNewBal);
       if (Number.isFinite(newBal)) setMyPoints(newBal);
 
-      // ✅ sync กับ DB อีกรอบ (กันค้าง/กันผิด)
       await loadMyPoints();
-
-      // ✅ โหลด My Sticker ใหม่ทันที
       await loadMyStickers();
 
       message.success(`แลก ${selected.name} สำเร็จ ✅ (-${selected.points})`);
@@ -331,19 +389,74 @@ const Reward: React.FC = () => {
           </div>
         </Card>
 
-        {/* SECTION TITLE */}
-        <Title
-          level={4}
+        {/* SECTION TITLE ROW */}
+        <div
           style={{
-            color: "#C42E0A",
-            fontWeight: 700,
-            fontSize: 20,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
             marginTop: 10,
             marginBottom: 5,
           }}
         >
-          {activeTab === "shop" ? "Sticker Shop" : "My Sticker"}
-        </Title>
+          <Title
+            level={4}
+            style={{
+              color: "#C42E0A",
+              fontWeight: 700,
+              fontSize: 20,
+              margin: 0,
+            }}
+          >
+            {activeTab === "shop" ? "Sticker Shop" : "My Sticker"}
+          </Title>
+
+          {activeTab === "shop" && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: 6,
+              }}
+            >
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <Input
+                  allowClear
+                  placeholder="Search..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  style={{ width: 260, borderRadius: 10 }}
+                />
+
+                <Select
+                  value={sortPoints}
+                  onChange={(v) => setSortPoints(v)}
+                  style={{ width: 220 }}
+                  options={[
+                    { value: "asc", label: "Point : น้อย -> มาก" },
+                    { value: "desc", label: "Point : มาก -> น้อย" },
+                  ]}
+                />
+              </div>
+
+              <Button
+                type="link"
+                style={{
+                  padding: 0,
+                  height: "auto",
+                  fontWeight: 600,
+                  fontSize: 16,
+                  color: "#C42E0A",
+                }}
+                onClick={() => setRuleOpen(true)}
+              >
+                How to earn points ?
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* GRID */}
         {activeTab === "shop" ? (
@@ -356,7 +469,7 @@ const Reward: React.FC = () => {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {rewards.map((it) => {
+            {filteredRewards.map((it) => {
               const owned = isOwned(it.id);
               const disabled = owned || !canBuy(it.points);
 
@@ -458,6 +571,7 @@ const Reward: React.FC = () => {
               myStickers.map((it) => {
                 const name = getStickerName(it);
                 const img = getStickerImg(it);
+                const pts = getStickerPoints(it); // ✅ NEW
 
                 return (
                   <Card
@@ -477,7 +591,20 @@ const Reward: React.FC = () => {
                       justifyContent: "space-between",
                     }}
                   >
-                    {/* ✅ ถ้ารูปไม่มา จะโชว์ placeholder เล็กๆ แทน ไม่ทำให้การ์ดโล่ง */}
+                    {/* ✅ แต้ม (เหมือนหน้า shop) */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <StarsIcon style={{ color: "#FFC107", fontSize: 26 }} />
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: "#FFC107",
+                          fontSize: 24,
+                        }}
+                      >
+                        {pts}
+                      </span>
+                    </div>
+
                     {img ? (
                       <img
                         src={img}
@@ -520,7 +647,13 @@ const Reward: React.FC = () => {
                       {name}
                     </Text>
 
-                    <Text style={{ color: "#999" }}>Owned ✅</Text>
+                    {/* ✅ Owned icon ใหม่ */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <DomainVerificationIcon style={{ color: "gray" }} />
+                      <Text style={{ color: "gray", fontWeight: 600 }}>
+                        Owned
+                      </Text>
+                    </div>
                   </Card>
                 );
               })
@@ -528,7 +661,7 @@ const Reward: React.FC = () => {
           </div>
         )}
 
-        {/* ✅ CONFIRM POPUP */}
+        {/* CONFIRM POPUP (redeem) */}
         <Modal
           open={confirmOpen}
           title="ยืนยันการแลกสติ๊กเกอร์"
@@ -575,6 +708,8 @@ const Reward: React.FC = () => {
             </div>
           </div>
         </Modal>
+
+        <PointRuleModal open={ruleOpen} onClose={() => setRuleOpen(false)} />
       </div>
     </main>
   );
