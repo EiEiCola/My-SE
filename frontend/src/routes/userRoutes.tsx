@@ -28,6 +28,9 @@ import AnnouncementDetail from "../app/(protected)/User/Announcement/Announcemen
 import AnnouncementCreate from "../app/(protected)/User/Announcement/AnnouncementCreate";
 import Report from "../app/(protected)/User/Report";
 import Post from "../app/(protected)/User/Post";
+import PostDetail from "../app/(protected)/User/Post/postdetail";
+import CreatePost from "../app/(protected)/User/Post/createpost";
+import EditPost from "../app/(protected)/User/Post/editpost";
 
 function UserRoutes() {
   return (
@@ -61,6 +64,9 @@ function UserRoutes() {
         <Route path="/User/Group" element={<Group />} />
 
         <Route path="/User/Post" element={<Post />} />
+        <Route path="/User/Post/detail/:id" element={<PostDetail />} />
+        <Route path="/User/Post/create_post" element={<CreatePost />} />
+        <Route path="/User/Post/edit/:id" element={<EditPost />} />
 
         <Route path="/User/Review" element={<ReviewListPage />} />
         <Route path="/User/Review/createreview" element={<CreateReviewPage />} />
