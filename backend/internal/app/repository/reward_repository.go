@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
 )
@@ -19,8 +21,12 @@ func NewRewardRepository(db *gorm.DB) RewardRepository {
 }
 
 func (r *rewardRepository) GetRewardByID(id uint) (*entity.Reward, error) {
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+
 	var reward entity.Reward
-	if err := r.db.First(&reward, id).Error; err != nil {
+	if err := r.db.Preload("Admin").First(&reward, id).Error; err != nil {
 		return nil, err
 	}
 	return &reward, nil
@@ -28,6 +34,6 @@ func (r *rewardRepository) GetRewardByID(id uint) (*entity.Reward, error) {
 
 func (r *rewardRepository) GetAllReward() ([]entity.Reward, error) {
 	var rewards []entity.Reward
-	err := r.db.Find(&rewards).Error
+	err := r.db.Preload("Admin").Order("created_at DESC").Find(&rewards).Error
 	return rewards, err
 }

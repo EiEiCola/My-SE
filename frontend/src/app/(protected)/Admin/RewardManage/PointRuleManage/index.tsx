@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Card, Typography, Button, Input, Table, message, Popconfirm } from "antd";
-import { EditOutlined, DeleteOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import {
+  Card,
+  Typography,
+  Button,
+  Input,
+  Table,
+  message,
+  Popconfirm,
+} from "antd";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  ArrowLeftOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -13,6 +25,7 @@ const api = axios.create({
 
 type PointRulePayload = {
   activity_type: string;
+  description?: string; // ✅ NEW
   activity_point: number;
   daily_limit: number;
 };
@@ -36,6 +49,7 @@ const normalizeRule = (raw: any) => {
   return {
     id,
     activity_type: String(raw?.activity_type ?? raw?.ActivityType ?? ""),
+    description: String(raw?.description ?? raw?.Description ?? ""), // ✅ NEW
     activity_point: Number(raw?.activity_point ?? raw?.ActivityPoint ?? 0),
     daily_limit: Number(raw?.daily_limit ?? raw?.DailyLimit ?? 0),
     _raw: raw,
@@ -53,9 +67,13 @@ const PointRuleManage: React.FC = () => {
 
   const [form, setForm] = useState({
     type: "",
+    description: "", // ✅ NEW
     point: "",
     limit: "",
   });
+
+  // ✅ เก็บ row เดิมไว้กันกรณี edit แล้ว description ว่าง (จะได้ไม่หลุด)
+  const [editingSnapshot, setEditingSnapshot] = useState<any | null>(null);
 
   const loadRules = async () => {
     try {
@@ -63,8 +81,8 @@ const PointRuleManage: React.FC = () => {
       const list = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
-          ? res.data.data
-          : [];
+        ? res.data.data
+        : [];
 
       const mapped = list.map(normalizeRule);
 
@@ -94,10 +112,31 @@ const PointRuleManage: React.FC = () => {
       return;
     }
 
+    const pointNum = Number(form.point);
+    const limitNum = Number(form.limit);
+
+    if (!Number.isFinite(pointNum) || pointNum <= 0) {
+      message.warning("Activity Point ต้องมากกว่า 0");
+      return;
+    }
+    if (!Number.isFinite(limitNum) || limitNum < 0) {
+      message.warning("Daily Limit ต้องเป็น 0 หรือมากกว่า");
+      return;
+    }
+
+    // ✅ ถ้า edit แล้วผู้ใช้ลบ description จนว่าง:
+    // - ถ้า backend ยังไม่รองรับ "เคลียร์ค่า" (ว่างแล้วไม่อัปเดต)
+    // - เราจะส่งเป็นค่าเดิมแทน เพื่อไม่ให้หลุด/ไม่ตรง
+    // ถ้าเนยอยากให้ลบได้จริง บอกได้ เดี๋ยวผมปรับ backend ให้เคลียร์ได้
+    const descTrim = form.description?.trim() ?? "";
+    const safeDesc =
+      isEditMode && descTrim === "" ? String(editingSnapshot?.description ?? "") : descTrim;
+
     const payload: PointRulePayload = {
-      activity_type: form.type,
-      activity_point: Number(form.point),
-      daily_limit: Number(form.limit),
+      activity_type: form.type.trim(),
+      description: safeDesc,
+      activity_point: pointNum,
+      daily_limit: limitNum,
     };
 
     try {
@@ -114,9 +153,10 @@ const PointRuleManage: React.FC = () => {
         message.success("สร้างกติกาสำเร็จ ✅");
       }
 
-      setForm({ type: "", point: "", limit: "" });
+      setForm({ type: "", description: "", point: "", limit: "" });
       setIsEditMode(false);
       setEditId(null);
+      setEditingSnapshot(null);
       setOpen(false);
 
       await loadRules();
@@ -176,22 +216,36 @@ const PointRuleManage: React.FC = () => {
 
     setIsEditMode(true);
     setEditId(id);
+
+    // ✅ เก็บค่าเดิมไว้กัน description หลุด
+    setEditingSnapshot(row);
+
     setForm({
-      type: row.activity_type ?? "",
+      type: String(row.activity_type ?? ""),
+      description: String(row.description ?? ""), // ✅ NEW
       point: String(row.activity_point ?? ""),
       limit: String(row.daily_limit ?? ""),
     });
+
     setOpen(true);
   };
 
   // -------------------- TABLE ----------------------
   const columns = [
     { title: "Activity Type", dataIndex: "activity_type" },
-    { title: "Point", dataIndex: "activity_point" },
-    { title: "Daily Limit", dataIndex: "daily_limit" },
+    {
+      title: "Description",
+      dataIndex: "description",
+      render: (v: any) => (
+        <span style={{ color: "#555" }}>{String(v || "-")}</span>
+      ),
+    },
+    { title: "Point", dataIndex: "activity_point", width: 120 },
+    { title: "Daily Limit", dataIndex: "daily_limit", width: 120 },
     {
       title: "Action",
       key: "action",
+      width: 140,
       render: (_: any, row: any) => {
         const id = getRowId(row);
         const disabled = !id;
@@ -265,7 +319,6 @@ const PointRuleManage: React.FC = () => {
             minHeight: 500,
           }}
         >
-          {/* ✅ TITLE อยู่บนสุด */}
           <Title
             level={3}
             style={{
@@ -278,7 +331,6 @@ const PointRuleManage: React.FC = () => {
             Point Rule Management
           </Title>
 
-          {/* ✅ Back ซ้าย / Add Rule ขวา บรรทัดเดียวกัน */}
           <div
             style={{
               display: "flex",
@@ -314,7 +366,8 @@ const PointRuleManage: React.FC = () => {
               onClick={() => {
                 setIsEditMode(false);
                 setEditId(null);
-                setForm({ type: "", point: "", limit: "" });
+                setEditingSnapshot(null);
+                setForm({ type: "", description: "", point: "", limit: "" });
                 setOpen(true);
               }}
             >
@@ -366,15 +419,27 @@ const PointRuleManage: React.FC = () => {
                     />
                   </div>
 
+                  {/* ✅ NEW: Description */}
                   <div>
-                    <label style={{ color: "#C42E0A" }}>Activity Point</label>
+                    <label style={{ color: "#C42E0A" }}>Description</label>
+                    <Input.TextArea
+                      rows={3}
+                      style={{ borderRadius: 8, marginTop: 5, resize: "none" }}
+                      value={form.description}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
+                      placeholder="อธิบายกิจกรรม / เงื่อนไขการได้แต้ม..."
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ color: "#C42E0A" }}>Point</label>
                     <Input
                       type="number"
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.point}
-                      onChange={(e) =>
-                        setForm({ ...form, point: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, point: e.target.value })}
                     />
                   </div>
 
@@ -384,9 +449,7 @@ const PointRuleManage: React.FC = () => {
                       type="number"
                       style={{ height: 40, borderRadius: 8, marginTop: 5 }}
                       value={form.limit}
-                      onChange={(e) =>
-                        setForm({ ...form, limit: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, limit: e.target.value })}
                     />
                   </div>
                 </div>

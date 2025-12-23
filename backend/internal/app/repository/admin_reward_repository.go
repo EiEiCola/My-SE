@@ -8,11 +8,12 @@ import (
 )
 
 type AdminRewardRepository interface {
-	CreateReward(reward *entity.Reward) error
-	UpdateReward(reward *entity.Reward) error
-	DeleteReward(id uint) error
-	GetRewardByID(id uint) (*entity.Reward, error)
-	GetAllReward() ([]entity.Reward, error)
+	Create(payload *entity.Reward) error
+	Update(id uint, payload *entity.Reward) error
+	Delete(id uint) error
+
+	GetAll() ([]entity.Reward, error)
+	GetByID(id uint) (*entity.Reward, error)
 }
 
 type adminRewardRepository struct {
@@ -20,49 +21,57 @@ type adminRewardRepository struct {
 }
 
 func NewAdminRewardRepository(db *gorm.DB) AdminRewardRepository {
-	return &adminRewardRepository{
-		db: db,
+	return &adminRewardRepository{db: db}
+}
+
+func (r *adminRewardRepository) Create(payload *entity.Reward) error {
+	if payload == nil {
+		return errors.New("payload is required")
 	}
+	return r.db.Create(payload).Error
 }
 
-func (r *adminRewardRepository) CreateReward(reward *entity.Reward) error {
-	return r.db.Create(reward).Error
-}
-
-func (r *adminRewardRepository) UpdateReward(reward *entity.Reward) error {
-	// Save จะ update ตาม PK ของ struct (gorm.Model.ID)
-	return r.db.Save(reward).Error
-}
-
-func (r *adminRewardRepository) DeleteReward(id uint) error {
-	// ✅ ลบ "จริง" ออกจาก DB (ไม่ใช่ soft delete)
-	// ถ้าใช้ gorm.Model จะมี DeletedAt -> Delete ปกติจะเป็น soft delete
-	result := r.db.Unscoped().Delete(&entity.Reward{}, id)
-
-	if result.Error != nil {
-		return result.Error
+func (r *adminRewardRepository) Update(id uint, payload *entity.Reward) error {
+	if id == 0 {
+		return errors.New("invalid id")
+	}
+	if payload == nil {
+		return errors.New("payload is required")
 	}
 
-	// ✅ ถ้าไม่เจอ record จะไม่ error แต่ RowsAffected = 0
-	if result.RowsAffected == 0 {
-		return errors.New("reward not found")
-	}
-
-	return nil
+	// ✅ ไม่ควร update admin_id (creator) ตอนแก้ไข reward
+	return r.db.Model(&entity.Reward{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"reward_name":    payload.RewardName,
+			"point_required": payload.PointRequired,
+			"reward_picture": payload.RewardPicture,
+		}).Error
 }
 
-func (r *adminRewardRepository) GetRewardByID(id uint) (*entity.Reward, error) {
+// 🔥 HARD DELETE (ลบจริง)
+func (r *adminRewardRepository) Delete(id uint) error {
+	if id == 0 {
+		return errors.New("invalid id")
+	}
+	return r.db.Unscoped().Delete(&entity.Reward{}, id).Error
+}
+
+// ✅ ดึงเฉพาะที่ยังไม่ถูกลบ (admin ไม่เห็นของที่ลบแล้ว)
+func (r *adminRewardRepository) GetAll() ([]entity.Reward, error) {
+	var rewards []entity.Reward
+	err := r.db.Preload("Admin").Order("created_at DESC").Find(&rewards).Error
+	return rewards, err
+}
+
+func (r *adminRewardRepository) GetByID(id uint) (*entity.Reward, error) {
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+
 	var reward entity.Reward
-	if err := r.db.First(&reward, id).Error; err != nil {
+	if err := r.db.Preload("Admin").First(&reward, id).Error; err != nil {
 		return nil, err
 	}
 	return &reward, nil
-}
-
-func (r *adminRewardRepository) GetAllReward() ([]entity.Reward, error) {
-	var rewards []entity.Reward
-	if err := r.db.Find(&rewards).Error; err != nil {
-		return nil, err
-	}
-	return rewards, nil
 }

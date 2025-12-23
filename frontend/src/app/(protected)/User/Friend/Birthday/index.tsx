@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { ArrowLeft, Send, Smile } from "lucide-react";
+import { useNavigate } from 'react-router-dom'
 
 const FriendBirthday = () => {
   const [message, setMessage] = useState("");
   const [activeMessages, setActiveMessages] = useState({});
+  
 
   const recentBirthdays = [
     {
@@ -60,6 +62,8 @@ const FriendBirthday = () => {
     }));
   };
 
+  const navigate = useNavigate()
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Main Content */}
@@ -68,7 +72,7 @@ const FriendBirthday = () => {
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <button className="hover:bg-gray-200 rounded-full p-2 transition-colors">
-              <ArrowLeft className="w-6 h-6 text-gray-700" />
+              <ArrowLeft className="w-6 h-6 text-gray-700" onClick={() => navigate('/User/Friends')}/>
             </button>
             <h1 className="text-2xl font-bold text-gray-800">วันเกิด</h1>
           </div>

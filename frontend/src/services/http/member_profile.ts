@@ -1,4 +1,4 @@
-import api  from "./api";
+import api from "./api";
 
 export type MemberProfileResponse = {
   username?: string;
@@ -11,7 +11,6 @@ export type MemberProfileResponse = {
   student_id?: string;
   first_name?: string;
   last_name?: string;
-  national_id?: string;
 };
 
 export type UpdateMemberProfilePayload = {
@@ -19,15 +18,16 @@ export type UpdateMemberProfilePayload = {
   last_name: string;
   username: string;
   bio: string;
-  dob: string; // YYYY-MM-DD
+  dob: string;
   gender_id: number;
-  member_picture: string; // base64 หรือ url แล้วแต่ backend รองรับ
+  member_picture: string;
 };
 
 export const memberAPI = {
-  getByAccountId: (accountId: number) =>
-    api.get<MemberProfileResponse>(`/members/account/${accountId}`),
+  // ✅ ใช้ JWT ระบุ user
+  getMe: () =>
+    api.get<MemberProfileResponse>("/member/me"),
 
-  updateByAccountId: (accountId: number, payload: UpdateMemberProfilePayload) =>
-    api.put(`/members/account/${accountId}`, payload),
+  updateMe: (payload: UpdateMemberProfilePayload) =>
+    api.put("/member/me", payload),
 };

@@ -19,7 +19,9 @@ import AdminPollList from "../app/(protected)/Admin/Poll/AdminPollList";
 function AdminRoutes() {
   return (
     <Routes>
+      {/* ✅ ให้ Layout match /Admin ทุกหน้า */}
       <Route path="/Admin/*" element={<AdminLayout />}>
+        {/* ✅ /Admin */}
         <Route index element={<Home />} />
 
         <Route path="ProfileManage" element={<ProfileManage />} />
@@ -37,7 +39,6 @@ function AdminRoutes() {
         <Route path="PollManage" element={<AdminPollList />} />
         <Route path="AnnouncementManage" element={<AnnouncementManage />} />
         <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
-
         <Route path="ReportManage" element={<ReportManage />} />
       </Route>
     </Routes>

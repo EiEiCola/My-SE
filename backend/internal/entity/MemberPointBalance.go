@@ -1,16 +1,29 @@
 package entity
 
-import "gorm.io/gorm"
+import (
+	"errors"
+
+	"gorm.io/gorm"
+)
 
 type MemberPointBalance struct {
+	gorm.Model
 
-gorm.Model
+	TotalPoint int `json:"total_point" gorm:"not null;default:0"`
 
-MemberPointBalanceID	int		`json:"member_point_balance_id"`
+	MemberID uint   `json:"member_id" gorm:"not null;uniqueIndex"`
+	Member   Member `gorm:"foreignKey:MemberID;references:ID"`
+}
 
-TotalPoint 				int `json:"total_point"`
+func ValidateMemberPointBalance(b MemberPointBalance) (bool, error) {
+	if b.MemberID == 0 {
+		return false, errors.New("MemberID is required")
+	}
 
-MemberID   				uint   `json:"member_id"`  
-Member     				Member `gorm:"foreignKey:MemberID;references:ID"`
+	// กันแต้มติดลบ
+	if b.TotalPoint < 0 {
+		return false, errors.New("TotalPoint must be zero or positive")
+	}
 
+	return true, nil
 }

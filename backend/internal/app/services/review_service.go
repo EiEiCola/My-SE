@@ -1,58 +1,252 @@
 package services
 
 import (
-	// แก้ path ให้ตรงกับ module ของโปรเจกต์หนู
-	"github.com/sut68/team12/backend/internal/dto"
+	"errors"
+	"regexp"
+	"strings"
+
 	"github.com/sut68/team12/backend/internal/app/repository"
+	"github.com/sut68/team12/backend/internal/dto"
 	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
-// Interface ที่ Controller จะเรียกใช้
 type ReviewService interface {
 	CreateReview(req dto.CreateReviewRequest) (*entity.Review, error)
-	// เดี๋ยวอนาคตค่อยเพิ่ม Get/List/Vote อื่น ๆ ตามมา
+	ListReviews(mainCategoryID *uint) ([]entity.Review, error)
+	DeleteReview(reviewID uint, memberID uint) error
+
+	// ✅ upload images metadata to DB
+	AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error
+
+	// Vote
+	VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error)
 }
 
-// struct จริงที่ implement interface ด้านบน
 type reviewService struct {
 	reviewRepo repository.ReviewRepository
 }
 
-// ใช้ตอนประกาศใน router/controller
 func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
-	return &reviewService{
-		reviewRepo: reviewRepo,
-	}
+	return &reviewService{reviewRepo: reviewRepo}
 }
 
-// ------------------------------
-// สร้างรีวิวใหม่ (basic version)
-// ------------------------------
+// --------------------------
+// helpers (อยู่ไฟล์นี้ได้เลย)
+// --------------------------
+
+// รองรับ hashtag ทุกภาษา + ตัวเลข + _ + -
+// เช่น #เงินดี #SUT2025 #work-hard #หอA1
+var hashtagRe = regexp.MustCompile(`#([\p{L}\p{N}_-]+)`)
+
+func extractHashtags(text string) []string {
+	matches := hashtagRe.FindAllStringSubmatch(text, -1)
+	out := make([]string, 0, len(matches))
+
+	seen := map[string]struct{}{}
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		tag := strings.TrimSpace(m[1])
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		out = append(out, tag)
+	}
+	return out
+}
+
+func normalizeTag(raw string) string {
+	s := strings.TrimSpace(raw)
+	// รองรับ "###tag" ให้เหลือแค่ tag
+	s = strings.TrimLeft(s, "#")
+	s = strings.TrimSpace(s)
+
+	// กัน #Work กับ #work (ถ้าไม่อยาก lower ให้ลบบรรทัดนี้)
+	s = strings.ToLower(s)
+
+	return s
+}
+
+// ตรวจแบบ generic (รองรับ postgres/sqlite/mySQL จากข้อความ error)
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+
+	// Postgres: duplicate key value violates unique constraint
+	if strings.Contains(msg, "duplicate key value") && strings.Contains(msg, "unique") {
+		return true
+	}
+	// SQLite: UNIQUE constraint failed
+	if strings.Contains(msg, "unique constraint failed") {
+		return true
+	}
+	// MySQL: duplicate entry
+	if strings.Contains(msg, "duplicate entry") {
+		return true
+	}
+	// เผื่อข้อความอื่น ๆ
+	if strings.Contains(msg, "unique") && strings.Contains(msg, "duplicate") {
+		return true
+	}
+	return false
+}
+
 func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Review, error) {
-	// map จาก DTO → Entity Review
+	if req.MainCategoryID == nil {
+		return nil, errors.New("main_category_id is required")
+	}
+
 	review := &entity.Review{
 		Title:       req.Title,
 		Content:     req.Content,
 		Rating:      req.Rating,
 		IsAnonymous: req.IsAnonymous,
 
-		MemberID:       req.MemberID,
-		MainCategoryID: req.MainCategoryID,
+		MemberID: req.MemberID,
+
+		MainCategoryID:  req.MainCategoryID,
 		SubCategoryL1ID: req.SubCategoryL1ID,
 		SubCategoryL2ID: req.SubCategoryL2ID,
 
-		// เริ่มต้น count เป็น 0
 		HelpfulCount:    0,
 		NotHelpfulCount: 0,
 	}
 
-	// เซฟรีวิวลง DB ผ่าน repository
+	// 1) create review ก่อน เพื่อให้ได้ review.ID
 	if err := s.reviewRepo.CreateReview(review); err != nil {
 		return nil, err
 	}
 
-	// ตอนนี้ยังไม่จัดการ hashtags / images
-	// เดี๋ยวเพิ่มรอบหน้าได้ (ใช้ review.ID ต่อ)
+	// 2) hashtags: รวมทั้งที่ frontend ส่งมา + ที่พิมพ์ใน content (แบบ Twitter)
+	allTags := make([]string, 0, len(req.Hashtags)+8)
+	allTags = append(allTags, req.Hashtags...)
+	allTags = append(allTags, extractHashtags(req.Content)...)
 
-	return review, nil
+	if len(allTags) > 0 {
+		seen := make(map[string]struct{}) // กันซ้ำใน request+content
+
+		for _, raw := range allTags {
+			name := normalizeTag(raw)
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+
+			// 2.1 หา tag ก่อน
+			tag, err := s.reviewRepo.FindTagByName(name)
+			if err != nil {
+				return nil, err
+			}
+
+			// 2.2 ไม่เจอ -> สร้างใหม่ (แต่ต้องกันชน unique)
+			if tag == nil {
+				newTag := &entity.Tag{Name: name}
+				if err := s.reviewRepo.CreateTag(newTag); err != nil {
+					// ถ้าชน unique เพราะมีคนสร้างพร้อมกัน -> หาใหม่แล้วใช้ต่อ
+					if isUniqueConstraintError(err) {
+						tag, err = s.reviewRepo.FindTagByName(name)
+						if err != nil {
+							return nil, err
+						}
+						if tag == nil {
+							// กันเคสแปลก ๆ
+							return nil, err
+						}
+					} else {
+						return nil, err
+					}
+				} else {
+					tag = newTag
+				}
+			}
+
+			// 2.3 ผูก review <-> tag
+			if err := s.reviewRepo.AttachTagToReview(review.ID, tag.ID); err != nil {
+				// ถ้าเธอใส่ unique (review_id, tag_id) แล้วเจอซ้ำ -> ไม่ต้อง fail
+				if !isUniqueConstraintError(err) {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	// ❗images จะมาใน endpoint upload แยก
+
+	// ✅ โหลดใหม่พร้อม preload ก่อนส่งกลับ
+	full, err := s.reviewRepo.FindReviewByID(review.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return full, nil
+}
+
+func (s *reviewService) AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error {
+	// ต้องเป็นเจ้าของรีวิว
+	if err := s.reviewRepo.CheckReviewOwner(reviewID, memberID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return gorm.ErrRecordNotFound
+		}
+		return err
+	}
+
+	for i, img := range images {
+		if strings.TrimSpace(img.URL) == "" {
+			continue
+		}
+
+		sortOrder := img.SortOrder
+		if sortOrder == 0 {
+			sortOrder = i + 1
+		}
+
+		row := &entity.ReviewImage{
+			URL:       img.URL,
+			IsCover:   img.IsCover,
+			SortOrder: sortOrder,
+			ReviewID:  reviewID,
+		}
+		if err := s.reviewRepo.CreateReviewImage(row); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ListReviews ดึงรีวิวทั้งหมด (optionally กรองด้วย mainCategoryID)?
+func (s *reviewService) ListReviews(mainCategoryID *uint) ([]entity.Review, error) {
+	return s.reviewRepo.ListReviewsByCategory(mainCategoryID)
+}
+
+// DeleteReview จะตรวจสอบสิทธิ์การลบด้วย memberID
+func (s *reviewService) DeleteReview(reviewID uint, memberID uint) error {
+	return s.reviewRepo.DeleteReviewByID(reviewID, memberID)
+}
+
+// VoteReview จะจัดการโหวตรีวิวทุกเคส
+func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error) {
+	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.VoteReviewResponse{
+		ReviewID:        reviewID,
+		HelpfulCount:    h,
+		NotHelpfulCount: n,
+		MyVoteType:      myVote,
+		Action:          action,
+	}, nil
 }

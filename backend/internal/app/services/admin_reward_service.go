@@ -8,55 +8,76 @@ import (
 )
 
 type AdminRewardService interface {
-	CreateReward(reward *entity.Reward) (*entity.Reward, error)
-	UpdateReward(id uint, data *entity.Reward) (*entity.Reward, error)
+	CreateReward(payload *entity.Reward) (*entity.Reward, error)
+	UpdateReward(id uint, payload *entity.Reward) (*entity.Reward, error)
 	DeleteReward(id uint) error
-	GetRewardByID(id uint) (*entity.Reward, error)
+
 	GetAllReward() ([]entity.Reward, error)
+	GetRewardByID(id uint) (*entity.Reward, error)
 }
 
 type adminRewardService struct {
-	adminRewardRepo repository.AdminRewardRepository
+	repo repository.AdminRewardRepository
 }
 
-func NewAdminRewardService(adminRewardRepo repository.AdminRewardRepository) AdminRewardService {
-	return &adminRewardService{
-		adminRewardRepo: adminRewardRepo,
+func NewAdminRewardService(r repository.AdminRewardRepository) AdminRewardService {
+	return &adminRewardService{repo: r}
+}
+
+func (s *adminRewardService) CreateReward(payload *entity.Reward) (*entity.Reward, error) {
+	if payload == nil {
+		return nil, errors.New("payload is required")
 	}
-}
 
-func (s *adminRewardService) CreateReward(reward *entity.Reward) (*entity.Reward, error) {
-	if err := s.adminRewardRepo.CreateReward(reward); err != nil {
+	// ✅ validate ก่อน create (กัน admin_id = 0 และข้อมูลไม่ครบ)
+	ok, err := entity.ValidateReward(*payload)
+	if !ok {
 		return nil, err
 	}
-	return reward, nil
-}
 
-func (s *adminRewardService) UpdateReward(id uint, data *entity.Reward) (*entity.Reward, error) {
-	reward, err := s.adminRewardRepo.GetRewardByID(id)
-	if err != nil {
-		return nil, errors.New("reward not found")
-	}
-
-	reward.RewardName = data.RewardName
-	reward.PointRequired = data.PointRequired
-	reward.RewardPicture = data.RewardPicture
-	reward.AdminID = data.AdminID
-
-	if err := s.adminRewardRepo.UpdateReward(reward); err != nil {
+	if err := s.repo.Create(payload); err != nil {
 		return nil, err
 	}
-	return reward, nil
+	return payload, nil
+}
+
+func (s *adminRewardService) UpdateReward(id uint, payload *entity.Reward) (*entity.Reward, error) {
+	if payload == nil {
+		return nil, errors.New("payload is required")
+	}
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+
+	// ✅ เวลา update ถ้าไม่ได้ส่ง AdminID มา (เช่น controller ไม่ set)
+	// แนะนำให้ "ไม่บังคับ validate AdminID" ตอน update หรือ ensure ให้ controller set AdminID เสมอ
+	// ทางนี้เลือกแบบปลอดภัย: ให้ controller set AdminID เสมออยู่แล้ว -> validate ได้
+	ok, err := entity.ValidateReward(*payload)
+	if !ok {
+		return nil, err
+	}
+
+	if err := s.repo.Update(id, payload); err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(id)
 }
 
 func (s *adminRewardService) DeleteReward(id uint) error {
-	return s.adminRewardRepo.DeleteReward(id)
+	if id == 0 {
+		return errors.New("invalid id")
+	}
+	return s.repo.Delete(id)
 }
 
+// ✅ admin เห็นเฉพาะที่ยังอยู่
 func (s *adminRewardService) GetAllReward() ([]entity.Reward, error) {
-	return s.adminRewardRepo.GetAllReward()
+	return s.repo.GetAll()
 }
 
 func (s *adminRewardService) GetRewardByID(id uint) (*entity.Reward, error) {
-	return s.adminRewardRepo.GetRewardByID(id)
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+	return s.repo.GetByID(id)
 }

@@ -17,9 +17,6 @@ import { memberAPI } from "../../../../services/http/member_profile";
 
 const { Title, Text } = Typography;
 
-// mock account id (ตอนนี้ใช้ตัวที่เทสต์ใน Postman)
-const ACCOUNT_ID = 201;
-
 function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,10 +55,10 @@ function Profile() {
     { username: "deereiei", avatar: "", status: "following" },
   ];
 
-  // ⭐ โหลดโปรไฟล์จาก backend
+  // ✅ โหลดโปรไฟล์จาก backend ด้วย JWT: GET /api/member/me
   useEffect(() => {
     memberAPI
-      .getByAccountId(ACCOUNT_ID)
+      .getMe()
       .then((res) => {
         const data = res.data;
 
@@ -75,7 +72,7 @@ function Profile() {
 
         setProfile({
           username: data.username || "",
-          friends: 0, // ระบบเพื่อนยังไม่ทำ ใช้ 0 ไปก่อน
+          friends: 0,
           followers: 0,
           following: 0,
           bio: data.bio || "",
@@ -85,20 +82,25 @@ function Profile() {
         });
       })
       .catch((err) => {
-        console.error("Failed to load profile, using mock:", err);
-        // ถ้า backend พัง/ต่อไม่ติด ใช้ mock เดิม
-        setProfile({
-          username: "chaaim8dec",
-          friends: 15,
-          followers: 10,
-          following: 25,
-          bio: "ENFP\nComputer Engineering\nCPE#28 SUT#31",
-          gender: "Female",
-          dob: "2003-12-08",
+        console.error("Failed to load profile:", err);
+
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login");
+          return;
+        }
+
+        // fallback กันหน้าขาว
+        setProfile((p: any) => ({
+          ...p,
+          username: "loading...",
+          bio: "",
+          gender: "",
+          dob: "",
           avatar: "",
-        });
+        }));
       });
-  }, []);
+  }, [navigate]);
 
   // ⭐ sync activeTab จาก path ปัจจุบัน
   useEffect(() => {
@@ -106,12 +108,8 @@ function Profile() {
     const lastSegment = segments[segments.length - 1];
 
     const validTabs = ["post", "fav", "sticker"];
-
-    if (validTabs.includes(lastSegment)) {
-      setActiveTab(lastSegment);
-    } else {
-      setActiveTab("post");
-    }
+    if (validTabs.includes(lastSegment)) setActiveTab(lastSegment);
+    else setActiveTab("post");
   }, [location.pathname]);
 
   const openPopup = (type: string) => {
@@ -142,8 +140,6 @@ function Profile() {
         flex: 1,
         padding: "40px",
         overflowY: "auto",
-        // ✅ เอาพื้นหลังสุดออก (ถ้าอยากให้ขาวใส่ "#fff" ได้)
-        // backgroundColor: "#fff",
         display: "flex",
         justifyContent: "center",
       }}
@@ -164,7 +160,6 @@ function Profile() {
               size={150}
               src={profile.avatar || undefined}
               style={{
-                backgroundColor: "#C42E0A",
                 fontSize: 40,
                 fontWeight: 700,
               }}
@@ -218,13 +213,7 @@ function Profile() {
               </div>
 
               <div style={{ marginTop: 18 }}>
-                <Text
-                  style={{
-                    whiteSpace: "pre-line",
-                    fontSize: 16,
-                    fontWeight: 400,
-                  }}
-                >
+                <Text style={{ whiteSpace: "pre-line", fontSize: 16, fontWeight: 400 }}>
                   {profile.bio}
                 </Text>
 
@@ -302,19 +291,8 @@ function Profile() {
               {
                 key: "post",
                 label: (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: activeTab === "post" ? "#C42E0A" : "#8E8E8E",
-                    }}
-                  >
-                    <DescriptionIcon
-                      style={{ color: activeTab === "post" ? "#C42E0A" : "#8E8E8E" }}
-                    />
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 600, color: activeTab === "post" ? "#C42E0A" : "#8E8E8E" }}>
+                    <DescriptionIcon style={{ color: activeTab === "post" ? "#C42E0A" : "#8E8E8E" }} />
                     My Post
                   </span>
                 ),
@@ -322,19 +300,8 @@ function Profile() {
               {
                 key: "fav",
                 label: (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E",
-                    }}
-                  >
-                    <FavoriteIcon
-                      style={{ color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E" }}
-                    />
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 600, color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E" }}>
+                    <FavoriteIcon style={{ color: activeTab === "fav" ? "#C42E0A" : "#8E8E8E" }} />
                     My Fav
                   </span>
                 ),
@@ -342,19 +309,8 @@ function Profile() {
               {
                 key: "sticker",
                 label: (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E",
-                    }}
-                  >
-                    <CrueltyFreeIcon
-                      style={{ color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E" }}
-                    />
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 600, color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E" }}>
+                    <CrueltyFreeIcon style={{ color: activeTab === "sticker" ? "#C42E0A" : "#8E8E8E" }} />
                     My Sticker
                   </span>
                 ),
@@ -434,7 +390,6 @@ function Profile() {
                   <Avatar size={55} src={item.avatar}>
                     {item.username[0]}
                   </Avatar>
-
                   <span style={{ fontSize: 17, fontWeight: 600 }}>{item.username}</span>
                 </div>
 

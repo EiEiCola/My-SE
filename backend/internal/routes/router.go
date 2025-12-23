@@ -3,34 +3,83 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/config"
-	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
+
+	adminCtl "github.com/sut68/team12/backend/internal/app/controller/admin"
+	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
 // SetupRoutes initializes all routes
 func SetupRoutes(
 	r *gin.Engine,
-	adminProfileController *controller.AdminProfileController,
-	adminUserController *controller.AdminUserController,
-	adminCategoryController *controller.AdminCategoryController,
+	adminProfileController *adminCtl.AdminProfileController,
+	adminUserController *adminCtl.AdminUserController,
+	adminCategoryController *adminCtl.AdminCategoryController,
 ) {
+	// static files
+	r.Static("/uploads", "./uploads")
+
+	// =========================
+	// API ROOT
+	// =========================
 	api := r.Group("/api")
-	// api.Use(middlewares.Authorizes())
+
+	// =========================
+	// AUTH (public)
+	// =========================
+	auth := api.Group("/auth")
+	SetupAuthRoutes(auth)
+
+	// =========================
+	// MEMBER (login required)
+	// =========================
+	memberAPI := api.Group("/member")
+	memberAPI.Use(middlewares.JWTAuthMiddleware())
+
+	// =========================
+	// ADMIN (login + admin only)
+	// =========================
+	adminAPI := api.Group("/admin")
+	adminAPI.Use(middlewares.JWTAuthMiddleware())
+	adminAPI.Use(middlewares.RequireAdminMiddleware())
+
+	// =========================
+	// PUBLIC ROUTES (/api/*)
+	// =========================
 	{
 		SetupPRRoutes(api)
 		SetupPollRoutes(api)
-		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
+		SetupFriendRoutes(api)
 
-		// เพิ่ม route แก้ไขโปรไฟล์แอดมิน
-		SetupAdminProfileRoutes(api, adminProfileController)
-		// เพิ่ม route จัดการบัญชีผู้ใช้ (Search + Lock/Unlock)
-		SetupAdminUserManageRoutes(api, adminUserController)
-		// เพิ่ม route จัดการหมวดหมู่ (Admin)
-		SetupAdminCategoryRoutes(api, adminCategoryController)
+		// ✅ public reward list
+		SetupRewardRoutes(api)
+		//revirew
+		SetupReviewRoutes(api)
 	}
 
-	// ของเดิม
+	// =========================
+	// ADMIN ROUTES (/api/admin/*)
+	// =========================
+	{
+		// ✅ admin reward (สำคัญ)
+		SetupAdminRewardRoutes(adminAPI)
+
+		SetupAdminProfileRoutes(adminAPI, adminProfileController)
+		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
+		SetupAdminUserManageRoutes(adminAPI, adminUserController)
+	}
+
+	// =========================
+	// MEMBER ROUTES (/api/member/*)
+	// =========================
+	{
+		SetupMemberProfileRoutes(memberAPI)
+		SetupMemberRewardRoutes(memberAPI)
+	}
+
+	// =========================
+	// NON-API ROUTES (เดิม)
+	// =========================
 	SetupMemberRoutes(r)
-	// Public category routes (ไม่ต้อง auth)
 	SetupPublicCategoryRoutes(r, config.DB)
 }

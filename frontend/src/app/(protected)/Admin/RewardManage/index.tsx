@@ -17,10 +17,16 @@ const toNumber = (v: any) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// ✅ ดึง PK ให้ครอบคลุมทุกเคส (GORM ID / reward_id / RewardID)
+// ✅ ดึง PK ให้ครอบคลุมหลายเคส (GORM ID / reward_id / RewardID / Model.ID)
 const pickId = (raw: any) => {
   const n = Number(
-    raw?.ID ?? raw?.id ?? raw?.reward_id ?? raw?.RewardID ?? raw?.rewardID
+    raw?.ID ??
+      raw?.id ??
+      raw?.Model?.ID ??
+      raw?.model?.id ??
+      raw?.reward_id ??
+      raw?.RewardID ??
+      raw?.rewardID
   );
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
@@ -54,6 +60,16 @@ const normalizeReward = (raw: any) => {
   };
 };
 
+// ✅ รองรับ response ได้หลายรูปแบบ ([], {data:[]}, {data:{data:[]}}, {result:[]}, {payload:[]})
+const extractList = (raw: any): any[] => {
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (Array.isArray(raw?.data?.data)) return raw.data.data;
+  if (Array.isArray(raw?.result)) return raw.result;
+  if (Array.isArray(raw?.payload)) return raw.payload;
+  return [];
+};
+
 const RewardManage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -78,8 +94,21 @@ const RewardManage: React.FC = () => {
   const loadRewards = async () => {
     try {
       const res = await adminRewardAPI.getAll();
-      const list = Array.isArray(res.data) ? res.data : [];
+
+      // ✅ Debug ดูให้รู้เลย backend ส่งอะไรมา
+      console.log("GET /admin/reward raw =>", res.data);
+
+      const list = extractList(res.data);
       const mapped = list.map(normalizeReward);
+
+      console.log(
+        "GET /admin/reward listLen =>",
+        list.length,
+        "mappedLen =>",
+        mapped.length
+      );
+      console.log("GET /admin/reward first =>", mapped?.[0]);
+
       setRewards(mapped);
     } catch (err: any) {
       console.log("GET /admin/reward error =>", err);
