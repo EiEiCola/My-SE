@@ -4,7 +4,6 @@ export type AdminRewardPayload = {
   reward_name: string;
   point_required: number;
   reward_picture: string;
-  admin_id?: number;
 };
 
 export const adminRewardAPI = {

@@ -1,6 +1,8 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/entity"
 )
@@ -23,5 +25,8 @@ func (s *rewardService) GetAllReward() ([]entity.Reward, error) {
 }
 
 func (s *rewardService) GetRewardByID(id uint) (*entity.Reward, error) {
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
 	return s.rewardRepo.GetRewardByID(id)
 }

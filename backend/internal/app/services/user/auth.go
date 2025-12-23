@@ -2,6 +2,9 @@ package services
 
 import (
 	"errors"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -27,6 +30,19 @@ type authSvc struct {
 
 func NewAuthService(db *gorm.DB, repo repository.AuthRepository) AuthService {
 	return &authSvc{db: db, repo: repo}
+}
+
+// ✅ อ่านแต้มเริ่มต้นจาก env (dev=300 / prod=0)
+func getInitialPointsFromEnv() int {
+	raw := strings.TrimSpace(os.Getenv("INITIAL_POINTS"))
+	if raw == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 func (s *authSvc) Register(req dto.RegisterReq) (uint, error) {
@@ -117,6 +133,96 @@ func (s *authSvc) Register(req dto.RegisterReq) (uint, error) {
 			return 0, errors.New("MEMBER_DUP")
 		}
 		return 0, err
+	}
+
+	// ✅ NEW: สร้างแต้มเริ่มต้นตอนสมัคร (ปลอดภัย: create-if-not-exists)
+	initialPoints := getInitialPointsFromEnv()
+
+	// ถ้ามี balance อยู่แล้ว (จาก seed/การสมัครรอบก่อน) -> ไม่สร้างซ้ำ
+	var existingBal entity.MemberPointBalance
+	balErr := tx.Where("member_id = ?", member.ID).First(&existingBal).Error
+	if balErr != nil {
+		if errors.Is(balErr, gorm.ErrRecordNotFound) {
+			bal := entity.MemberPointBalance{
+				MemberID:   member.ID,
+				TotalPoint: initialPoints,
+			}
+			if ok, vErr := entity.ValidateMemberPointBalance(bal); !ok {
+				tx.Rollback()
+				return 0, vErr
+			}
+			if err := tx.Create(&bal).Error; err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		} else {
+			tx.Rollback()
+			return 0, balErr
+		}
+	}
+	// ถ้าเจอ existingBal แล้ว -> ไม่ทำอะไร (กัน unique ชน)
+
+	// ✅ OPTIONAL: บันทึก transaction ตอนแจกแต้มเริ่มต้น (ถ้า initial > 0)
+	// หมายเหตุ: ถ้า balance มีอยู่แล้วจาก seed/เก่า เรา "ไม่สร้าง txn ซ้ำ" ด้วย idempotency key
+	if initialPoints > 0 {
+		// สร้าง/หา rule "SEED_INIT" แบบง่าย ๆ (ไม่ให้ซ้ำ)
+		const activityType = "SEED_INIT"
+		var rule entity.PointRule
+		err := tx.Where("activity_type = ?", activityType).First(&rule).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				rule = entity.PointRule{
+					ActivityType:  activityType,
+					Description:   "Initial points on register (dev/test)",
+					ActivityPoint: initialPoints,
+					DailyLimit:    0,
+				}
+				if ok, vErr := entity.ValidatePointRule(rule); !ok {
+					tx.Rollback()
+					return 0, vErr
+				}
+				if err := tx.Create(&rule).Error; err != nil {
+					tx.Rollback()
+					return 0, err
+				}
+			} else {
+				tx.Rollback()
+				return 0, err
+			}
+		}
+
+		idemKey := "register:init:" + strconv.FormatUint(uint64(member.ID), 10)
+
+		var cnt int64
+		if err := tx.Model(&entity.PointTransaction{}).
+			Where("idempotency_key = ?", idemKey).
+			Count(&cnt).Error; err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+
+		if cnt == 0 {
+			pt := entity.PointTransaction{
+				MemberID:       member.ID,
+				PointRuleID:    &rule.ID,
+				PointChange:    initialPoints,
+				TxnType:        entity.PointTxnEarn,
+				BalanceAfter:   initialPoints,
+				SourceType:     "SEED_INIT",
+				SourceID:       1,
+				IdempotencyKey: idemKey,
+			}
+
+			if ok, vErr := entity.ValidatePointTransaction(pt); !ok {
+				tx.Rollback()
+				return 0, vErr
+			}
+
+			if err := tx.Create(&pt).Error; err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+		}
 	}
 
 	if err := tx.Commit().Error; err != nil {

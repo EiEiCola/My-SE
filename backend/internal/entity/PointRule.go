@@ -11,6 +11,7 @@ type PointRule struct {
 	gorm.Model
 
 	ActivityType  string `json:"activity_type" gorm:"not null;uniqueIndex"`
+	Description   string `json:"description" gorm:"type:text"`
 	ActivityPoint int    `json:"activity_point" gorm:"not null"`
 	DailyLimit    int    `json:"daily_limit" gorm:"not null;default:0"`
 }
@@ -28,5 +29,6 @@ func ValidatePointRule(p PointRule) (bool, error) {
 		return false, errors.New("DailyLimit must be zero or positive")
 	}
 
+	// ✅ description ไม่บังคับกรอก → ไม่ต้อง validate ก็ได้
 	return true, nil
 }

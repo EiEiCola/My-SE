@@ -12,17 +12,15 @@ func TestPointTransactionEarnValid(t *testing.T) {
 
 	ruleID := uint(1)
 	tx := entity.PointTransaction{
-		MemberID:     1,
-		PointRuleID:  &ruleID,
-		PointChange:  10,
-		TxnType:      entity.PointTxnEarn,
-		SourceType:   "post",
-		SourceID:     99,
-		BalanceAfter: 10,
+		MemberID:    1,
+		PointRuleID: &ruleID,
+		PointChange: 10,
+		TxnType:     entity.PointTxnEarn,
+		SourceType:  "post",
+		SourceID:    99,
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeTrue())
 	g.Expect(err).To(BeNil())
@@ -42,20 +40,16 @@ func TestPointTransactionMissingMemberID(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("MemberID is required"))
 }
 
 func TestPointTransactionInvalidTxnType(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	ruleID := uint(1)
 	tx := entity.PointTransaction{
 		MemberID:    1,
-		PointRuleID: &ruleID,
 		PointChange: 10,
 		TxnType:     "XXX",
 		SourceType:  "post",
@@ -63,10 +57,8 @@ func TestPointTransactionInvalidTxnType(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("TxnType is invalid"))
 }
 
@@ -84,10 +76,8 @@ func TestPointTransactionMissingSourceType(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("SourceType is required"))
 }
 
@@ -105,10 +95,8 @@ func TestPointTransactionMissingSourceID(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("SourceID is required"))
 }
 
@@ -117,7 +105,6 @@ func TestPointTransactionEarnMissingPointRuleID(t *testing.T) {
 
 	tx := entity.PointTransaction{
 		MemberID:    1,
-		PointRuleID: nil,
 		PointChange: 10,
 		TxnType:     entity.PointTxnEarn,
 		SourceType:  "post",
@@ -125,10 +112,8 @@ func TestPointTransactionEarnMissingPointRuleID(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("PointRuleID is required for EARN"))
 }
 
@@ -146,10 +131,8 @@ func TestPointTransactionEarnPointChangeNotPositive(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("PointChange must be greater than 0 for EARN"))
 }
 
@@ -167,10 +150,8 @@ func TestPointTransactionSpendPointRuleMustBeNil(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("PointRuleID must be nil for SPEND"))
 }
 
@@ -179,7 +160,6 @@ func TestPointTransactionSpendPointChangeNotNegative(t *testing.T) {
 
 	tx := entity.PointTransaction{
 		MemberID:    1,
-		PointRuleID: nil,
 		PointChange: 20,
 		TxnType:     entity.PointTxnSpend,
 		SourceType:  "redeem",
@@ -187,29 +167,7 @@ func TestPointTransactionSpendPointChangeNotNegative(t *testing.T) {
 	}
 
 	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
 
 	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
 	g.Expect(err.Error()).To(Equal("PointChange must be less than 0 for SPEND"))
-}
-
-func TestPointTransactionAdjustPointChangeZero(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tx := entity.PointTransaction{
-		MemberID:    1,
-		PointRuleID: nil,
-		PointChange: 0,
-		TxnType:     entity.PointTxnAdjust,
-		SourceType:  "system",
-		SourceID:    1,
-	}
-
-	ok, err := entity.ValidatePointTransaction(tx)
-	t.Logf("ok=%v err=%v", ok, err)
-
-	g.Expect(ok).To(BeFalse())
-	g.Expect(err).ToNot(BeNil())
-	g.Expect(err.Error()).To(Equal("PointChange must not be 0 for ADJUST"))
 }

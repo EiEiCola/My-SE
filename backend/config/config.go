@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	// "github.com/sut68/team12/backend/config/dataseed"
+	"github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
 
@@ -134,6 +134,14 @@ func Connect() *gorm.DB {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}
 	log.Println("Database migrations completed.")
+
+
+	
+	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
+	log.Println("SeedInitialPointsSafe error:", err)
+}
+
+
 
 	// Data seeding
 	// s.SeedRole(db)

@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/entity"
@@ -24,9 +25,19 @@ func NewPointRuleService(pointRuleRepo repository.PointRuleRepository) PointRule
 }
 
 func (s *pointRuleService) Create(rule *entity.PointRule) (*entity.PointRule, error) {
-	if rule.ActivityType == "" {
+	if strings.TrimSpace(rule.ActivityType) == "" {
 		return nil, errors.New("activity_type is required")
 	}
+	if rule.ActivityPoint <= 0 {
+		return nil, errors.New("activity_point must be greater than 0")
+	}
+	if rule.DailyLimit < 0 {
+		return nil, errors.New("daily_limit must be zero or positive")
+	}
+
+	// ✅ description optional: trim ให้เรียบร้อย
+	rule.Description = strings.TrimSpace(rule.Description)
+
 	if err := s.pointRuleRepo.Create(rule); err != nil {
 		return nil, err
 	}
@@ -40,9 +51,24 @@ func (s *pointRuleService) Update(id uint, data *entity.PointRule) (*entity.Poin
 	}
 
 	// อัปเดตฟิลด์หลัก
-	if data.ActivityType != "" {
-		rule.ActivityType = data.ActivityType
+	if strings.TrimSpace(data.ActivityType) != "" {
+		rule.ActivityType = strings.TrimSpace(data.ActivityType)
 	}
+
+	// ✅ description: ถ้าส่งมาว่าง -> จะ "ไม่แก้" (เหมือน ActivityType)
+	// ถ้าอยากให้เคลียร์ค่าได้ ให้บอก เดี๋ยวปรับเป็น pointer หรือ patch payload
+	if strings.TrimSpace(data.Description) != "" {
+		rule.Description = strings.TrimSpace(data.Description)
+	}
+
+	// point & limit ปกติแก้ทับ
+	if data.ActivityPoint <= 0 {
+		return nil, errors.New("activity_point must be greater than 0")
+	}
+	if data.DailyLimit < 0 {
+		return nil, errors.New("daily_limit must be zero or positive")
+	}
+
 	rule.ActivityPoint = data.ActivityPoint
 	rule.DailyLimit = data.DailyLimit
 
