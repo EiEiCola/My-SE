@@ -9,6 +9,7 @@ type PointTransactionRepository interface {
 	CreatePointTransaction(tx *entity.PointTransaction) error
 	GetPointTransactionByMemberID(memberID uint) ([]entity.PointTransaction, error)
 	CountPointTransactionByRuleToday(memberID uint, pointRuleID uint, date string) (int64, error)
+	HasTransaction(memberID uint, pointRuleID uint, sourceType string, sourceID uint) (bool, error)
 }
 
 type pointTransactionRepository struct {
@@ -43,4 +44,12 @@ func (r *pointTransactionRepository) CountPointTransactionByRuleToday(memberID u
 		Count(&count).Error
 
 	return count, err
+}
+
+func (r *pointTransactionRepository) HasTransaction(memberID uint, pointRuleID uint, sourceType string, sourceID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&entity.PointTransaction{}).
+		Where("member_id = ? AND point_rule_id = ? AND source_type = ? AND source_id = ?", memberID, pointRuleID, sourceType, sourceID).
+		Count(&count).Error
+	return count > 0, err
 }

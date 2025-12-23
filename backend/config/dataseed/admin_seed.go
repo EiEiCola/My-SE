@@ -14,6 +14,33 @@ import (
 
 func SeedAll(db *gorm.DB) {
 	seedAdmin(db)
+	seedPointRules(db)
+}
+
+// Seed PointRules for Star feature
+func seedPointRules(db *gorm.DB) {
+	rules := []entity.PointRule{
+		{
+			ActivityType:  "StarPost",
+			ActivityPoint: 5, // ให้ 5 แต้มเมื่อมีคนกดดาว
+			DailyLimit:    0, // ไม่จำกัดต่อวัน
+		},
+	}
+
+	for _, rule := range rules {
+		var existing entity.PointRule
+		if err := db.Where("activity_type = ?", rule.ActivityType).First(&existing).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := db.Create(&rule).Error; err != nil {
+					log.Println("❌ create PointRule failed:", rule.ActivityType, err)
+				} else {
+					log.Println("✅ PointRule seeded:", rule.ActivityType)
+				}
+			}
+		} else {
+			log.Println("ℹ️ PointRule already exists:", rule.ActivityType)
+		}
+	}
 }
 
 // Seed admin account 1 คนเท่านั้น (idempotent)
@@ -134,7 +161,7 @@ func ensureAdminProfile(db *gorm.DB, memberAccountID uint) {
 		LastName:        "Polsen",
 		ProfilePicture:  "",
 		PhoneNumber:     phonePtr, // ✅ ใส่ถ้าไม่ซ้ำ
-	
+
 	}
 
 	if err := db.Create(&a).Error; err != nil {

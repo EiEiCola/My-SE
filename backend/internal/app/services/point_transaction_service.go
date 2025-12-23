@@ -12,6 +12,7 @@ type PointTransactionService interface {
 	// คง signature เดิมไว้ เพื่อไม่กระทบ controller เดิม
 	CreatePointTransaction(memberID uint, pointRuleID uint, refIDs map[string]uint) (*entity.PointTransaction, error)
 	GetPointTransactionByMemberID(memberID uint) ([]entity.PointTransaction, error)
+	HasTransaction(memberID uint, pointRuleID uint, sourceType string, sourceID uint) (bool, error)
 }
 
 type pointTransactionService struct {
@@ -106,4 +107,8 @@ func (s *pointTransactionService) CreatePointTransaction(
 
 func (s *pointTransactionService) GetPointTransactionByMemberID(memberID uint) ([]entity.PointTransaction, error) {
 	return s.pointTransactionRepo.GetPointTransactionByMemberID(memberID)
+}
+
+func (s *pointTransactionService) HasTransaction(memberID uint, pointRuleID uint, sourceType string, sourceID uint) (bool, error) {
+	return s.pointTransactionRepo.HasTransaction(memberID, pointRuleID, sourceType, sourceID)
 }
