@@ -16,6 +16,12 @@ func SetupPointRuleRoutes(r *gin.RouterGroup) {
 	svc := services.NewPointRuleService(repo)
 	ctrl := admincontroller.NewPointRuleController(svc)
 
+	// ✅ PUBLIC / USER (read-only)
+	// เส้นนี้จะกลายเป็น: GET /api/point-rules
+	r.GET("/point-rules", ctrl.GetAll)
+	r.GET("/point-rules/:id", ctrl.GetByID)
+
+	// ✅ ADMIN (CRUD)
 	admin := r.Group("/admin")
 	{
 		admin.POST("/point-rule", ctrl.Create)

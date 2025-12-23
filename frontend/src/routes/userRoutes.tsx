@@ -12,17 +12,25 @@ import EditProfile from "../app/(protected)/User/Profile/EditProfile";
 
 import Reward from "../app/(protected)/User/Reward";
 import Message from "../app/(protected)/User/Message";
+
 import Friends from "../app/(protected)/User/Friend";
 import FriendRequest from "../app/(protected)/User/Friend/Request";
 import FriendPopular from "../app/(protected)/User/Friend/Popular";
+import FriendRelation from "../app/(protected)/User/Friend/MyFriend";
+import FriendBirthday from "../app/(protected)/User/Friend/Birthday";
+
 import Group from "../app/(protected)/User/Category";
-import Review from "../app/(protected)/User/Review";
+import ReviewListPage from "../app/(protected)/User/Review/ReviewListPage";
+import CreateReviewPage from "../app/(protected)/User/Review/CreateReviewPage";
 import Voting from "../app/(protected)/User/Voting";
 import Announcement from "../app/(protected)/User/Announcement";
 import AnnouncementDetail from "../app/(protected)/User/Announcement/AnnouncementDetail";
 import AnnouncementCreate from "../app/(protected)/User/Announcement/AnnouncementCreate";
 import Report from "../app/(protected)/User/Report";
 import Post from "../app/(protected)/User/Post";
+import PostDetail from "../app/(protected)/User/Post/postdetail";
+import CreatePost from "../app/(protected)/User/Post/createpost";
+import EditPost from "../app/(protected)/User/Post/editpost";
 
 function UserRoutes() {
   return (
@@ -32,8 +40,8 @@ function UserRoutes() {
 
         {/* ⭐ PROFILE (Nested Routes) */}
         <Route path="/User/Profile" element={<Profile />}>
-          <Route index element={<Post />} />      // ⭐ default
-          <Route path="post" element={<Post />} />
+          <Route index element={<MyPost />} />      // ⭐ default
+          <Route path="post" element={<MyPost />} />
           <Route path="fav" element={<MyFav />} />
           <Route path="sticker" element={<MySticker />} />
         </Route>
@@ -50,12 +58,19 @@ function UserRoutes() {
         <Route path="/User/Friends" element={<Friends />} />
         <Route path="/User/Friends/Request" element={<FriendRequest />} />
         <Route path="/User/Friends/Popular" element={<FriendPopular />} />
+        <Route path="/User/Friends/FriendRelation" element={<FriendRelation />} />
+        <Route path="/User/Friends/FriendBirthday" element={<FriendBirthday />} />
 
         <Route path="/User/Group" element={<Group />} />
 
         <Route path="/User/Post" element={<Post />} />
+        <Route path="/User/Post/detail/:id" element={<PostDetail />} />
+        <Route path="/User/Post/create_post" element={<CreatePost />} />
+        <Route path="/User/Post/edit/:id" element={<EditPost />} />
 
-        <Route path="/User/Review" element={<Review />} />
+        <Route path="/User/Review" element={<ReviewListPage />} />
+        <Route path="/User/Review/createreview" element={<CreateReviewPage />} />
+
 
         <Route path="/User/Voting" element={<Voting />} />
 

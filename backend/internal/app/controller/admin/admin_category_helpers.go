@@ -16,15 +16,27 @@ func parseUintParam(c *gin.Context, name string) (uint, error) {
 	return uint(n), nil
 }
 
-// ดึง adminID จาก context (แก้ key ให้ตรงกับ middleware ของคุณ)
+// ดึง adminID จาก context (ตรงกับ middleware ที่ใช้ key "user_id")
 func getAdminID(c *gin.Context) (uint, bool) {
-	v, ok := c.Get("admin_id") // ถ้า middleware คุณใช้ key อื่น เช่น "user_id" ก็เปลี่ยนตรงนี้
+	v, ok := c.Get("user_id") // ✅ match jwt_auth.go: c.Set("user_id", claims.UserID)
 	if !ok {
 		return 0, false
 	}
-	id, ok := v.(uint)
-	if !ok {
+	// JWT middleware stores as uint, so handle both uint and string
+	switch id := v.(type) {
+	case uint:
+		return id, true
+	case int:
+		return uint(id), true
+	case float64:
+		return uint(id), true
+	case string:
+		n, err := strconv.Atoi(id)
+		if err != nil || n <= 0 {
+			return 0, false
+		}
+		return uint(n), true
+	default:
 		return 0, false
 	}
-	return id, true
 }

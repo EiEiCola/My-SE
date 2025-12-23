@@ -41,6 +41,9 @@ func Connect() *gorm.DB {
 	//s.ResetDatabase(db) //ลบข้อมูลในตารางทั้งหมดแล้วค่อย seed
 	//dataseed.ResetDatabaseByDROP(db)
 
+	
+
+
 	dsn := DBURL()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
@@ -54,6 +57,7 @@ func Connect() *gorm.DB {
 	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
+	
 
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
@@ -97,6 +101,7 @@ func Connect() *gorm.DB {
 
 		// --- 7. ตารางลูกที่ซับซ้อน/อ้างอิงเนื้อหาหลัก (Complex Children) ---
 		&entity.Comment{},
+		&entity.PostLike{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
@@ -111,6 +116,8 @@ func Connect() *gorm.DB {
 		&entity.RoomMember{},
 		&entity.MessageStatus{},
 		&entity.AttachmentChat{},
+		&entity.FollowStatus{},
+		&entity.Follow{},
 
 		// --- 9. ตาราง PR & Report (Moderation Module) ---
 		&entity.PRSubmission{},
@@ -128,10 +135,22 @@ func Connect() *gorm.DB {
 		&entity.PollOption{},
 		&entity.PollVote{},
 		&entity.PollHistory{}, // <--- อ้างอิง Admin, Poll, PollStatus (ควรอยู่ท้ายสุด)
+
+		// --- 11. ตาราง Bookmark และ PostStar ---
+		&entity.Bookmark{},
+		&entity.PostStar{},
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}
 	log.Println("Database migrations completed.")
+
+
+	
+	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
+	log.Println("SeedInitialPointsSafe error:", err)
+}
+
+
 
 	// Data seeding
 	// s.SeedRole(db)
@@ -150,8 +169,7 @@ func Connect() *gorm.DB {
 	// s.SeedClubRequest(db)
 	// s.SeedClubMember(db)
 	// s.SeedEvent(db)
-
-	dataseed.SeedPRSystem(db)
-
+	// dataseed.SeedPRSystem(db)
+	dataseed.SeedReviewSystem(db)
 	return db
 }

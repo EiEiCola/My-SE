@@ -1,11 +1,15 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8080") + "/api",
+  baseURL: (import.meta.env.VITE_API_URL || "") + "/api",
 });
 
-// mock admin id (ยังไม่มี login)
-const MOCK_ADMIN_ID = 1;
+const getToken = () => localStorage.getItem("token") || "";
+
+const authHeader = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export type AdminProfileDTO = {
   id: number;
@@ -29,18 +33,18 @@ export type UpdateAdminProfileReq = {
 export const adminProfileAPI = {
   getMe: () =>
     api.get<{ data: AdminProfileDTO }>("/admin/profile", {
-      headers: { "X-Admin-ID": String(MOCK_ADMIN_ID) },
+      headers: { ...authHeader() },
     }),
 
   updateMe: (payload: UpdateAdminProfileReq) =>
     api.put("/admin/profile", payload, {
-      headers: { "X-Admin-ID": String(MOCK_ADMIN_ID) },
+      headers: { ...authHeader() },
     }),
 
   setNationalId: (national_id: string) =>
     api.put(
       "/admin/profile/national-id",
       { national_id },
-      { headers: { "X-Admin-ID": String(MOCK_ADMIN_ID) } }
+      { headers: { ...authHeader() } }
     ),
 };
