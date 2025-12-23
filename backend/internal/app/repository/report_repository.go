@@ -45,7 +45,8 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 	var items []entity.Report
 	var total int64
 
-	db := r.DB.Model(&entity.Report{}).Where("reporter_ID = ?", reporterID)
+	// Use quoted identifiers to match existing Postgres columns created with mixed-case tags
+	db := r.DB.Model(&entity.Report{}).Where("\"reporter_ID\" = ?", reporterID)
 	if statusID != nil {
 		db = db.Where("status = ?", *statusID)
 	}
@@ -62,7 +63,7 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Order("\"report_ID\" desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
@@ -78,7 +79,7 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 		db = db.Where("target_type = ?", targetType)
 	}
 	if reporterID != nil {
-		db = db.Where("reporter_ID = ?", *reporterID)
+		db = db.Where("\"reporter_ID\" = ?", *reporterID)
 	}
 	if q != "" {
 		like := "%" + strings.ToLower(q) + "%"
@@ -90,12 +91,12 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").Order("id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").Order("\"report_ID\" desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
 func (r *ReportRepository) UpdateStatus(reportID int, statusID int, adminID uint) error {
-	return r.DB.Model(&entity.Report{}).Where("id = ?", reportID).Updates(map[string]interface{}{
+	return r.DB.Model(&entity.Report{}).Where("\"report_ID\" = ?", reportID).Updates(map[string]interface{}{
 		"status":   statusID,
 		"admin_ID": adminID,
 	}).Error
@@ -106,8 +107,8 @@ func (r *ReportRepository) Update(report *entity.Report, media []entity.ReportMe
 		if err := tx.Save(report).Error; err != nil {
 			return err
 		}
-		// Replace media
-		if err := tx.Where("report_id = ?", report.ID).Delete(&entity.ReportMedia{}).Error; err != nil {
+		// Replace media - match mixed-case column name
+		if err := tx.Where("\"report_ID\" = ?", report.ID).Delete(&entity.ReportMedia{}).Error; err != nil {
 			return err
 		}
 		if len(media) > 0 {
@@ -124,7 +125,7 @@ func (r *ReportRepository) Update(report *entity.Report, media []entity.ReportMe
 
 func (r *ReportRepository) Delete(id int) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("report_id = ?", id).Delete(&entity.ReportMedia{}).Error; err != nil {
+		if err := tx.Where("\"report_ID\" = ?", id).Delete(&entity.ReportMedia{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&entity.Report{}, id).Error; err != nil {

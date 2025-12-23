@@ -17,14 +17,6 @@
           "value": ""
         },
         {
-          "id": "step1-2",
-          "comment": "",
-          "command": "setWindowSize",
-          "target": "1280x800",
-          "targets": [],
-          "value": ""
-        },
-        {
           "id": "step1-3",
           "comment": "Click Create Button",
           "command": "click",

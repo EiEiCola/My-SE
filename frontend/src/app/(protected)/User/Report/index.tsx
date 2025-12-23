@@ -4,41 +4,50 @@ import { ReportService } from "../../../../services/http/report";
 import type { CreateReportInput, Report as ReportType } from "../../../../services/http/report";
 import "./Report.css";
 
-// Simple Tab Interface
+// Report Component with Full CRUD UI
 const Report: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"create" | "history">("create");
+  const [activeTab, setActiveTab] = useState<"create" | "history" | "detail">("create");
 
   // Form State
   const [editId, setEditId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("system");
+  const [targetType, setTargetType] = useState("system");
+  const [targetId, setTargetId] = useState<number | null>(null);
   const [image, setImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // List State
+  // List & Detail State
   const [reports, setReports] = useState<ReportType[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalReports, setTotalReports] = useState(0);
 
-  // Load reports when switching to history tab
+  // Load reports when switching to history tab or when page/pageSize changes
   useEffect(() => {
     if (activeTab === "history") {
       fetchReports();
     }
-  }, [activeTab]);
+  }, [activeTab, page, pageSize]);
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await ReportService.getMyReports({ page_size: 50 });
-      // API returns { data: [], total: ... }
-      if (res.data && Array.isArray(res.data.data)) {
-        setReports(res.data.data);
+      const res = await ReportService.getMyReports({ page, page_size: pageSize });
+      if (res.data) {
+        if (Array.isArray(res.data.data)) {
+          setReports(res.data.data);
+        }
+        setTotalReports(res.data.total || 0);
       }
     } catch (err) {
       console.error("Failed to fetch reports", err);
+      setError("ไม่สามารถโหลดรายงานได้");
     } finally {
       setLoading(false);
     }
@@ -48,7 +57,8 @@ const Report: React.FC = () => {
     setEditId(r.id);
     setTitle(r.title);
     setDescription(r.description);
-    setCategory(r.target_type);
+    setTargetType(r.target_type);
+    setTargetId(r.target_id || null);
     if (r.media && r.media.length > 0) {
       setImage(r.media[0].url);
     } else {
@@ -56,6 +66,12 @@ const Report: React.FC = () => {
     }
     setActiveTab("create");
     setError(null);
+    setSuccess(null);
+  };
+
+  const handleViewDetail = (r: ReportType) => {
+    setSelectedReport(r);
+    setActiveTab("detail");
   };
 
   const handleDeleteClick = async (id: number) => {
@@ -72,14 +88,17 @@ const Report: React.FC = () => {
     setEditId(null);
     setTitle("");
     setDescription("");
-    setCategory("system");
+    setTargetType("system");
+    setTargetId(null);
     setImage("");
     setError(null);
+    setSuccess(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
     if (!title.trim() || !description.trim()) {
       setError("กรุณากรอกหัวข้อและรายละเอียดให้ครบถ้วน");
@@ -89,7 +108,8 @@ const Report: React.FC = () => {
     setSubmitting(true);
     try {
       const payload: CreateReportInput = {
-        target_type: category,
+        target_type: targetType,
+        target_id: targetId || undefined,
         title,
         description,
         medias: image ? [{ url: image, type: 'image', is_attachment: false }] : []
@@ -97,13 +117,16 @@ const Report: React.FC = () => {
 
       if (editId) {
         await ReportService.updateReport(editId, payload);
-        alert("แก้ไขรายงานเรียบร้อยแล้ว");
-        setActiveTab("history"); // Go to history to see changes
+        setSuccess("แก้ไขรายงานเรียบร้อยแล้ว");
+        await new Promise(r => setTimeout(r, 1500)); // Brief delay to show success
+        setActiveTab("history");
+        resetForm();
+        setPage(1);
       } else {
         await ReportService.createReport(payload);
-        alert("ส่งรายงานเรียบร้อยแล้ว ขอบคุณที่แจ้งปัญหาครับ!");
-        resetForm(); // Clear form on success
-        // Optionally stay on create page or go to history
+        setSuccess("ส่งรายงานเรียบร้อยแล้ว ขอบคุณที่แจ้งปัญหาครับ!");
+        await new Promise(r => setTimeout(r, 1500));
+        resetForm();
       }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || "เกิดข้อผิดพลาด");
@@ -172,8 +195,8 @@ const Report: React.FC = () => {
               <label className="form-label">ประเภทปัญหา</label>
               <select
                 className="form-select"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={targetType}
+                onChange={(e) => setTargetType(e.target.value)}
               >
                 <option value="system">ปัญหาการใช้งานระบบ (Bug)</option>
                 <option value="content">เนื้อหาไม่เหมาะสม</option>
