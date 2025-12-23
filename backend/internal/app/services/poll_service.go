@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"sort"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/dto"
@@ -613,7 +614,7 @@ func validatePollForSubmission(poll *entity.Poll) error {
 	return nil
 }
 
-import "sort" // ใส่ไว้บนสุดของไฟล์ ถ้ายังไม่มี
+
 
 func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 	// ✅ status_name
