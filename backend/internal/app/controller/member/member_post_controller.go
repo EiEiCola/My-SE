@@ -3,54 +3,104 @@ package controller
 import (
 	"mime/multipart"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
+	"github.com/sut68/team12/backend/internal/entity"
 )
 
 type PostController struct {
-	Service *services.PostService
+	Service                 *services.PostService
+	PointTransactionService services.PointTransactionService
+	PointRuleRepo           repository.PointRuleRepository
+	PostStarRepo            repository.PostStarRepository
 }
 
-func NewPostController(s *services.PostService) *PostController {
-	return &PostController{Service: s}
+func NewPostController(
+	s *services.PostService,
+	ptService services.PointTransactionService,
+	prRepo repository.PointRuleRepository,
+	psRepo repository.PostStarRepository,
+) *PostController {
+	return &PostController{
+		Service:                 s,
+		PointTransactionService: ptService,
+		PointRuleRepo:           prRepo,
+		PostStarRepo:            psRepo,
+	}
 }
 
 // ---- Create Post ----
-// Post /posts (multipart/form-data)
+// Post /posts (supports both JSON and multipart/form-data)
 func (ctl *PostController) CreatePost(c *gin.Context) {
 	var req dto.CreatePostRequest
+	var imageFiles []*multipart.FileHeader
+	var attachmentFiles []*multipart.FileHeader
 
-	// ใช้ ShouldBind เพื่อรองรับ form-data ด้วย
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	contentType := c.ContentType()
+	isMultipart := contentType == "multipart/form-data" || (len(contentType) > 19 && contentType[:19] == "multipart/form-data")
+
+	if isMultipart {
+		// Manual parsing for multipart/form-data
+		req.Title = c.PostForm("title")
+		req.Content = c.PostForm("content")
+		req.IsAnonymous = c.PostForm("is_anonymous") == "true"
+
+		// Parse category IDs
+		if mainCatStr := c.PostForm("main_category_id"); mainCatStr != "" {
+			if v, err := strconv.ParseUint(mainCatStr, 10, 32); err == nil {
+				catID := uint(v)
+				req.MainCategoryID = &catID
+			}
+		}
+		if sub1Str := c.PostForm("sub_category1_id"); sub1Str != "" {
+			if v, err := strconv.ParseUint(sub1Str, 10, 32); err == nil {
+				catID := uint(v)
+				req.SubCategory1ID = &catID
+			}
+		}
+		if sub2Str := c.PostForm("sub_category2_id"); sub2Str != "" {
+			if v, err := strconv.ParseUint(sub2Str, 10, 32); err == nil {
+				catID := uint(v)
+				req.SubCategory2ID = &catID
+			}
+		}
+
+		// Get files
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			if files, ok := form.File["images"]; ok {
+				imageFiles = files
+			}
+			if files, ok := form.File["attachments"]; ok {
+				attachmentFiles = files
+			}
+		}
+
+		// Validate required fields
+		if len(req.Title) < 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "title must be at least 3 characters"})
+			return
+		}
+		if len(req.Content) < 5 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content must be at least 5 characters"})
+			return
+		}
+	} else {
+		// JSON binding
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	memberID, ok := getMemberID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
-	}
-
-	// รับไฟล์จาก multipart form
-	form, err := c.MultipartForm()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid multipart form"})
-		return
-	}
-
-	var imageFiles []*multipart.FileHeader
-	var attachmentFiles []*multipart.FileHeader
-
-	if form != nil {
-		if files, ok := form.File["images"]; ok {
-			imageFiles = files
-		}
-		if files, ok := form.File["attachments"]; ok {
-			attachmentFiles = files
-		}
 	}
 
 	post, err := ctl.Service.CreatePost(memberID, req, imageFiles, attachmentFiles)
@@ -61,7 +111,7 @@ func (ctl *PostController) CreatePost(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "created",
-		"data":   post,
+		"data":    post,
 	})
 }
 
@@ -87,8 +137,20 @@ func (ctl *PostController) GetPostByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": post})
 }
 
+// ---- Get All Posts ----
+// GET /posts
+func (ctl *PostController) GetAllPosts(c *gin.Context) {
+	posts, err := ctl.Service.GetAllPosts()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
 // ---- Update Post ----
-// PUT /posts/:id (JSON body)
+// PUT /posts/:id (supports both JSON and multipart/form-data)
 func (ctl *PostController) UpdatePost(c *gin.Context) {
 	postID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -103,12 +165,56 @@ func (ctl *PostController) UpdatePost(c *gin.Context) {
 	}
 
 	var req dto.UpdatePostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	var imageFiles []*multipart.FileHeader
+	var attachmentFiles []*multipart.FileHeader
+	var deletedImageIDs []uint
+	var deletedAttachmentIDs []uint
+
+	contentType := c.ContentType()
+	isMultipart := contentType == "multipart/form-data" || (len(contentType) > 19 && contentType[:19] == "multipart/form-data")
+
+	if isMultipart {
+		// Manual parsing for multipart/form-data
+		if title := c.PostForm("title"); title != "" {
+			req.Title = &title
+		}
+		if content := c.PostForm("content"); content != "" {
+			req.Content = &content
+		}
+		anonymous := c.PostForm("is_anonymous") == "true"
+		req.IsAnonymous = &anonymous
+
+		// Parse deleted file IDs
+		for _, idStr := range c.PostFormArray("deleted_image_ids") {
+			if v, err := strconv.ParseUint(idStr, 10, 32); err == nil {
+				deletedImageIDs = append(deletedImageIDs, uint(v))
+			}
+		}
+		for _, idStr := range c.PostFormArray("deleted_attachment_ids") {
+			if v, err := strconv.ParseUint(idStr, 10, 32); err == nil {
+				deletedAttachmentIDs = append(deletedAttachmentIDs, uint(v))
+			}
+		}
+
+		// Get files
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			if files, ok := form.File["images"]; ok {
+				imageFiles = files
+			}
+			if files, ok := form.File["attachments"]; ok {
+				attachmentFiles = files
+			}
+		}
+	} else {
+		// JSON binding
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
-	post, err := ctl.Service.UpdatePost(memberID, postID, req)
+	post, err := ctl.Service.UpdatePost(memberID, postID, req, imageFiles, attachmentFiles, deletedImageIDs, deletedAttachmentIDs)
 	if err != nil {
 		switch err {
 		case services.ErrPostNotFound:
@@ -131,7 +237,7 @@ func (ctl *PostController) DeletePost(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
 		return
-	}	
+	}
 
 	memberID, ok := getMemberID(c)
 	if !ok {
@@ -152,4 +258,287 @@ func (ctl *PostController) DeletePost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// =============== LIKE HANDLERS ===============
+
+// GetLikeStatus - GET /api/member/posts/:id/like/status
+func (ctl *PostController) GetLikeStatus(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	isLiked := ctl.Service.HasUserLiked(postID, memberID)
+	isBookmarked := ctl.Service.IsBookmarked(postID, memberID)
+
+	// Check if starred (PointRule "StarPost")
+	isStarred := false
+	starred, err := ctl.PostStarRepo.HasStarred(memberID, postID)
+	if err == nil {
+		isStarred = starred
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_liked":      isLiked,
+		"is_bookmarked": isBookmarked,
+		"is_starred":    isStarred,
+	})
+}
+
+// ToggleLike - POST /api/member/posts/:id/like
+func (ctl *PostController) ToggleLike(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	likeCount, isLiked, err := ctl.Service.ToggleLike(postID, memberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"like_count": likeCount,
+		"is_liked":   isLiked,
+	})
+}
+
+// ToggleBookmark - POST /api/member/posts/:id/bookmark
+func (ctl *PostController) ToggleBookmark(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	isBookmarked, err := ctl.Service.ToggleBookmark(postID, memberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_bookmarked": isBookmarked,
+	})
+}
+
+// SendStar - POST /api/member/posts/:id/star
+func (ctl *PostController) SendStar(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	// 1. Get Post to find author
+	post, err := ctl.Service.GetPostByID(postID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		return
+	}
+
+	// Prevent giving star to own post? (Optional, but good practice)
+	if post.AuthorID == memberID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot star your own post"})
+		return
+	}
+
+	// 2. Find PointRule "StarPost"
+	rule, err := ctl.PointRuleRepo.GetByActivityType("StarPost")
+	if err != nil || rule == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "star feature not available"})
+		return
+	}
+
+	// 3. Check if already starred
+	// 3. Check if already starred using PostStarRepo
+	hasStarred, err := ctl.PostStarRepo.HasStarred(memberID, postID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if hasStarred {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "already starred this post"})
+		return
+	}
+
+	// 4. Create PostStar record
+	star := &entity.PostStar{
+		MemberID: memberID,
+		PostID:   post.ID,
+	}
+	if err := ctl.PostStarRepo.Create(star); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 5. Create Transaction (Give points to Author)
+	// We want to give points to the AUTHOR.
+	// So calling CreatePointTransaction with memberID = post.AuthorID
+	// And refIDs including post_id
+	refIDs := map[string]uint{
+		"post_id": post.ID,
+	}
+
+	// Note: PointTransactionService checks daily limit for the "receiving" user if validation is standard.
+	// But usually DailyLimit is for EARNING actions. Here Author earns.
+	// We assume StarPost rule is set for the Author.
+
+	_, err = ctl.PointTransactionService.CreatePointTransaction(post.AuthorID, rule.ID, refIDs)
+	if err != nil {
+		// Log error but maybe don't rollback star? Or rollback?
+		// For simplicity, we just return success with warning or error?
+		// Better to return error.
+		// Ignoring rollback for now (MVP).
+		c.JSON(http.StatusOK, gin.H{
+			"message":     "star created but failed to award points",
+			"is_starred":  true,
+			"point_error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "star sent",
+		"is_starred": true,
+	})
+}
+
+// =============== COMMENT HANDLERS ===============
+
+// GetComments - GET /api/member/posts/:id/comments
+func (ctl *PostController) GetComments(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	comments, err := ctl.Service.GetComments(postID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": comments})
+}
+
+// CreateComment - POST /api/member/posts/:id/comments
+func (ctl *PostController) CreateComment(c *gin.Context) {
+	postID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req struct {
+		Content     string `json:"content" binding:"required,min=1"`
+		IsAnonymous bool   `json:"is_anonymous"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	comment, err := ctl.Service.CreateComment(postID, memberID, req.Content, req.IsAnonymous)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "comment created",
+		"data":    comment,
+	})
+}
+
+// DeleteComment - DELETE /api/member/posts/:id/comments/:commentId
+func (ctl *PostController) DeleteComment(c *gin.Context) {
+	commentID, err := parseUintParam(c, "commentId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := ctl.Service.DeleteComment(commentID, memberID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "comment deleted"})
+}
+
+// GetBookmarkedPosts - GET /api/member/posts/bookmarked
+func (ctl *PostController) GetBookmarkedPosts(c *gin.Context) {
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	posts, err := ctl.Service.GetBookmarkedPosts(memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
+// GetMyPosts - GET /api/member/posts/mine
+func (ctl *PostController) GetMyPosts(c *gin.Context) {
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	posts, err := ctl.Service.GetMyPosts(memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": posts})
 }

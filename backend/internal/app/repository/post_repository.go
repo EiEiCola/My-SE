@@ -4,6 +4,7 @@ import (
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
 )
+
 // ---- Post ----
 
 type PostRepository struct {
@@ -32,6 +33,10 @@ func (r *PostRepository) FindByID(id uint) (*entity.Post, error) {
 		Preload("Images").
 		Preload("Attachments").
 		Preload("Comments").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Author").
 		First(&post, id).Error
 	if err != nil {
 		return nil, err
@@ -39,11 +44,27 @@ func (r *PostRepository) FindByID(id uint) (*entity.Post, error) {
 	return &post, nil
 }
 
-//ดึงโพสต์ทั้งหมดของ user คนหนึ่ง
+// ดึงโพสต์ทั้งหมดของ user คนหนึ่ง
 func (r *PostRepository) FindByAuthorID(authorID uint) ([]entity.Post, error) {
 	var posts []entity.Post
 	err := r.DB.
 		Where("author_id = ?", authorID).
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// ดึงโพสต์ทั้งหมด (สำหรับ admin และ public)
+func (r *PostRepository) FindAll() ([]entity.Post, error) {
+	var posts []entity.Post
+	err := r.DB.
+		Preload("Images").
+		Preload("Attachments").
+		Preload("Reports").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Author").
 		Order("created_at DESC").
 		Find(&posts).Error
 	return posts, err

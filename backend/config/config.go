@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	// "github.com/sut68/team12/backend/config/dataseed"
+	"github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
 
@@ -41,6 +41,9 @@ func Connect() *gorm.DB {
 	//s.ResetDatabase(db) //ลบข้อมูลในตารางทั้งหมดแล้วค่อย seed
 	//dataseed.ResetDatabaseByDROP(db)
 
+	
+
+
 	dsn := DBURL()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
@@ -54,6 +57,7 @@ func Connect() *gorm.DB {
 	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
+	
 
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
@@ -135,6 +139,14 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Database migrations completed.")
 
+
+	
+	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
+	log.Println("SeedInitialPointsSafe error:", err)
+}
+
+
+
 	// Data seeding
 	// s.SeedRole(db)
 	// s.SeedFaculty(db)
@@ -152,8 +164,7 @@ func Connect() *gorm.DB {
 	// s.SeedClubRequest(db)
 	// s.SeedClubMember(db)
 	// s.SeedEvent(db)
-
 	// dataseed.SeedPRSystem(db)
-
+	dataseed.SeedReviewSystem(db)
 	return db
 }
