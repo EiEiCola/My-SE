@@ -30,6 +30,7 @@ func main() {
 
 	// 2. Setup Gin
 	r := gin.Default()
+
 	allowedOrigins := []string{"http://localhost:5173", "http://localhost:3000"}
 	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
 		allowedOrigins = append(allowedOrigins, strings.Split(envOrigins, ",")...)

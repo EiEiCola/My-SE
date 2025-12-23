@@ -1,4 +1,4 @@
-package entity
+	package entity
 
 import (
 	"time"
@@ -32,23 +32,23 @@ type Member struct {
 	ActiveStatusID uint         `json:"active_status_id" valid:"required~ActiveStatusID is required"`
 	ActiveStatus   ActiveStatus `gorm:"foreignKey:ActiveStatusID;references:ID"`
 
-	SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
-	ReceivedRequests []RequesFriend `gorm:"foreignKey:ReciveMemID;references:ID"`
+		SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
+		ReceivedRequests []RequesFriend `gorm:"foreignKey:ReciveMemID;references:ID"`
 
-	RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID"`
-	RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID"`
+		RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID"`
+		RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID"`
 
-	BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
-	BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
+		BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
+		BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
 
 	Reviews     []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
 	ReviewVotes []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
 
 	Polls []Poll `gorm:"foreignKey:MemberID" json:"polls"`
 
-	PRSubmissions []PRSubmission `gorm:"foreignKey:MemberID" json:"pr_submissions"`
+		PRSubmissions []PRSubmission `gorm:"foreignKey:MemberID" json:"pr_submissions"`
 
-	Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
+		Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
 
 	ReceivedReports []Report `gorm:"polymorphic:Target;" json:"received_reports"`
 }

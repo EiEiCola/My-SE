@@ -53,6 +53,8 @@ func SetupRoutes(
 
 		// ✅ public reward list
 		SetupRewardRoutes(api)
+		//revirew
+		SetupReviewRoutes(api)
 	}
 
 	// =========================
