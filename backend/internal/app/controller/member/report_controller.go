@@ -38,7 +38,11 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 	}
 	var memberID uint
 	switch v := val.(type) {
+	case uint:
+		memberID = v
 	case int:
+		memberID = uint(v)
+	case float64:
 		memberID = uint(v)
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {
@@ -74,7 +78,11 @@ func (ctl *MemberReportController) List(c *gin.Context) {
 	}
 	var memberID uint
 	switch v := val.(type) {
+	case uint:
+		memberID = v
 	case int:
+		memberID = uint(v)
+	case float64:
 		memberID = uint(v)
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {
@@ -131,7 +139,11 @@ func (ctl *MemberReportController) GetByID(c *gin.Context) {
 	val, _ := c.Get("member_id")
 	var memberID uint
 	switch v := val.(type) {
+	case uint:
+		memberID = v
 	case int:
+		memberID = uint(v)
+	case float64:
 		memberID = uint(v)
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {
@@ -143,4 +155,87 @@ func (ctl *MemberReportController) GetByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, rep)
+}
+
+// PUT /member/reports/:id
+func (ctl *MemberReportController) Update(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req createReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	val, ok := c.Get("member_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+		return
+	}
+	var memberID uint
+	switch v := val.(type) {
+	case uint:
+		memberID = v
+	case int:
+		memberID = uint(v)
+	case float64:
+		memberID = uint(v)
+	case string:
+		if n, err := strconv.Atoi(v); err == nil {
+			memberID = uint(n)
+		}
+	}
+
+	in := &services.CreateReportInput{
+		TargetType:  req.TargetType,
+		TargetID:    req.TargetID,
+		Title:       req.Title,
+		Description: req.Description,
+		Medias:      req.Medias,
+	}
+	rep, err := ctl.Service.UpdateReport(id, memberID, in)
+	if err != nil {
+		// Can distinguish error types here
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rep)
+}
+
+// DELETE /member/reports/:id
+func (ctl *MemberReportController) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	val, ok := c.Get("member_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+		return
+	}
+	var memberID uint
+	switch v := val.(type) {
+	case uint:
+		memberID = v
+	case int:
+		memberID = uint(v)
+	case float64:
+		memberID = uint(v)
+	case string:
+		if n, err := strconv.Atoi(v); err == nil {
+			memberID = uint(n)
+		}
+	}
+
+	err = ctl.Service.DeleteReport(id, memberID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

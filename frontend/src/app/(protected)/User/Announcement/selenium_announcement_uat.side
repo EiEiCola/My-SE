@@ -1,0 +1,276 @@
+{
+  "id": "f6b3b5a0-1234-4567-8901-abcdef123456",
+  "version": "2.0",
+  "name": "User PR Submission UAT",
+  "url": "http://localhost:5173",
+  "tests": [
+    {
+      "id": "t1-create-success",
+      "name": "User_Create_PR_Success",
+      "commands": [
+        {
+          "id": "step1-1",
+          "comment": "",
+          "command": "open",
+          "target": "/User/Announcement",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-2",
+          "comment": "",
+          "command": "setWindowSize",
+          "target": "1280x800",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-3",
+          "comment": "Click Create Button",
+          "command": "click",
+          "target": "css=.create-btn",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-4",
+          "comment": "Fill Title",
+          "command": "type",
+          "target": "id=title",
+          "targets": [],
+          "value": "Selenium User PR Test"
+        },
+        {
+          "id": "step1-5",
+          "comment": "Select Category",
+          "command": "select",
+          "target": "id=category",
+          "targets": [],
+          "value": "label=กิจกรรม"
+        },
+        {
+          "id": "step1-6",
+          "comment": "Fill Description",
+          "command": "type",
+          "target": "id=description",
+          "targets": [],
+          "value": "Short description for Selenium test"
+        },
+        {
+          "id": "step1-7",
+          "comment": "Fill Content",
+          "command": "type",
+          "target": "id=content",
+          "targets": [],
+          "value": "Detailed content for Public Relations submission test."
+        },
+        {
+          "id": "step1-8",
+          "comment": "Fill Start Date",
+          "command": "type",
+          "target": "id=start-date",
+          "targets": [],
+          "value": "2025-12-25"
+        },
+        {
+          "id": "step1-9",
+          "comment": "Fill End Date",
+          "command": "type",
+          "target": "id=end-date",
+          "targets": [],
+          "value": "2025-12-31"
+        },
+        {
+          "id": "step1-10",
+          "comment": "Click Submit",
+          "command": "click",
+          "target": "id=submit-btn",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-wait",
+          "comment": "Wait for network/redirect",
+          "command": "pause",
+          "target": "3000",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-switch-tab",
+          "comment": "Switch to My Requests Tab",
+          "command": "click",
+          "target": "xpath=//button[contains(text(), 'ประวัติคำขอของฉัน')]",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step1-11",
+          "comment": "Verify Success (Find title in Table)",
+          "command": "assertText",
+          "target": "xpath=//td[contains(text(),'Selenium User PR Test')]",
+          "targets": [],
+          "value": "Selenium User PR Test"
+        }
+      ]
+    },
+    {
+      "id": "t2-missing-title",
+      "name": "User_Create_PR_Missing_Title",
+      "commands": [
+        {
+          "id": "step2-1",
+          "comment": "",
+          "command": "open",
+          "target": "/User/Announcement/create",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step2-2",
+          "comment": "Fill Description but skip Title",
+          "command": "type",
+          "target": "id=description",
+          "targets": [],
+          "value": "Missing title test"
+        },
+        {
+          "id": "step2-3",
+          "comment": "Click Submit",
+          "command": "click",
+          "target": "id=submit-btn",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step2-4",
+          "comment": "Check Validation Error",
+          "command": "assertText",
+          "target": "css=.form-error",
+          "targets": [],
+          "value": "กรุณากรอกหัวข้อประกาศ"
+        }
+      ]
+    },
+    {
+      "id": "t3-missing-content",
+      "name": "User_Create_PR_Missing_Content",
+      "commands": [
+        {
+          "id": "step3-1",
+          "comment": "",
+          "command": "open",
+          "target": "/User/Announcement/create",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step3-2",
+          "comment": "Fill Title",
+          "command": "type",
+          "target": "id=title",
+          "targets": [],
+          "value": "Missing Content Test"
+        },
+        {
+          "id": "step3-3",
+          "comment": "Skip Content Field (make sure it is empty)",
+          "command": "type",
+          "target": "id=content",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step3-4",
+          "comment": "Click Submit",
+          "command": "click",
+          "target": "id=submit-btn",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step3-wait",
+          "comment": "Wait for error",
+          "command": "pause",
+          "target": "1000",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step3-5",
+          "comment": "Check Backend Validation Error",
+          "command": "assertText",
+          "target": "css=.form-error",
+          "targets": [],
+          "value": "{\"error\":\"Key: 'createPRRequest.Content' Error:Field validation for 'Content' failed on the 'required' tag\"}"
+        }
+      ]
+    },
+    {
+      "id": "t4-invalid-dates",
+      "name": "User_Create_PR_Invalid_Dates",
+      "commands": [
+        {
+          "id": "step4-1",
+          "comment": "",
+          "command": "open",
+          "target": "/User/Announcement/create",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step4-2",
+          "comment": "Fill Title",
+          "command": "type",
+          "target": "id=title",
+          "targets": [],
+          "value": "Invalid Date Test"
+        },
+        {
+          "id": "step4-3",
+          "comment": "Fill Start Date",
+          "command": "type",
+          "target": "id=start-date",
+          "targets": [],
+          "value": "2025-12-31"
+        },
+        {
+          "id": "step4-4",
+          "comment": "Fill End Date (Earlier than Start)",
+          "command": "type",
+          "target": "id=end-date",
+          "targets": [],
+          "value": "2025-01-01"
+        },
+        {
+          "id": "step4-5",
+          "comment": "Click Submit",
+          "command": "click",
+          "target": "id=submit-btn",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "step4-6",
+          "comment": "Check Validation Error",
+          "command": "assertText",
+          "target": "css=.form-error",
+          "targets": [],
+          "value": "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น"
+        }
+      ]
+    }
+  ],
+  "suites": [
+    {
+      "id": "suite-1",
+      "name": "User PR Submission Suite",
+      "persistSession": false,
+      "parallel": false,
+      "timeout": 300,
+      "tests": ["t1-create-success", "t2-missing-title", "t3-missing-content", "t4-invalid-dates"]
+    }
+  ],
+  "urls": ["http://localhost:5173"],
+  "plugins": []
+}

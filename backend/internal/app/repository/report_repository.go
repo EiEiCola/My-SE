@@ -35,7 +35,7 @@ func (r *ReportRepository) Create(report *entity.Report, media []entity.ReportMe
 
 func (r *ReportRepository) GetByID(id int) (*entity.Report, error) {
 	var rep entity.Report
-	if err := r.DB.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").Where("report_ID = ?", id).First(&rep).Error; err != nil {
+	if err := r.DB.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").First(&rep, id).Error; err != nil {
 		return nil, err
 	}
 	return &rep, nil
@@ -62,7 +62,7 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("report_ID desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Order("id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
@@ -90,13 +90,46 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").Order("report_ID desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("Reporter").Preload("Status").Preload("Admin").Order("id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
 func (r *ReportRepository) UpdateStatus(reportID int, statusID int, adminID uint) error {
-	return r.DB.Model(&entity.Report{}).Where("report_ID = ?", reportID).Updates(map[string]interface{}{
+	return r.DB.Model(&entity.Report{}).Where("id = ?", reportID).Updates(map[string]interface{}{
 		"status":   statusID,
 		"admin_ID": adminID,
 	}).Error
+}
+
+func (r *ReportRepository) Update(report *entity.Report, media []entity.ReportMedia) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(report).Error; err != nil {
+			return err
+		}
+		// Replace media
+		if err := tx.Where("report_id = ?", report.ID).Delete(&entity.ReportMedia{}).Error; err != nil {
+			return err
+		}
+		if len(media) > 0 {
+			for i := range media {
+				media[i].ReportID = report.ID
+			}
+			if err := tx.Create(&media).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *ReportRepository) Delete(id int) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("report_id = ?", id).Delete(&entity.ReportMedia{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&entity.Report{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
