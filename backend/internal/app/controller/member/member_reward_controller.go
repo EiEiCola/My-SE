@@ -9,55 +9,68 @@ import (
 )
 
 type MemberRewardController struct {
-	memberRewardService services.MemberRewardService
+	svc services.MemberRewardService
 }
 
 func NewMemberRewardController(s services.MemberRewardService) *MemberRewardController {
-	return &MemberRewardController{
-		memberRewardService: s,
-	}
+	return &MemberRewardController{svc: s}
 }
 
-// User Redeem Reward
-func (c *MemberRewardController) RedeemMemberReward(ctx *gin.Context) {
+// ✅ DEV MODE: fix member id
+const DEV_MEMBER_ID uint = 1
 
-	var req struct {
-		MemberID uint `json:"member_id" binding:"required"`
-		RewardID uint `json:"reward_id" binding:"required"`
-	}
+// POST /member/rewards/:id/redeem
+func (c *MemberRewardController) Redeem(ctx *gin.Context) {
+	memberID := DEV_MEMBER_ID
 
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	rewardIDStr := ctx.Param("id")
+	rewardID64, err := strconv.ParseUint(rewardIDStr, 10, 64)
+	if err != nil || rewardID64 == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid reward id"})
 		return
 	}
+	rewardID := uint(rewardID64)
 
-	mr, err := c.memberRewardService.RedeemMemberReward(req.MemberID, req.RewardID)
+	idemKey := ctx.GetHeader("x-idempotency-key")
 
+	newBal, memberRewardID, err := c.svc.Redeem(memberID, rewardID, idemKey)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, mr)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":           "redeem success",
+		"new_point_balance": newBal,
+		"member_reward_id":  memberRewardID,
+		"reward_id":         rewardID,
+	})
 }
 
-// User ดูประวัติ reward ที่แลก
-func (c *MemberRewardController) GetMemberRewardByMemberID(ctx *gin.Context) {
+// GET /member/my-stickers
+func (c *MemberRewardController) MyStickers(ctx *gin.Context) {
+	memberID := DEV_MEMBER_ID
 
-	memberIDParam := ctx.Param("member_id")
-	memberIDUint, err := strconv.ParseUint(memberIDParam, 10, 64)
-
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid member_id"})
-		return
-	}
-
-	rewards, err := c.memberRewardService.GetMemberRewardByMemberID(uint(memberIDUint))
-
+	items, err := c.svc.MyStickers(memberID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, rewards)
+	ctx.JSON(http.StatusOK, items)
+}
+
+// ✅ เพิ่ม: GET /member/points
+func (c *MemberRewardController) MyPoints(ctx *gin.Context) {
+	memberID := DEV_MEMBER_ID
+
+	p, err := c.svc.MyPoints(memberID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"total_point": p,
+	})
 }

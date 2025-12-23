@@ -156,9 +156,7 @@ func Connect() *gorm.DB {
 	// s.SeedClubRequest(db)
 	// s.SeedClubMember(db)
 	// s.SeedEvent(db)
-
-	dataseed.SeedPRSystem(db)
+	// dataseed.SeedPRSystem(db)
 	dataseed.SeedReviewSystem(db)
-
 	return db
 }

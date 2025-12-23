@@ -77,27 +77,22 @@ export interface UpdateSubCategoryL2Request {
     order_index?: number;
 }
 
-// ========== API Helper ==========
-
-const getAdminHeaders = () => ({
-    "X-User-ID": "1", // TODO: Replace with actual user ID from auth context
-});
-
 // ========== Main Category APIs ==========
+// JWT token is automatically added by api interceptor
 
 export const mainCategoryAPI = {
-    list: () => api.get<{ data: MainCategory[] }>("/admin/categories/main", { headers: getAdminHeaders() }),
+    list: () => api.get<{ data: MainCategory[] }>("/admin/categories/main"),
 
-    get: (id: number) => api.get<{ data: MainCategory }>(`/admin/categories/main/${id}`, { headers: getAdminHeaders() }),
+    get: (id: number) => api.get<{ data: MainCategory }>(`/admin/categories/main/${id}`),
 
     create: (payload: CreateMainCategoryRequest) =>
-        api.post<{ data: MainCategory }>("/admin/categories/main", payload, { headers: getAdminHeaders() }),
+        api.post<{ data: MainCategory }>("/admin/categories/main", payload),
 
     update: (id: number, payload: UpdateMainCategoryRequest) =>
-        api.put<{ data: MainCategory }>(`/admin/categories/main/${id}`, payload, { headers: getAdminHeaders() }),
+        api.put<{ data: MainCategory }>(`/admin/categories/main/${id}`, payload),
 
     delete: (id: number) =>
-        api.delete(`/admin/categories/main/${id}`, { headers: getAdminHeaders() }),
+        api.delete(`/admin/categories/main/${id}`),
 };
 
 // ========== SubCategory L1 APIs ==========
@@ -105,19 +100,19 @@ export const mainCategoryAPI = {
 export const subCategoryL1API = {
     list: (mainCategoryId?: number) => {
         const params = mainCategoryId ? { main_category_id: mainCategoryId } : {};
-        return api.get<{ data: SubCategoryL1[] }>("/admin/categories/sub1", { params, headers: getAdminHeaders() });
+        return api.get<{ data: SubCategoryL1[] }>("/admin/categories/sub1", { params });
     },
 
-    get: (id: number) => api.get<{ data: SubCategoryL1 }>(`/admin/categories/sub1/${id}`, { headers: getAdminHeaders() }),
+    get: (id: number) => api.get<{ data: SubCategoryL1 }>(`/admin/categories/sub1/${id}`),
 
     create: (payload: CreateSubCategoryL1Request) =>
-        api.post<{ data: SubCategoryL1 }>("/admin/categories/sub1", payload, { headers: getAdminHeaders() }),
+        api.post<{ data: SubCategoryL1 }>("/admin/categories/sub1", payload),
 
     update: (id: number, payload: UpdateSubCategoryL1Request) =>
-        api.put<{ data: SubCategoryL1 }>(`/admin/categories/sub1/${id}`, payload, { headers: getAdminHeaders() }),
+        api.put<{ data: SubCategoryL1 }>(`/admin/categories/sub1/${id}`, payload),
 
     delete: (id: number) =>
-        api.delete(`/admin/categories/sub1/${id}`, { headers: getAdminHeaders() }),
+        api.delete(`/admin/categories/sub1/${id}`),
 };
 
 // ========== SubCategory L2 APIs ==========
@@ -125,19 +120,19 @@ export const subCategoryL1API = {
 export const subCategoryL2API = {
     list: (subCategoryL1Id?: number) => {
         const params = subCategoryL1Id ? { sub_category_l1_id: subCategoryL1Id } : {};
-        return api.get<{ data: SubCategoryL2[] }>("/admin/categories/sub2", { params, headers: getAdminHeaders() });
+        return api.get<{ data: SubCategoryL2[] }>("/admin/categories/sub2", { params });
     },
 
-    get: (id: number) => api.get<{ data: SubCategoryL2 }>(`/admin/categories/sub2/${id}`, { headers: getAdminHeaders() }),
+    get: (id: number) => api.get<{ data: SubCategoryL2 }>(`/admin/categories/sub2/${id}`),
 
     create: (payload: CreateSubCategoryL2Request) =>
-        api.post<{ data: SubCategoryL2 }>("/admin/categories/sub2", payload, { headers: getAdminHeaders() }),
+        api.post<{ data: SubCategoryL2 }>("/admin/categories/sub2", payload),
 
     update: (id: number, payload: UpdateSubCategoryL2Request) =>
-        api.put<{ data: SubCategoryL2 }>(`/admin/categories/sub2/${id}`, payload, { headers: getAdminHeaders() }),
+        api.put<{ data: SubCategoryL2 }>(`/admin/categories/sub2/${id}`, payload),
 
     delete: (id: number) =>
-        api.delete(`/admin/categories/sub2/${id}`, { headers: getAdminHeaders() }),
+        api.delete(`/admin/categories/sub2/${id}`),
 };
 
 // ========== Public Category APIs (no auth required) ==========
