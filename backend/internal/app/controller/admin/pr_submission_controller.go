@@ -151,3 +151,18 @@ func (ctl *AdminPRController) Update(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "updated"})
 }
+
+// DELETE /admin/pr-submissions/:id
+func (ctl *AdminPRController) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := ctl.SubmissionService.DeleteSubmission(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+}

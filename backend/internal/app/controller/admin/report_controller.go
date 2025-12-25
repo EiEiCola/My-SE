@@ -17,7 +17,7 @@ func NewAdminReportController(s *services.ReportService) *AdminReportController 
 }
 
 type updateReportStatusRequest struct {
-	StatusID int `json:"status_id" binding:"required"`
+	StatusID int `json:"status_id" form:"status_id"`
 }
 
 // GET /admin/reports
@@ -83,8 +83,26 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 		return
 	}
 	var req updateReportStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Accept JSON or form; fall back to query string
+	if err := c.ShouldBind(&req); err != nil {
+		// continue to fallback parsing
+	}
+	if req.StatusID == 0 {
+		if s := c.Query("status_id"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil {
+				req.StatusID = n
+			}
+		}
+	}
+	if req.StatusID == 0 {
+		if s := c.PostForm("status_id"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil {
+				req.StatusID = n
+			}
+		}
+	}
+	if req.StatusID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status_id is required"})
 		return
 	}
 
@@ -95,7 +113,11 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 	}
 	var adminID uint
 	switch v := val.(type) {
+	case uint:
+		adminID = v
 	case int:
+		adminID = uint(v)
+	case float64:
 		adminID = uint(v)
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {

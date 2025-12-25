@@ -57,6 +57,18 @@ const AnnouncementManage: React.FC = () => {
   // Client-side filter removed as we now filter on server
   const filteredRequests = requests;
 
+  const handleDeletePR = async (prId: number) => {
+    if (!confirm(`ยืนยันลบคำขอ PR #${prId}?`)) return;
+    try {
+      const resp = await fetch(`/api/admin/pr-submissions/${prId}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error(await resp.text());
+      // Refresh list
+      setRequests((prev) => prev.filter((r) => r.id !== prId));
+    } catch (e: any) {
+      alert(e.message || 'ลบคำขอไม่สำเร็จ');
+    }
+  };
+
   const handleRowClick = (id: number) => {
     navigate(`/Admin/AnnouncementManage/${id}`);
   };
@@ -67,6 +79,13 @@ const AnnouncementManage: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="page-title" style={{ margin: 0 }}>คำขอประชาสัมพันธ์</h2>
           <div className="flex gap-4">
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/Admin/AnnouncementManage/Announcements')}
+              style={{ padding: '8px 12px', borderRadius: 6 }}
+            >
+              ดูรายการประกาศ
+            </button>
             <select
               className="form-select"
               value={filterStatus}
@@ -97,6 +116,7 @@ const AnnouncementManage: React.FC = () => {
                 <th>ชื่อหัวข้อ</th>
                 <th>ช่วงเผยแพร่</th>
                 <th>สถานะ</th>
+                <th>จัดการ</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +128,11 @@ const AnnouncementManage: React.FC = () => {
                   <td>{r.title}</td>
                   <td>{r.displayFrom}{r.displayTo ? ` — ${r.displayTo}` : ''}</td>
                   <td>{r.status}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button className="btn" style={{ background: '#dc2626', color: '#fff' }} onClick={() => handleDeletePR(r.id)}>
+                      ลบคำขอ
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

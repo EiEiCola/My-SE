@@ -95,3 +95,7 @@ func (s *PRSubmissionService) ListMemberSubmissions(memberID uint, page, pageSiz
 func (s *PRSubmissionService) AdminListSubmissions(page, pageSize int, memberID *uint, statusID *int, q string) ([]entity.PRSubmission, int64, error) {
 	return s.PRRepo.ListAll(page, pageSize, memberID, statusID, q)
 }
+
+func (s *PRSubmissionService) DeleteSubmission(id int) error {
+	return s.PRRepo.Delete(id)
+}

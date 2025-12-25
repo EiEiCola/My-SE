@@ -32,6 +32,10 @@ const AnnouncementCreate: React.FC = () => {
       setError("กรุณากรอกหัวข้อประกาศ");
       return;
     }
+    if (!content.trim()) {
+      setError("กรุณากรอกเนื้อหาประกาศ");
+      return;
+    }
 
     setSubmitting(true);
     try {

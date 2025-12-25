@@ -46,6 +46,7 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 		adminGroup.GET("/pr-submissions/:id", prController.GetByID)
 		adminGroup.PUT("/pr-submissions/:id", prController.Update) // Register Update
 		adminGroup.POST("/pr-submissions/:id/review", prController.Review)
+		adminGroup.DELETE("/pr-submissions/:id", prController.Delete)
 	}
 
 	// Mock Member Auth

@@ -30,7 +30,7 @@
           "command": "type",
           "target": "id=title",
           "targets": [],
-          "value": "Selenium User PR Test"
+          "value": "Selenium Test"
         },
         {
           "id": "step1-5",
@@ -190,11 +190,11 @@
         },
         {
           "id": "step3-5",
-          "comment": "Check Backend Validation Error",
+          "comment": "Check Client Validation Error",
           "command": "assertText",
           "target": "css=.form-error",
           "targets": [],
-          "value": "{\"error\":\"Key: 'createPRRequest.Content' Error:Field validation for 'Content' failed on the 'required' tag\"}"
+          "value": "กรุณากรอกเนื้อหาประกาศ"
         }
       ]
     },
@@ -225,6 +225,14 @@
           "target": "id=start-date",
           "targets": [],
           "value": "2025-12-31"
+        },
+        {
+          "id": "step4-3b",
+          "comment": "Fill Content to pass required validation",
+          "command": "type",
+          "target": "id=content",
+          "targets": [],
+          "value": "Content for invalid date case"
         },
         {
           "id": "step4-4",

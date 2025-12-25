@@ -80,3 +80,19 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 	err := db.Preload("Media").Preload("Reviews").Preload("Member").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
+
+// Delete removes a PR submission and its related media and reviews
+func (r *PRSubmissionRepository) Delete(id int) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("\"pr_id\" = ?", id).Delete(&entity.PRReview{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("\"pr_ID\" = ?", id).Delete(&entity.PRSubmissionMedia{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&entity.PRSubmission{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}

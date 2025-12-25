@@ -10,6 +10,7 @@ interface Announcement {
   date: string;
   status: "active" | "archived";
   content?: string;
+  category?: string;
 }
 
 const Announcement: React.FC = () => {
@@ -39,6 +40,8 @@ const Announcement: React.FC = () => {
           date: item.publish_start_at,
           status: item.status_id === 1 ? "active" : "archived",
           content: item.content,
+          // Backend currently has no explicit category; try common fields then default to "general" to make filter usable
+          category: (item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
         }));
 
         setAnnouncements(mappedData);
@@ -65,9 +68,7 @@ const Announcement: React.FC = () => {
   const filteredAnnouncements = announcements.filter((item) => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    // Mock category check (assuming item has category or we mock it, for now just pass if filter is empty)
-    // In real app, item should have category field.
-    const matchesCategory = filterCategory ? true : true;
+    const matchesCategory = !filterCategory || (item.category || "").toLowerCase() === filterCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
 

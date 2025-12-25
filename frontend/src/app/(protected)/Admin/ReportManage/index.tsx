@@ -8,6 +8,15 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const ReportManage: React.FC = () => {
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("data:")) return url;
+    return `${API_BASE}/uploads/${url}`;
+  };
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [detailVisible, setDetailVisible] = useState<boolean>(false);
@@ -98,15 +107,20 @@ const ReportManage: React.FC = () => {
       key: "status",
       render: (_: any, record: Report) => {
         let color = "default";
-        // Assuming status ids: 1=Pending, 2=In Progress, 3=Resolved, 4=Rejected (Need to verify these IDs!)
-        // For now, mapping by ID or Name if available
-        const statusName = record.status?.status_name || "Unknown";
+        // Map by id first, then fallback to name (backend field is `name` not `status_name`)
         const statusId = record.status?.id || record.status_id;
+        const statusName = (() => {
+          if (statusId === 1) return "Pending";
+          if (statusId === 2) return "In Progress";
+          if (statusId === 3) return "Resolved";
+          if (statusId === 4) return "Rejected";
+          return record.status?.status_name || "Unknown";
+        })();
 
-        if (statusId === 1) color = "orange"; // Pending
-        if (statusId === 2) color = "processing"; // In Progress
-        if (statusId === 3) color = "success"; // Resolved
-        if (statusId === 4) color = "error"; // Rejected
+        if (statusId === 1) color = "orange";
+        if (statusId === 2) color = "processing";
+        if (statusId === 3) color = "success";
+        if (statusId === 4) color = "error";
 
         return <Tag color={color}>{statusName}</Tag>;
       },
@@ -173,7 +187,14 @@ const ReportManage: React.FC = () => {
                 {currentReport.target_type} #{currentReport.target_id}
               </Descriptions.Item>
               <Descriptions.Item label="Status">
-                {currentReport.status?.status_name || "Unknown"}
+                {(() => {
+                  const sid = currentReport.status?.id || currentReport.status_id;
+                  if (sid === 1) return "Pending";
+                  if (sid === 2) return "In Progress";
+                  if (sid === 3) return "Resolved";
+                  if (sid === 4) return "Rejected";
+                  return currentReport.status?.status_name || "Unknown";
+                })()}
               </Descriptions.Item>
               <Descriptions.Item label="Medias">
                 {currentReport.media && currentReport.media.length > 0 ? (
@@ -182,7 +203,7 @@ const ReportManage: React.FC = () => {
                       <Image
                         key={idx}
                         width={100}
-                        src={m.url.startsWith("http") ? m.url : `http://localhost:8080/uploads/${m.url}`}
+                        src={resolveMediaUrl(m.url)}
                         alt="report-media"
                       />
                     ))}

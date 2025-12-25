@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
@@ -31,8 +32,16 @@ func (ctl *AdminAnnouncementController) List(c *gin.Context) {
 		}
 	}
 
-	// Admin should see ALL announcements
-	items, total, err := ctl.Service.ListAll(page, pageSize)
+	// Optional filter by PR Submission ID (for quick lookup from request page)
+	var prID *int
+	if p := c.Query("pr_id"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			prID = &n
+		}
+	}
+
+	// Admin should see ALL announcements (with optional pr_id filter)
+	items, total, err := ctl.Service.ListAll(page, pageSize, prID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -61,6 +70,11 @@ func (ctl *AdminAnnouncementController) Create(c *gin.Context) {
 	var req services.CreateAnnouncementInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Extra validation: title/content must be non-empty after trim
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
 	val, ok := c.Get("admin_id")
@@ -97,6 +111,11 @@ func (ctl *AdminAnnouncementController) Update(c *gin.Context) {
 	var req services.CreateAnnouncementInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Extra validation: title/content must be non-empty after trim
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
 	ann, err := ctl.Service.UpdateAnnouncement(id, &req)

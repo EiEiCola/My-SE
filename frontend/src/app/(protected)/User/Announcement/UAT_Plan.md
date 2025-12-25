@@ -23,7 +23,7 @@
 **Case 1.3: สร้างประกาศโดยไม่กรอกเนื้อหา (Create with Missing Content)**
 *   **ผู้ทดสอบ (Actor)**: Member
 *   **การกระทำ (Action)**: เว้นว่างช่อง "เนื้อหาประกาศ" (Content), กรอกช่องอื่นๆ ครบ, กดบันทึก
-*   **ผลลัพธ์ที่คาดหวัง**: ระบบ (Backend) ส่งกลับข้อผิดพลาด และ UI แสดงข้อความแจ้งเตือน "Content is required" (หรือข้อความที่ระบบส่งกลับ)
+*   **ผลลัพธ์ที่คาดหวัง**: ระบบ (Frontend) แสดงข้อความแจ้งเตือนสีแดง "กรุณากรอกเนื้อหาประกาศ" และไม่ส่งข้อมูลไป Backend
 
 **Case 1.4: สร้างประกาศโดยระบุช่วงเวลาผิดพลาด (Create with Invalid Date Range)**
 *   **ผู้ทดสอบ (Actor)**: Member
@@ -64,13 +64,14 @@
 2.  **Type**: ช่อง `id=title` -> พิมพ์ `Missing Content Test`
 3.  **Type**: ช่อง `id=content` -> (เว้นว่าง)
 4.  **Click**: ปุ่ม "สร้างประกาศ"
-5.  **AssertText**: ตรวจสอบข้อความแจ้งเตือน `.form-error` ว่า "Content is required" (ตรวจสอบ Error จาก Backend)
+5.  **AssertText**: ตรวจสอบข้อความแจ้งเตือน `.form-error` ว่า "กรุณากรอกเนื้อหาประกาศ" (ตรวจสอบ Error ฝั่ง Frontend)
 
 ### 4. Test Case: User Create PR Invalid Dates (วันที่ไม่ถูกต้อง)
 **ชื่อ Test**: `User_Create_PR_Invalid_Dates`
 1.  **Open**: เปิด URL `http://localhost:5173/User/Announcement/create`
 2.  **Type**: ช่อง `id=title` -> พิมพ์ `Invalid Date Test`
 3.  **Type**: ช่อง `id=start-date` -> เลือก `2025-12-31`
-4.  **Type**: ช่อง `id=end-date` -> เลือก `2025-01-01` (ย้อนหลัง)
-5.  **Click**: ปุ่ม "สร้างประกาศ"
-6.  **AssertText**: ตรวจสอบข้อความแจ้งเตือน `.form-error` ว่า "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น"
+4.  **Type**: ช่อง `id=content` -> พิมพ์ `Content for invalid date case` (เพื่อผ่าน validation เนื้อหาที่บังคับ)
+5.  **Type**: ช่อง `id=end-date` -> เลือก `2025-01-01` (ย้อนหลัง)
+6.  **Click**: ปุ่ม "สร้างประกาศ"
+7.  **AssertText**: ตรวจสอบข้อความแจ้งเตือน `.form-error` ว่า "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น"
