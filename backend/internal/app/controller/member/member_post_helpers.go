@@ -1,7 +1,6 @@
 package controller
 
 import (
-
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,7 @@ func parseUintParam(c *gin.Context, name string) (uint, error) {
 
 // ดึง memberID จาก context (สำหรับผู้ใช้ปกติ)
 func getMemberID(c *gin.Context) (uint, bool) {
-	v, ok := c.Get("member_id") // ถ้า middleware ใช้ key อื่น เช่น "user_id" ก็เปลี่ยนตรงนี้
+	v, ok := c.Get("user_id") // ตรงกับ key ที่ JWT middleware ใช้ c.Set("user_id", ...)
 	if !ok {
 		return 0, false
 	}

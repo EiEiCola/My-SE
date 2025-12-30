@@ -104,6 +104,7 @@ log.Println("Connected DB:", dbName)
 
 		// --- 7. ตารางลูกที่ซับซ้อน/อ้างอิงเนื้อหาหลัก (Complex Children) ---
 		&entity.Comment{},
+		&entity.PostLike{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
@@ -138,6 +139,10 @@ log.Println("Connected DB:", dbName)
 		&entity.PollVote{},
 		&entity.PollVoteOption{}, 
 		&entity.PollHistory{}, // <--- อ้างอิง Admin, Poll, PollStatus (ควรอยู่ท้ายสุด)
+
+		// --- 11. ตาราง Bookmark และ PostStar ---
+		&entity.Bookmark{},
+		&entity.PostStar{},
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}

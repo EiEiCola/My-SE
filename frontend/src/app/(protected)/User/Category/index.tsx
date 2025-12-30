@@ -35,6 +35,8 @@ import {
   type SubCategoryL1,
   type SubCategoryL2,
 } from "../../../../services/http/admin_category";
+import postService from "../../../../services/http/post_service";
+import { useNavigate } from "react-router-dom";
 
 const { Search } = Input;
 
@@ -120,30 +122,15 @@ type PostItem = {
   excerpt: string;
 };
 
-// Mock posts (TODO: connect to posts API later)
-const mockPosts: PostItem[] = [
-  {
-    id: 1,
-    categoryKey: "1",
-    subKey: "1",
-    type: "post",
-    title: "ยินดีต้อนรับสู่ Community!",
-    authorName: "Admin",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=admin",
-    createdAt: "เมื่อสักครู่",
-    likes: 10,
-    comments: 5,
-    excerpt: "นี่คือโพสต์ตัวอย่าง...",
-  },
-];
-
 // ---------------------------------------------
 // Component
 // ---------------------------------------------
 const Group: React.FC = () => {
+  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<UserCategory[]>([]);
+  const [allPosts, setAllPosts] = useState<PostItem[]>([]);
 
   const [searchText, setSearchText] = useState("");
   const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null);
@@ -155,15 +142,66 @@ const Group: React.FC = () => {
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
-      const [mainRes, sub1Res, sub2Res] = await Promise.all([
+      const [mainRes, sub1Res, sub2Res, postsRes] = await Promise.all([
         publicCategoryAPI.listMain(),
         publicCategoryAPI.listSub1(),
         publicCategoryAPI.listSub2(),
+        postService.getAll(),
       ]);
 
       const mainCategories = mainRes.data.data || [];
       const sub1Categories = sub1Res.data.data || [];
       const sub2Categories = sub2Res.data.data || [];
+      const allPostsData = postsRes.data.data || [];
+
+      // Transform posts to PostItem format
+      const transformedPosts: PostItem[] = allPostsData.map((post) => {
+        const createdDate = new Date(post.created_at);
+        const now = new Date();
+        const diffMs = now.getTime() - createdDate.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let createdAt = "";
+        if (diffMins < 60) {
+          createdAt = `${diffMins} นาทีที่แล้ว`;
+        } else if (diffHours < 24) {
+          createdAt = `${diffHours} ชั่วโมงที่แล้ว`;
+        } else if (diffDays === 0) {
+          createdAt = "วันนี้";
+        } else if (diffDays === 1) {
+          createdAt = "เมื่อวานนี้";
+        } else {
+          createdAt = createdDate.toLocaleDateString("th-TH");
+        }
+
+        return {
+          id: post.ID,
+          categoryKey: post.main_category_id ? String(post.main_category_id) : "",
+          subKey: post.sub_category1_id ? String(post.sub_category1_id) : "",
+          subSubKey: post.sub_category2_id ? String(post.sub_category2_id) : undefined,
+          type: "post" as ContentType,
+          title: post.title,
+          authorName: post.is_anonymous ? "ไม่เปิดเผยชื่อ" : `User #${post.author_id}`,
+          authorAvatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`,
+          createdAt,
+          likes: post.like_count,
+          comments: post.comment_count,
+          excerpt: post.content.substring(0, 100) + (post.content.length > 100 ? "..." : ""),
+        };
+      });
+
+      setAllPosts(transformedPosts);
+
+      // Count posts per main category
+      const postCountByCategory = new Map<number, number>();
+      allPostsData.forEach((post) => {
+        if (post.main_category_id) {
+          const count = postCountByCategory.get(post.main_category_id) || 0;
+          postCountByCategory.set(post.main_category_id, count + 1);
+        }
+      });
 
       // Build sub2 by parent map
       const sub2ByParent = new Map<number, SubCategoryL2[]>();
@@ -193,7 +231,11 @@ const Group: React.FC = () => {
         name: main.title,
         slug: main.title.toLowerCase().replace(/\s+/g, "-"),
         description: main.description || "หมวดหมู่ " + main.title,
-        stats: { posts: 0, reviews: 0, polls: 0 }, // TODO: get from API
+        stats: {
+          posts: postCountByCategory.get(main.ID) || 0,
+          reviews: 0,
+          polls: 0
+        },
         subcategories: sub1ByParent.get(main.ID) || [],
       }));
 
@@ -234,7 +276,7 @@ const Group: React.FC = () => {
 
   const filteredPosts = useMemo(() => {
     if (!selectedCategory) return [];
-    let current = mockPosts.filter((p) => p.categoryKey === selectedCategory.key);
+    let current = allPosts.filter((p) => p.categoryKey === selectedCategory.key);
 
     if (selectedSubKey !== "all")
       current = current.filter((p) => p.subKey === selectedSubKey);
@@ -251,7 +293,7 @@ const Group: React.FC = () => {
       );
 
     return current.sort((a, b) => b.id - a.id);
-  }, [selectedCategory, selectedSubKey, selectedSubSubKey, contentTypeFilter, searchText]);
+  }, [selectedCategory, selectedSubKey, selectedSubSubKey, contentTypeFilter, searchText, allPosts]);
 
   const handleBack = () => {
     setSelectedCategoryKey(null);
@@ -489,6 +531,7 @@ const Group: React.FC = () => {
                   renderItem={(item) => (
                     <List.Item
                       key={item.id}
+                      onClick={() => navigate(`/User/Post/detail/${item.id}`)}
                       style={{
                         padding: "14px 20px",
                         borderBottom: "1px solid #FFF1E0",

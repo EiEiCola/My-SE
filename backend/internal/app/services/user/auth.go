@@ -254,7 +254,24 @@ func (s *authSvc) Login(req dto.LoginReq) (string, error) {
 		role = "admin"
 	}
 
-	token, err := utils.SignToken(acc.ID, role)
+	// ✅ FIX: ดึง ID ตาม role - admin ใช้ admins table, member ใช้ members table
+	var profileID uint
+	if role == "admin" {
+		var admin entity.Admin
+		if err := s.db.Where("member_account_id = ?", acc.ID).First(&admin).Error; err != nil {
+			return "", errors.New("admin profile not found for this account")
+		}
+		profileID = admin.ID
+	} else {
+		var member entity.Member
+		if err := s.db.Where("member_account_id = ?", acc.ID).First(&member).Error; err != nil {
+			return "", errors.New("member not found for this account")
+		}
+		profileID = member.ID
+	}
+
+	// ใช้ Profile ID (Admin.ID หรือ Member.ID) ใน Token
+	token, err := utils.SignToken(profileID, role)
 	if err != nil {
 		return "", err
 	}
