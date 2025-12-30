@@ -67,6 +67,8 @@ func SetupRoutes(
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
+
+		
 	}
 
 	// =========================

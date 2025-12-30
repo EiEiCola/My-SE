@@ -196,13 +196,12 @@ const AdminPollList: React.FC = () => {
         setSelectedPoll(null);
     };
 
-    const canApproveReject = (p: Poll) => (p as any).poll_status?.name === "PENDING_REVIEW";
-    const canClose = (p: Poll) => (p as any).poll_status?.name === "PUBLISHED";
-    const canDelete = (p: Poll) => {
-        const s = (p as any).poll_status?.name;
-        return s === "REJECTED" || s === "CLOSED" || s === "DRAFT";
-    };
-
+const canApproveReject = (p: Poll) => getStatus(p) === "PENDING_REVIEW";
+const canClose = (p: Poll) => getStatus(p) === "PUBLISHED";
+const canDelete = (p: Poll) => {
+  const s = getStatus(p);
+  return s === "REJECTED" || s === "CLOSED" || s === "DRAFT";
+};
     return (
         <div className="poll-admin-page">
             {/* HERO */}

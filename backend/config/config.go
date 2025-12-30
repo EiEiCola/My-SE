@@ -57,6 +57,10 @@ func Connect() *gorm.DB {
 	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
+	var dbName string
+db.Raw("select current_database()").Scan(&dbName)
+log.Println("Connected DB:", dbName)
+
 	
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")

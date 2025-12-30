@@ -256,11 +256,18 @@ func (r *pollRepository) CreateHistory(history *entity.PollHistory) error {
 /* =========================
    UPDATE POLL STATUS
 ========================= */
-
 func (r *pollRepository) UpdatePollStatus(pollID uint, statusID uint) error {
-	return r.db.Model(&entity.Poll{}).
+	tx := r.db.Model(&entity.Poll{}).
 		Where("id = ?", pollID).
-		Update("poll_status_id", statusID).Error
+		Update("poll_status_id", statusID)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound // ✅ จะทำให้ controller ตอบ error ออกมา
+	}
+	return nil
 }
 
 /* =========================

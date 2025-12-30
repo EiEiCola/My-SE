@@ -11,7 +11,6 @@ export interface PollOption {
   poll_id?: number;
 }
 
-
 export interface Poll {
   id: number;
   question: string;
@@ -102,13 +101,6 @@ export interface MyVoteResponse {
   option_ids: number[];
 }
 
-// ========== API Helper ==========
-
-// TODO: Replace "1" with actual User ID from Context/Auth
-const getHeaders = () => ({
-  "X-User-ID": "1",
-});
-
 // ========== Poll APIs ==========
 
 export const pollAPI = {
@@ -128,37 +120,39 @@ export const pollAPI = {
   // ต้องมี backend route: GET /members/polls/:id
   getPollDetail: (id: number) => api.get<Poll>(`/members/polls/${id}`),
 
-  // ✅ เพิ่ม: เช็คว่า user โหวตโพลนี้แล้วหรือยัง (policy OPEN ต้องโหวตก่อนดูผล)
+  // ✅ เพิ่ม: เช็คว่า user โหวตโพลนี้แล้วหรือยัง
   // ต้องมี backend route: GET /members/polls/:id/my-vote
-  getMyVote: (id: number) => api.get<MyVoteResponse>(`/members/polls/${id}/my-vote`, { headers: getHeaders() }),
+  getMyVote: (id: number) => api.get<MyVoteResponse>(`/members/polls/${id}/my-vote`),
 
-  getResults: (id: number) => api.get<{ poll: Poll; results: any[] }>(`/members/polls/${id}/results`),
+  // ✅ แก้ type ให้ตรง backend ของหนู (PollResultsResponse)
+  getResults: (id: number) =>
+    api.get<PollResultsResponse>(`/members/polls/${id}/results`),
 
   vote: (id: number, payload: VotePollRequest) =>
-    api.post(`/members/polls/${id}/vote`, payload, { headers: getHeaders() }),
+    api.post(`/members/polls/${id}/vote`, payload),
 
   // Draft & Management
   createDraft: (payload: CreatePollRequest) =>
-    api.post<Poll>("/members/polls/draft", payload, { headers: getHeaders() }),
+    api.post<Poll>("/members/polls/draft", payload),
 
   updateDraft: (id: number, payload: UpdatePollRequest) =>
-    api.put<Poll>(`/members/polls/${id}`, payload, { headers: getHeaders() }),
+    api.put<Poll>(`/members/polls/${id}`, payload),
 
   deletePoll: (id: number) =>
-    api.delete(`/members/polls/${id}`, { headers: getHeaders() }),
+    api.delete(`/members/polls/${id}`),
 
   submitForReview: (id: number) =>
-    api.post(`/members/polls/${id}/submit`, {}, { headers: getHeaders() }),
+    api.post(`/members/polls/${id}/submit`, {}),
 
   cancelRequest: (id: number) =>
-    api.post(`/members/polls/${id}/cancel`, {}, { headers: getHeaders() }),
+    api.post(`/members/polls/${id}/cancel`, {}),
 
   // My Polls
   getMyPolls: (statusID?: number) => {
     const params = statusID ? { status_id: statusID } : {};
-    return api.get<Poll[]>("/members/polls/my", { params, headers: getHeaders() });
+    return api.get<Poll[]>("/members/polls/my", { params });
   },
 
   getMyPollByID: (id: number) =>
-    api.get<Poll>(`/members/polls/my/${id}`, { headers: getHeaders() }),
+    api.get<Poll>(`/members/polls/my/${id}`),
 };

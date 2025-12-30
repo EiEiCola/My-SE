@@ -507,11 +507,16 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 	if err != nil {
 		return nil, err
 	}
+	// (แนะนำ) กัน approve ผิดสถานะ
+	if poll.PollStatusID != StatusPENDING_REVIEW {
+		return nil, errors.New("can only approve poll in PENDING_REVIEW status")
+	}
 
 	oldStatusID := poll.PollStatusID
-	poll.PollStatusID = StatusPUBLISHED
+	newStatusID := StatusPUBLISHED
 
-	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+	// ✅ update เฉพาะ poll_status_id ให้ชัวร์
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
 
@@ -520,21 +525,38 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 		PollID:       poll.ID,
 		AdminID:      &adminID,
 		FromStatusID: &oldStatusID,
-		ToStatusID:   &poll.PollStatusID,
+		ToStatusID:   &newStatusID,
 	})
-	return mapPollToResponse(poll), nil
+
+	// ✅ re-fetch เพื่อให้ status/relations ล่าสุด
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+	return mapPollToResponse(updated), nil
 }
+
 
 func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
+	if poll.PollStatusID != StatusPENDING_REVIEW {
+		return nil, errors.New("can only reject poll in PENDING_REVIEW status")
+	}
 
 	oldStatusID := poll.PollStatusID
-	poll.PollStatusID = StatusREJECTED
-	poll.LastRejectReason = reason
+	newStatusID := StatusREJECTED
 
+	// ✅ update status ให้ชัวร์
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
+		return nil, err
+	}
+
+	// ✅ อัปเดตเหตุผล (ทำผ่าน UpdatePoll ได้ แต่ต้อง re-fetch + set status ให้ตรง)
+	poll.PollStatusID = newStatusID
+	poll.LastRejectReason = reason
 	if err := s.pollRepo.UpdatePoll(poll); err != nil {
 		return nil, err
 	}
@@ -545,21 +567,30 @@ func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.Pol
 		AdminID:      &adminID,
 		Reason:       reason,
 		FromStatusID: &oldStatusID,
-		ToStatusID:   &poll.PollStatusID,
+		ToStatusID:   &newStatusID,
 	})
-	return mapPollToResponse(poll), nil
+
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+	return mapPollToResponse(updated), nil
 }
+
 
 func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
+	if poll.PollStatusID != StatusPUBLISHED {
+		return nil, errors.New("can only close poll in PUBLISHED status")
+	}
 
 	oldStatusID := poll.PollStatusID
-	poll.PollStatusID = StatusCLOSED
+	newStatusID := StatusCLOSED
 
-	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
 
@@ -568,10 +599,16 @@ func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error
 		PollID:       poll.ID,
 		AdminID:      &adminID,
 		FromStatusID: &oldStatusID,
-		ToStatusID:   &poll.PollStatusID,
+		ToStatusID:   &newStatusID,
 	})
-	return mapPollToResponse(poll), nil
+
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+	return mapPollToResponse(updated), nil
 }
+
 
 /* =========================
    HELPERS + MAPPER

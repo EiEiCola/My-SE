@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/sut68/team12/backend/internal/entity"
 )
-
+func uPtr(v uint) *uint { return &v }
 func TestReviewValidation(t *testing.T) {
 
 	t.Run("Positive: valid review", func(t *testing.T) {
