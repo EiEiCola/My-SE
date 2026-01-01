@@ -29,8 +29,14 @@ const AnnouncementManage: React.FC = () => {
         else if (filterStatus === 'approved') url += '&status_id=2';
         else if (filterStatus === 'rejected') url += '&status_id=3';
 
-        // Using Admin List API (Mock Admin Auth)
-        const response = await fetch(url);
+        // Using Admin List API with JWT Auth
+        const token = localStorage.getItem("token");
+        const headers: HeadersInit = {};
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers });
         if (!response.ok) throw new Error("Failed to fetch");
         const json = await response.json();
         const mapped = (json.data || []).map((item: any) => ({
@@ -60,7 +66,15 @@ const AnnouncementManage: React.FC = () => {
   const handleDeletePR = async (prId: number) => {
     if (!confirm(`ยืนยันลบคำขอ PR #${prId}?`)) return;
     try {
-      const resp = await fetch(`/api/admin/pr-submissions/${prId}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const resp = await fetch(`/api/admin/pr-submissions/${prId}`, {
+        method: 'DELETE',
+        headers
+      });
       if (!resp.ok) throw new Error(await resp.text());
       // Refresh list
       setRequests((prev) => prev.filter((r) => r.id !== prId));
@@ -99,7 +113,7 @@ const AnnouncementManage: React.FC = () => {
             </select>
             <button
               className="btn btn-primary"
-              onClick={() => navigate('/User/Announcement/create')} // Can reuse user form or specific admin form
+              onClick={() => navigate('/Admin/AnnouncementManage/create')}
             >
               + สร้างประกาศทางการ
             </button>

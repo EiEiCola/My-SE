@@ -34,6 +34,18 @@ func (ctl *AdminReportController) List(c *gin.Context) {
 			pageSize = n
 		}
 	}
+
+	// Validate pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	var statusID *int
 	if s := c.Query("status_id"); s != "" {
 		if n, err := strconv.Atoi(s); err == nil {
@@ -106,9 +118,9 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	val, ok := c.Get("admin_id")
+	val, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
 		return
 	}
 	var adminID uint

@@ -32,6 +32,17 @@ func (ctl *AdminAnnouncementController) List(c *gin.Context) {
 		}
 	}
 
+	// Validate pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	// Optional filter by PR Submission ID (for quick lookup from request page)
 	var prID *int
 	if p := c.Query("pr_id"); p != "" {
@@ -77,9 +88,9 @@ func (ctl *AdminAnnouncementController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
-	val, ok := c.Get("admin_id")
+	val, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
 		return
 	}
 	var adminID int

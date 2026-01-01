@@ -26,19 +26,21 @@ const AnnouncementDetail: React.FC = () => {
         setLoading(true);
         setError(null);
 
+        // Get JWT token from localStorage
+        const token = localStorage.getItem("token");
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
         // Fetch real data
-        const response = await fetch(`/api/members/announcements/${id}`);
+        const response = await fetch(`/api/members/announcements/${id}`, { headers });
         if (!response.ok) {
           throw new Error("Failed to fetch announcement");
         }
         const data = await response.json();
 
         // Map backend data to frontend interface
-        // Backend returns: snake_case keys usually? Let's check struct json tags.
-        // entity.Announcement has json tags. 
-        // ID, Title, Content, PublishStartAt, PublishEndAt, StatusID
-        // We need to map to: title, description (use content), image (use media), date, author, status
-
         // Helper to find cover image
         const coverImage = data.media?.find((m: any) => m.is_cover)?.url || data.media?.[0]?.url;
 

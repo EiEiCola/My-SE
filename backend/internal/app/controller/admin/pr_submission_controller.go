@@ -38,6 +38,18 @@ func (ctl *AdminPRController) List(c *gin.Context) {
 			pageSize = n
 		}
 	}
+
+	// Validate pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	var memberID *uint
 	if m := c.Query("member_id"); m != "" {
 		if id64, err := strconv.ParseUint(m, 10, 32); err == nil {
@@ -90,19 +102,26 @@ func (ctl *AdminPRController) Review(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	val, ok := c.Get("admin_id")
+	val, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
 		return
 	}
 	adminID := 0
 	switch v := val.(type) {
 	case int:
 		adminID = v
+	case uint:
+		adminID = int(v)
 	case string:
 		if n, err := strconv.Atoi(v); err == nil {
 			adminID = n
 		}
+	}
+
+	if adminID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid admin id"})
+		return
 	}
 
 	if err := ctl.ReviewService.ReviewSubmission(adminID, id, req.StatusID, req.Comment, req.CreateAnnouncement); err != nil {

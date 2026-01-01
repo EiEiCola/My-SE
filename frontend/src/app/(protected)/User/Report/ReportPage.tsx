@@ -254,9 +254,26 @@ const ReportPage: React.FC = () => {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        // Validate file size (5MB max)
+                        const maxSize = 5 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          setFormError("ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์ที่เล็กกว่า");
+                          e.target.value = "";
+                          return;
+                        }
+
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                        if (!allowedTypes.includes(file.type)) {
+                          setFormError("รองรับเฉพาะไฟล์ .jpg, .png, .gif, .webp เท่านั้น");
+                          e.target.value = "";
+                          return;
+                        }
+
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           setImage(reader.result as string);
+                          setFormError(null);
                         };
                         reader.readAsDataURL(file);
                       }

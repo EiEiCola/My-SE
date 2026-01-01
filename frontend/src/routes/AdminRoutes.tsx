@@ -14,6 +14,7 @@ import VotingManage from "../app/(protected)/Admin/VotingManage";
 import AnnouncementManage from "../app/(protected)/Admin/AnnouncementManage";
 import AnnouncementsList from "../app/(protected)/Admin/AnnouncementManage/AnnouncementsList";
 import AnnouncementRequestDetail from "../app/(protected)/Admin/AnnouncementManage/AnnouncementRequestDetail";
+import AdminAnnouncementCreate from "../app/(protected)/Admin/AnnouncementManage/AdminAnnouncementCreate";
 import ReportManage from "../app/(protected)/Admin/ReportManage";
 
 function AdminRoutes() {
@@ -38,6 +39,7 @@ function AdminRoutes() {
         <Route path="VotingManage" element={<VotingManage />} />
 
         <Route path="AnnouncementManage" element={<AnnouncementManage />} />
+        <Route path="AnnouncementManage/create" element={<AdminAnnouncementCreate />} />
         <Route path="AnnouncementManage/Announcements" element={<AnnouncementsList />} />
         <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
 

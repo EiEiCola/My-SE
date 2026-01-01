@@ -26,7 +26,14 @@ const Announcement: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch('/api/members/announcements?page_size=20');
+        // Get JWT token from localStorage
+        const token = localStorage.getItem("token");
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/members/announcements?page_size=20', { headers });
         if (!response.ok) throw new Error("Failed to fetch announcements");
         const json = await response.json();
 
@@ -84,7 +91,15 @@ const Announcement: React.FC = () => {
       const fetchMySubmissions = async () => {
         try {
           setSubmissionsLoading(true);
-          const res = await fetch('/api/members/pr-submissions');
+
+          // Get JWT token from localStorage
+          const token = localStorage.getItem("token");
+          const headers: HeadersInit = { "Content-Type": "application/json" };
+          if (token) {
+            headers.Authorization = `Bearer ${token}`;
+          }
+
+          const res = await fetch('/api/members/pr-submissions', { headers });
           if (!res.ok) throw new Error("Failed to fetch submissions");
           const json = await res.json();
           // Map response
