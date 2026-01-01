@@ -7,6 +7,7 @@ import (
 	member_controller "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
 func SetupReportRoutes(api *gin.RouterGroup) {
@@ -20,28 +21,16 @@ func SetupReportRoutes(api *gin.RouterGroup) {
 	adminReportCtl := admin_controller.NewAdminReportController(reportService)
 	memberReportCtl := member_controller.NewMemberReportController(reportService)
 
-	// Mock Admin Auth (for testing without JWT)
-	mockAdminAuth := func(c *gin.Context) {
-		c.Set("admin_id", uint(1))
-		c.Next()
-	}
-
-	// Admin Routes
-	adminGroup := api.Group("/admin", mockAdminAuth)
+	// Admin Routes - Protected with JWT and Admin role check
+	adminGroup := api.Group("/admin", middlewares.JWTAuthMiddleware(), middlewares.RequireAdminMiddleware())
 	{
 		adminGroup.GET("/reports", adminReportCtl.List)
 		adminGroup.GET("/reports/:id", adminReportCtl.GetByID)
 		adminGroup.POST("/reports/:id/status", adminReportCtl.UpdateStatus)
 	}
 
-	// Mock Member Auth (for testing without JWT)
-	mockMemberAuth := func(c *gin.Context) {
-		c.Set("member_id", uint(1))
-		c.Next()
-	}
-
-	// Member Routes
-	memberGroup := api.Group("/members", mockMemberAuth)
+	// Member Routes - Protected with JWT
+	memberGroup := api.Group("/members", middlewares.JWTAuthMiddleware())
 	{
 		memberGroup.POST("/reports", memberReportCtl.Create)
 		memberGroup.GET("/reports", memberReportCtl.List)

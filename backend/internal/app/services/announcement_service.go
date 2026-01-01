@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -79,6 +80,13 @@ func (s *AnnouncementService) CreateAnnouncement(adminID int, in *CreateAnnounce
 	}
 	if in.PublishEndAt != nil {
 		ann.PublishEndAt = *in.PublishEndAt
+	}
+
+	// Validate date range
+	if in.PublishStartAt != nil && in.PublishEndAt != nil {
+		if in.PublishEndAt.Before(*in.PublishStartAt) {
+			return nil, errors.New("publish_end_at must be after publish_start_at")
+		}
 	}
 
 	err := s.DB.Transaction(func(tx *gorm.DB) error {

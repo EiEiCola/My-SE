@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sut68/team12/backend/internal/entity"
+	"github.com/sut68/team12/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -54,7 +55,8 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 		db = db.Where("target_type = ?", targetType)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(title) LIKE ? OR LOWER(description) LIKE ?", like, like)
 	}
 
@@ -82,7 +84,8 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 		db = db.Where("\"reporter_ID\" = ?", *reporterID)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(title) LIKE ? OR LOWER(description) LIKE ?", like, like)
 	}
 

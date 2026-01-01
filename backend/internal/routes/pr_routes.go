@@ -7,6 +7,7 @@ import (
 	member_controller "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
 // SetupPRRoutes registers all routes related to the PR/Announcement system
@@ -26,13 +27,8 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 	prController := controller.NewAdminPRController(prService, prReviewService)
 	memberPRController := member_controller.NewPRSubmissionController(prService)
 
-	// Mock Admin Auth
-	mockAdminAuth := func(c *gin.Context) {
-		c.Set("admin_id", 1)
-		c.Next()
-	}
-
-	adminGroup := api.Group("/admin", mockAdminAuth)
+	// Admin Routes - Protected with JWT and Admin role check
+	adminGroup := api.Group("/admin", middlewares.JWTAuthMiddleware(), middlewares.RequireAdminMiddleware())
 	{
 		// Announcements Management
 		adminGroup.GET("/announcements", annController.List)
@@ -44,20 +40,15 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 		// PR Submissions Review
 		adminGroup.GET("/pr-submissions", prController.List)
 		adminGroup.GET("/pr-submissions/:id", prController.GetByID)
-		adminGroup.PUT("/pr-submissions/:id", prController.Update) // Register Update
+		adminGroup.PUT("/pr-submissions/:id", prController.Update)
 		adminGroup.POST("/pr-submissions/:id/review", prController.Review)
 		adminGroup.DELETE("/pr-submissions/:id", prController.Delete)
 	}
 
-	// Mock Member Auth
-	mockMemberAuth := func(c *gin.Context) {
-		c.Set("member_id", uint(1)) // Mock Member ID = 1
-		c.Next()
-	}
+	memberAnnController := member_controller.NewMemberAnnouncementController(annService)
 
-	memberAnnController := member_controller.NewMemberAnnouncementController(annService) // Use member_controller alias
-
-	memberGroup := api.Group("/members", mockMemberAuth)
+	// Member Routes - Protected with JWT
+	memberGroup := api.Group("/members", middlewares.JWTAuthMiddleware())
 	{
 		// PR Submissions (Create/List Own)
 		memberGroup.POST("/pr-submissions", memberPRController.Create)

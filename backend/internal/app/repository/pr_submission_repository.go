@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sut68/team12/backend/internal/entity"
+	"github.com/sut68/team12/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +43,8 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(pr_title) LIKE ? OR LOWER(pr_content) LIKE ?", like, like)
 	}
 
@@ -68,7 +70,8 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(pr_title) LIKE ? OR LOWER(pr_content) LIKE ?", like, like)
 	}
 

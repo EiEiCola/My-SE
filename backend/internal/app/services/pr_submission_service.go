@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -43,6 +44,13 @@ func (s *PRSubmissionService) CreateSubmission(memberID uint, in *CreatePRSubmis
 	}
 	if in.ReqEndAt != nil {
 		sub.ReqEndAt = *in.ReqEndAt
+	}
+
+	// Validate date range
+	if in.ReqStartAt != nil && in.ReqEndAt != nil {
+		if in.ReqEndAt.Before(*in.ReqStartAt) {
+			return nil, errors.New("req_end_at must be after req_start_at")
+		}
 	}
 
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
