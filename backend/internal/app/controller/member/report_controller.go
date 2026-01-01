@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type MemberReportController struct {
@@ -31,26 +32,10 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	val, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
-		return
-	}
-	var memberID uint
-	switch v := val.(type) {
-	case uint:
-		memberID = v
-	case int:
-		memberID = uint(v)
-	case float64:
-		memberID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			memberID = uint(n)
-		}
-	}
-	if memberID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid member id"})
+
+	memberID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -71,26 +56,9 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 
 // GET /member/reports
 func (ctl *MemberReportController) List(c *gin.Context) {
-	val, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
-		return
-	}
-	var memberID uint
-	switch v := val.(type) {
-	case uint:
-		memberID = v
-	case int:
-		memberID = uint(v)
-	case float64:
-		memberID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			memberID = uint(n)
-		}
-	}
-	if memberID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid member id"})
+	memberID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -136,19 +104,11 @@ func (ctl *MemberReportController) GetByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	val, _ := c.Get("member_id")
-	var memberID uint
-	switch v := val.(type) {
-	case uint:
-		memberID = v
-	case int:
-		memberID = uint(v)
-	case float64:
-		memberID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			memberID = uint(n)
-		}
+
+	memberID, err := utils.GetUserID(c)
+	if err != nil { // Should technically be unauthorized but we continue logically
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
 	}
 	if rep.ReporterID != memberID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
@@ -170,23 +130,11 @@ func (ctl *MemberReportController) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	val, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+
+	memberID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
-	}
-	var memberID uint
-	switch v := val.(type) {
-	case uint:
-		memberID = v
-	case int:
-		memberID = uint(v)
-	case float64:
-		memberID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			memberID = uint(n)
-		}
 	}
 
 	in := &services.CreateReportInput{
@@ -213,23 +161,11 @@ func (ctl *MemberReportController) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	val, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+
+	memberID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
-	}
-	var memberID uint
-	switch v := val.(type) {
-	case uint:
-		memberID = v
-	case int:
-		memberID = uint(v)
-	case float64:
-		memberID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			memberID = uint(n)
-		}
 	}
 
 	err = ctl.Service.DeleteReport(id, memberID)

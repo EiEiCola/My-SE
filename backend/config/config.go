@@ -134,6 +134,7 @@ func Connect() *gorm.DB {
 		// --- 11. ตาราง Bookmark และ PostStar ---
 		&entity.Bookmark{},
 		&entity.PostStar{},
+		&entity.AnnouncementRead{},
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}

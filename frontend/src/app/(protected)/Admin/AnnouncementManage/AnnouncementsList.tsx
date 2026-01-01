@@ -1,90 +1,243 @@
-import React from "react";
-import { listAdminAnnouncements, deleteAdminAnnouncement } from "../../../../services/http/announcementAdmin";
+import React, { useState, useEffect } from "react";
+import {
+  Table,
+  Button,
+  Card,
+  Typography,
+  Tag,
+  Space,
+  Modal,
+  message,
+  Image,
+  Descriptions,
+  Tooltip,
+} from "antd";
+import {
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
+import {
+  listAdminAnnouncements,
+  deleteAdminAnnouncement,
+} from "../../../../services/http/announcementAdmin";
+
+const { Title } = Typography;
+const { confirm } = Modal;
 
 const AnnouncementsList: React.FC = () => {
-  const [items, setItems] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [page, setPage] = React.useState(1);
-  const [pageSize] = React.useState(20);
-  const [total, setTotal] = React.useState(0);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  // Detail Modal State
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [currentAnnouncement, setCurrentAnnouncement] = useState<any>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await listAdminAnnouncements({ page, page_size: pageSize });
       setItems(Array.isArray(data.data) ? data.data : []);
       setTotal(data.total || 0);
     } catch (e: any) {
-      setError(e.message || "โหลดประกาศไม่สำเร็จ");
+      console.error(e);
+      message.error(e.message || "โหลดประกาศไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
   };
 
-  React.useEffect(() => { fetchData(); }, [page, pageSize]);
+  useEffect(() => {
+    fetchData();
+  }, [page, pageSize]);
 
-  const onDelete = async (id: number) => {
-    if (!confirm("ยืนยันการลบประกาศนี้?")) return;
-    try {
-      await deleteAdminAnnouncement(id);
-      await fetchData();
-    } catch (e: any) {
-      alert(e.message || "ลบไม่สำเร็จ");
-    }
+  const handleDelete = (id: number) => {
+    confirm({
+      title: "ยืนยันการลบประกาศ?",
+      icon: <ExclamationCircleOutlined />,
+      content: "ประกาศนี้จะถูกลบออกจากระบบถาวร",
+      okText: "ลบ",
+      okType: "danger",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          await deleteAdminAnnouncement(id);
+          message.success("ลบประกาศสำเร็จ");
+          fetchData();
+        } catch (e: any) {
+          message.error(e.message || "ลบไม่สำเร็จ");
+        }
+      },
+    });
   };
 
-  const totalPages = Math.ceil(total / pageSize);
+  const handleRowClick = (record: any) => {
+    setCurrentAnnouncement(record);
+    setDetailVisible(true);
+  };
+
+  const columns = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+      width: 70,
+      align: "center" as const,
+    },
+    {
+      title: "หัวข้อ",
+      dataIndex: "title",
+      key: "title",
+      ellipsis: true,
+    },
+    {
+      title: "ช่วงเผยแพร่",
+      key: "period",
+      width: 250,
+      render: (_: any, record: any) => (
+        <span>
+          {new Date(record.publish_start_at).toLocaleDateString("th-TH")} —{" "}
+          {new Date(record.publish_end_at).toLocaleDateString("th-TH")}
+        </span>
+      ),
+    },
+    {
+      title: "สถานะ",
+      key: "status",
+      width: 100,
+      align: "center" as const,
+      render: (_: any, record: any) => {
+        const isActive = record.status_id === 1;
+        return (
+          <Tag color={isActive ? "green" : "red"}>
+            {isActive ? "ใช้งาน" : "ปิด"}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "จัดการ",
+      key: "action",
+      width: 80,
+      align: "center" as const,
+      render: (_: any, record: any) => (
+        <Tooltip title="ลบประกาศ">
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(record.id);
+            }}
+          />
+        </Tooltip>
+      ),
+    },
+  ];
 
   return (
-    <main className="flex-1 overflow-y-auto bg-transparent p-8">
-      <div className="admin-announcement-manage">
+    <main className="flex-1 overflow-y-auto bg-transparent p-6">
+      <Card className="rounded-2xl shadow-sm" bodyStyle={{ padding: "32px" }}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="page-title" style={{ margin: 0 }}>รายการประกาศ</h2>
+          <div>
+            <Title level={3} style={{ margin: 0, color: "#1f2937" }}>
+              รายการประกาศ (หน้า User)
+            </Title>
+            <Typography.Text type="secondary">
+              ประกาศที่เผยแพร่อยู่บนหน้าเว็บไซต์จริง
+            </Typography.Text>
+          </div>
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>
+            รีเฟรช
+          </Button>
         </div>
 
-        {loading ? (
-          <p>กำลังโหลด...</p>
-        ) : error ? (
-          <p style={{ color: 'red' }}>{error}</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="request-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>หัวข้อ</th>
-                  <th>ช่วงเผยแพร่</th>
-                  <th>สถานะ</th>
-                  <th style={{ width: 160 }}>การจัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it) => (
-                  <tr key={it.id}>
-                    <td>{it.id}</td>
-                    <td>{it.title}</td>
-                    <td>{new Date(it.publish_start_at).toLocaleDateString('th-TH')} — {new Date(it.publish_end_at).toLocaleDateString('th-TH')}</td>
-                    <td>{it.status_id === 1 ? 'ใช้งาน' : 'ปิด'}</td>
-                    <td>
-                      <button className="btn" onClick={() => onDelete(it.id)} style={{ background: '#dc2626', color: '#fff' }}>ลบ</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <Table
+          columns={columns}
+          dataSource={items}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize: pageSize,
+            total: total,
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
+          }}
+          onRow={(record) => ({
+            onClick: () => handleRowClick(record),
+            style: { cursor: "pointer" },
+          })}
+        />
 
-            {totalPages > 1 && (
-              <div className="pagination" style={{ marginTop: 16 }}>
-                <button className="btn" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p-1))}>ก่อนหน้า</button>
-                <span style={{ margin: '0 8px' }}>หน้า {page} จาก {totalPages}</span>
-                <button className="btn" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))}>ถัดไป</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+        {/* Detail Modal */}
+        <Modal
+          title="รายละเอียดประกาศ"
+          open={detailVisible}
+          onCancel={() => setDetailVisible(false)}
+          footer={[
+            <Button key="close" onClick={() => setDetailVisible(false)}>
+              ปิด
+            </Button>,
+          ]}
+          width={700}
+        >
+          {currentAnnouncement && (
+            <div className="space-y-6">
+              {/* Image Cover */}
+              {currentAnnouncement.media &&
+                currentAnnouncement.media.length > 0 && (
+                  <div className="flex justify-center bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
+                    <Image
+                      src={
+                        currentAnnouncement.media.find((m: any) => m.type === "image")?.url ||
+                        currentAnnouncement.media[0]?.url
+                      }
+                      alt="cover"
+                      style={{
+                        maxHeight: "300px",
+                        objectFit: "contain",
+                        borderRadius: "8px",
+                      }}
+                      fallback="https://via.placeholder.com/500x300?text=No+Image"
+                    />
+                  </div>
+                )}
+
+              <Descriptions bordered column={1} labelStyle={{ width: '150px' }}>
+                <Descriptions.Item label="หัวข้อ">
+                  <span className="font-semibold text-lg">
+                    {currentAnnouncement.title}
+                  </span>
+                </Descriptions.Item>
+                <Descriptions.Item label="ช่วงเวลาเผยแพร่">
+                  {new Date(
+                    currentAnnouncement.publish_start_at
+                  ).toLocaleDateString("th-TH")}{" "}
+                  -{" "}
+                  {new Date(
+                    currentAnnouncement.publish_end_at
+                  ).toLocaleDateString("th-TH")}
+                </Descriptions.Item>
+                <Descriptions.Item label="รายละเอียด">
+                  <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                    {currentAnnouncement.content || "-"}
+                  </div>
+                </Descriptions.Item>
+                <Descriptions.Item label="หมวดหมู่">
+                  {currentAnnouncement.category || "ทั่วไป"}
+                </Descriptions.Item>
+              </Descriptions>
+            </div>
+          )}
+        </Modal>
+      </Card>
     </main>
   );
 };

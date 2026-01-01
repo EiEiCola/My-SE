@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type AdminAnnouncementController struct {
@@ -88,20 +89,13 @@ func (ctl *AdminAnnouncementController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
-	val, ok := c.Get("user_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
+
+	uid, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	var adminID int
-	switch v := val.(type) {
-	case int:
-		adminID = v
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			adminID = n
-		}
-	}
+	adminID := int(uid)
 
 	ann, err := ctl.Service.CreateAnnouncement(adminID, &req)
 	if err != nil {

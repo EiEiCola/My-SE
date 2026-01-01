@@ -35,7 +35,7 @@ const AdminAnnouncementCreate: React.FC = () => {
             return;
         }
         if (!sanitizedContent) {
-            setError("กรุণากรอกเนื้อหาประกาศ");
+            setError("กรุณากรอกเนื้อหาประกาศ");
             return;
         }
 
@@ -89,7 +89,7 @@ const AdminAnnouncementCreate: React.FC = () => {
     return (
         <main className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="announcement-create-container">
-                <h2 className="create-title">สร้างประกาศทางการ</h2>
+                <h2 className="create-title">สร้างประกาศใหม่</h2>
 
                 <form className="create-form" onSubmit={handleSubmit}>
                     <label className="form-label">หัวข้อประกาศ</label>
@@ -162,7 +162,7 @@ const AdminAnnouncementCreate: React.FC = () => {
                         {image && <img src={image} alt="Preview" className="image-preview" />}
                     </div>
 
-                    <label className="form-label">วันที่เริ่มแสดง</label>
+                    <label className="form-label">วันที่ต้องการให้แสดง</label>
                     <input
                         id="start-date"
                         type="date"

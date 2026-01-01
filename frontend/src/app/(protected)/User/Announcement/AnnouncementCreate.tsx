@@ -19,8 +19,6 @@ const AnnouncementCreate: React.FC = () => {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
-  // Users should not set status; backend will decide. Default to active when sending.
-  // Keep no UI control for status.
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,7 +162,7 @@ const AnnouncementCreate: React.FC = () => {
             {image && <img src={image} alt="Preview" className="image-preview" />}
           </div>
 
-          <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
+          <label className="form-label">วันที่ต้องการให้แสดง</label>
           <input
             id="start-date"
             type="date"
@@ -191,8 +189,6 @@ const AnnouncementCreate: React.FC = () => {
             placeholder="รายละเอียดประกาศ"
             rows={8}
           />
-
-          {/* Status is not editable by users */}
 
           {error && <p className="form-error">{error}</p>}
 

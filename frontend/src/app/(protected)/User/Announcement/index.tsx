@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Table, Tag, Typography, Spin, Empty, Button } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import "./index.css";
+
+const { Title, Text } = Typography;
 
 interface Announcement {
   id: number;
@@ -11,6 +15,35 @@ interface Announcement {
   status: "active" | "archived";
   content?: string;
   category?: string;
+}
+
+interface PRSubmission {
+  id: number;
+  title: string;
+  submittedAt: string;
+  status: string;
+  reason: string;
+}
+
+// Backend API Response Interfaces
+interface BackendAnnouncement {
+  id: number;
+  title: string;
+  content: string;
+  publish_start_at: string;
+  status_id: number;
+  media?: { url: string; is_cover: boolean }[];
+  category?: string;
+  category_name?: string;
+  main_category?: { name: string };
+}
+
+interface BackendPRSubmission {
+  id: number;
+  title: string;
+  req_start_at: string;
+  status_id: number;
+  reject_reason?: string;
 }
 
 const Announcement: React.FC = () => {
@@ -38,12 +71,12 @@ const Announcement: React.FC = () => {
         const json = await response.json();
 
         // Map backend data to frontend
-        const mappedData = (json.data || []).map((item: any) => ({
+        const mappedData = (json.data || []).map((item: BackendAnnouncement) => ({
           id: item.id,
           title: item.title,
           description: item.content ? item.content.slice(0, 100) + (item.content.length > 100 ? "..." : "") : "",
           // Use cover url if available
-          image: item.media?.find((m: any) => m.is_cover)?.url || item.media?.[0]?.url || "https://via.placeholder.com/300x200?text=No+Image",
+          image: item.media?.find((m) => m.is_cover)?.url || item.media?.[0]?.url || "https://via.placeholder.com/300x200?text=No+Image",
           date: item.publish_start_at,
           status: item.status_id === 1 ? "active" : "archived",
           content: item.content,
@@ -66,8 +99,6 @@ const Announcement: React.FC = () => {
     navigate(`/User/Announcement/${id}`);
   };
 
-
-
   /* Search & Filter State */
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -83,7 +114,7 @@ const Announcement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'feed' | 'my_requests'>('feed');
 
   /* My Requests State */
-  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<PRSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
 
   useEffect(() => {
@@ -103,7 +134,7 @@ const Announcement: React.FC = () => {
           if (!res.ok) throw new Error("Failed to fetch submissions");
           const json = await res.json();
           // Map response
-          const mapped = (json.data || []).map((item: any) => ({
+          const mapped = (json.data || []).map((item: BackendPRSubmission) => ({
             id: item.id,
             title: item.title,
             submittedAt: item.req_start_at ? new Date(item.req_start_at).toLocaleDateString('th-TH') : "-",
@@ -121,13 +152,44 @@ const Announcement: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Ant Design Table Columns
+  const columns: ColumnsType<PRSubmission> = [
+    {
+      title: 'หัวข้อ',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text) => <Text strong>{text}</Text>
+    },
+    {
+      title: 'วันที่ส่ง',
+      dataIndex: 'submittedAt',
+      key: 'submittedAt',
+    },
+    {
+      title: 'สถานะ',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        let color = 'default';
+        let text = 'รอตรวจสอบ';
+        if (status === 'approved') { color = 'success'; text = 'อนุมัติ'; }
+        if (status === 'rejected') { color = 'error'; text = 'ปฏิเสธ'; }
+        if (status === 'pending') { color = 'processing'; text = 'รอตรวจสอบ'; }
+        return <Tag color={color}>{text}</Tag>;
+      }
+    },
+    {
+      title: 'หมายเหตุ',
+      dataIndex: 'reason',
+      key: 'reason',
+      render: (text) => <Text type="secondary">{text}</Text>
+    }
+  ];
+
   if (loading) {
     return (
-      <main className="flex-1 overflow-y-auto bg-transparent p-8">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>กำลังโหลด...</p>
-        </div>
+      <main className="flex-1 overflow-y-auto bg-transparent p-8 flex justify-center items-center">
+        <Spin size="large" tip="กำลังโหลดประกาศ..." />
       </main>
     );
   }
@@ -229,44 +291,16 @@ const Announcement: React.FC = () => {
             </div>
           )
         ) : (
-          /* My Requests View */
-          <div className="my-requests-table" style={{ marginTop: 20, overflowX: 'auto' }}>
-            {submissionsLoading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>กำลังโหลดข้อมูล...</div>
-            ) : mySubmissions.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#999', border: '1px dashed #ddd', borderRadius: 8 }}>ไม่พบประวัติคำขอ</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                <thead>
-                  <tr style={{ background: '#f9f9f9', textAlign: 'left' }}>
-                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>หัวข้อ</th>
-                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>วันที่ส่ง</th>
-                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>สถานะ</th>
-                    <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>เหตุผล (ถ้าถูกปฏิเสธ)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mySubmissions.map((req) => (
-                    <tr key={req.id}>
-                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.title}</td>
-                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{req.submittedAt}</td>
-                      <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          background: req.status === 'approved' ? '#dcfce7' : req.status === 'rejected' ? '#fee2e2' : '#f3f4f6',
-                          color: req.status === 'approved' ? '#166534' : req.status === 'rejected' ? '#991b1b' : '#374151'
-                        }}>
-                          {req.status === 'approved' ? 'อนุมัติ' : req.status === 'rejected' ? 'ปฏิเสธ' : 'รอตรวจสอบ'}
-                        </span>
-                      </td>
-                      <td style={{ padding: 12, borderBottom: '1px solid #eee', color: '#666' }}>{req.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          /* My Requests View - Refactored to Ant Design Table */
+          <div style={{ marginTop: 24, background: 'white', padding: 24, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+            <Table
+              columns={columns}
+              dataSource={mySubmissions}
+              rowKey="id"
+              loading={submissionsLoading}
+              pagination={{ pageSize: 10 }}
+              locale={{ emptyText: <Empty description="ไม่พบประวัติคำขอ" /> }}
+            />
           </div>
         )}
       </div>

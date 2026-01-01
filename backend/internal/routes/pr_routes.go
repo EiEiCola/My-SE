@@ -55,7 +55,10 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 		memberGroup.GET("/pr-submissions", memberPRController.List)
 
 		// View Announcements
+		// View Announcements
 		memberGroup.GET("/announcements/:id", memberAnnController.GetByID)
 		memberGroup.GET("/announcements", memberAnnController.List)
+		memberGroup.GET("/announcements/unread", memberAnnController.GetUnread)
+		memberGroup.POST("/announcements/:id/read", memberAnnController.MarkRead)
 	}
 }

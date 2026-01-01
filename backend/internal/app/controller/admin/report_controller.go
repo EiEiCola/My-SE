@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type AdminReportController struct {
@@ -118,28 +119,12 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	val, ok := c.Get("user_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
+	uid, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	var adminID uint
-	switch v := val.(type) {
-	case uint:
-		adminID = v
-	case int:
-		adminID = uint(v)
-	case float64:
-		adminID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			adminID = uint(n)
-		}
-	}
-	if adminID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid admin id"})
-		return
-	}
+	adminID := uid
 
 	if err := ctl.Service.UpdateStatus(id, req.StatusID, adminID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Card, Typography, Tag, Button, Space, Divider, message, Skeleton } from "antd";
+import {
+  ArrowLeftOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  ShareAltOutlined,
+  PrinterOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined
+} from "@ant-design/icons";
 import "./AnnouncementDetail.css";
+
+const { Title, Paragraph, Text } = Typography;
 
 interface AnnouncementDetail {
   id: number;
@@ -26,32 +38,28 @@ const AnnouncementDetail: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Get JWT token from localStorage
         const token = localStorage.getItem("token");
         const headers: HeadersInit = { "Content-Type": "application/json" };
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        // Fetch real data
         const response = await fetch(`/api/members/announcements/${id}`, { headers });
         if (!response.ok) {
           throw new Error("Failed to fetch announcement");
         }
         const data = await response.json();
 
-        // Map backend data to frontend interface
-        // Helper to find cover image
-        const coverImage = data.media?.find((m: any) => m.is_cover)?.url || data.media?.[0]?.url;
+        const coverImage = data.media?.find((m: { is_cover: boolean }) => m.is_cover)?.url || data.media?.[0]?.url;
 
         const mappedData: AnnouncementDetail = {
           id: data.id,
           title: data.title,
-          description: data.content, // Using content as description for now
+          description: data.content,
           content: data.content,
           image: coverImage,
           date: data.publish_start_at,
-          author: "Admin", // Backend doesn't send Admin Name yet, defaulting
+          author: "Admin",
           status: data.status_id === 1 ? "active" : "archived",
         };
 
@@ -70,12 +78,39 @@ const AnnouncementDetail: React.FC = () => {
     navigate("/User/Announcement");
   };
 
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: announcement?.title,
+        text: announcement?.description,
+        url: url,
+      }).then(() => {
+        message.success("แชร์สำเร็จ!");
+      }).catch(() => {
+        // Fallback to copy
+        navigator.clipboard.writeText(url);
+        message.success("คัดลอกลิงก์แล้ว!");
+      });
+    } else {
+      navigator.clipboard.writeText(url);
+      message.success("คัดลอกลิงก์แล้ว!");
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+    message.info("กำลังเตรียมพิมพ์...");
+  };
+
   if (loading) {
     return (
-      <main className="flex-1 overflow-y-auto bg-transparent p-8">
-        <div className="detail-loading">
-          <div className="spinner"></div>
-          <p>กำลังโหลด...</p>
+      <main className="flex-1 overflow-y-auto bg-gray-50 p-8">
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <Skeleton.Image active style={{ width: "100%", height: 400 }} />
+          <Card style={{ marginTop: 24 }}>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </Card>
         </div>
       </main>
     );
@@ -83,83 +118,142 @@ const AnnouncementDetail: React.FC = () => {
 
   if (error || !announcement) {
     return (
-      <main className="flex-1 overflow-y-auto bg-transparent p-8">
-        <div className="detail-error">
-          <p className="error-text">⚠️ {error || "ไม่พบประกาศ"}</p>
-          <button className="back-button" onClick={handleBack}>
-            ← กลับไปยังประกาศ
-          </button>
-        </div>
+      <main className="flex-1 overflow-y-auto bg-gray-50 p-8">
+        <Card style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
+          <Text type="danger" style={{ fontSize: 18 }}>⚠️ {error || "ไม่พบประกาศ"}</Text>
+          <br /><br />
+          <Button type="primary" icon={<ArrowLeftOutlined />} onClick={handleBack}>
+            กลับไปยังประกาศ
+          </Button>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 overflow-y-auto bg-transparent">
-      <div className="announcement-detail-container">
-        <button className="back-button-top" onClick={handleBack}>
-          ← กลับไป
-        </button>
+    <main className="flex-1 overflow-y-auto bg-gray-50 p-8">
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        {/* Back Button */}
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={handleBack}
+          style={{ marginBottom: 16, fontSize: 16 }}
+        >
+          กลับไปยังประกาศ
+        </Button>
 
-        <div className="detail-content">
-          <div className="detail-image-container">
-            <img
-              src={announcement.image}
-              alt={announcement.title}
-              className="detail-image"
-              onError={(e) => {
-                e.currentTarget.src =
-                  "https://via.placeholder.com/800x400?text=No+Image";
-              }}
-            />
-          </div>
+        {/* Main Card */}
+        <Card
+          cover={
+            announcement.image && (
+              <img
+                alt={announcement.title}
+                src={announcement.image}
+                style={{
+                  width: "100%",
+                  height: 400,
+                  objectFit: "cover",
+                  borderRadius: "8px 8px 0 0"
+                }}
+                onError={(e) => {
+                  e.currentTarget.src = "https://via.placeholder.com/800x400?text=No+Image";
+                }}
+              />
+            )
+          }
+          style={{
+            borderRadius: 12,
+            overflow: "hidden",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+          }}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: 24 }}>
+            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+              <Title level={2} style={{ margin: 0, color: "#1a1a1a" }}>
+                {announcement.title}
+              </Title>
 
-          <div className="detail-body">
-            <div className="detail-header">
-              <h1 className="detail-title">{announcement.title}</h1>
-              <div className="detail-meta">
-                <span className="meta-date">
-                  📅 {new Date(announcement.date).toLocaleDateString("th-TH", {
+              <Space wrap>
+                <Tag icon={<CalendarOutlined />} color="orange">
+                  {new Date(announcement.date).toLocaleDateString("th-TH", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
                   })}
-                </span>
+                </Tag>
+
                 {announcement.author && (
-                  <span className="meta-author">👤 {announcement.author}</span>
+                  <Tag icon={<UserOutlined />} color="volcano">
+                    {announcement.author}
+                  </Tag>
                 )}
-                <span className={`meta-status ${announcement.status}`}>
-                  {announcement.status === "active" ? "✓ เปิดใช้งาน" : "✕ ปิดใช้งาน"}
-                </span>
-              </div>
-            </div>
 
-            <div className="detail-description">
-              <p className="description-text">{announcement.description}</p>
-            </div>
-
-            <div className="detail-article">
-              {announcement.content.split("\n").map((paragraph, index) => (
-                <p key={index} className="article-text">
-                  {paragraph.trim()}
-                </p>
-              ))}
-            </div>
-
-            <div className="detail-footer">
-              <button className="detail-action-btn share-btn">
-                📤 แชร์ประกาศนี้
-              </button>
-              <button className="detail-action-btn print-btn">
-                🖨️ พิมพ์ประกาศ
-              </button>
-            </div>
+                <Tag
+                  icon={announcement.status === "active" ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                  color={announcement.status === "active" ? "orange" : "default"}
+                >
+                  {announcement.status === "active" ? "เปิดใช้งาน" : "ปิดใช้งาน"}
+                </Tag>
+              </Space>
+            </Space>
           </div>
-        </div>
 
-        <button className="back-button-bottom" onClick={handleBack}>
-          ← กลับไปยังประกาศ
-        </button>
+          <Divider />
+
+          {/* Content */}
+          <div style={{ marginBottom: 32 }}>
+            <Paragraph style={{
+              fontSize: 16,
+              lineHeight: 2,
+              color: "#2c2c2c",
+              whiteSpace: "pre-wrap",
+              textAlign: "justify"
+            }}>
+              {announcement.content}
+            </Paragraph>
+          </div>
+
+          <Divider />
+
+          {/* Action Buttons */}
+          <Space size="middle">
+            <Button
+              type="primary"
+              icon={<ShareAltOutlined />}
+              onClick={handleShare}
+              style={{
+                background: "#ff7a45",
+                borderColor: "#ff7a45"
+              }}
+            >
+              แชร์ประกาศนี้
+            </Button>
+
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={handlePrint}
+              style={{
+                borderColor: "#ff7a45",
+                color: "#ff7a45"
+              }}
+            >
+              พิมพ์ประกาศ
+            </Button>
+          </Space>
+        </Card>
+
+        {/* Bottom Back Button */}
+        <div style={{ marginTop: 24, textAlign: "center" }}>
+          <Button
+            size="large"
+            icon={<ArrowLeftOutlined />}
+            onClick={handleBack}
+          >
+            กลับไปยังประกาศ
+          </Button>
+        </div>
       </div>
     </main>
   );

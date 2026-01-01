@@ -1,311 +1,336 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  Typography,
+  Tabs,
+  Form,
+  Input,
+  Select,
+  Button,
+  Upload,
+  message,
+  List,
+  Tag,
+  Modal,
+  Space,
+  Empty,
+  Image,
+} from "antd";
+import type { UploadFile } from "antd";
+import {
+  ExclamationCircleOutlined,
+  UploadOutlined,
+  HistoryOutlined,
+  FormOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import { ReportService } from "../../../../services/http/report";
 import type { CreateReportInput, Report as ReportType } from "../../../../services/http/report";
-import "./Report.css";
 
-// Report Component with Full CRUD UI
-const Report: React.FC = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"create" | "history" | "detail">("create");
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
+const { TabPane } = Tabs;
+const { confirm } = Modal;
 
-  // Form State
-  const [editId, setEditId] = useState<number | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [targetType, setTargetType] = useState("system");
-  const [targetId, setTargetId] = useState<number | null>(null);
-  const [image, setImage] = useState("");
+const ReportPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("create");
+  const [form] = Form.useForm();
+
+  // State
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  // List & Detail State
   const [reports, setReports] = useState<ReportType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalReports, setTotalReports] = useState(0);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Load reports when switching to history tab or when page/pageSize changes
+  // Edit State
+  const [editId, setEditId] = useState<number | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+  // Fetch History
+  const fetchReports = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await ReportService.getMyReports({ page: 1, page_size: 50 });
+      if (res.data && Array.isArray(res.data.data)) {
+        setReports(res.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("โหลดประวัติการแจ้งปัญหาไม่ได้");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "history") {
       fetchReports();
     }
-  }, [activeTab, page, pageSize]);
+  }, [activeTab]);
 
-  const fetchReports = async () => {
-    setLoading(true);
-    try {
-      const res = await ReportService.getMyReports({ page, page_size: pageSize });
-      if (res.data) {
-        if (Array.isArray(res.data.data)) {
-          setReports(res.data.data);
-        }
-        setTotalReports(res.data.total || 0);
-      }
-    } catch (err) {
-      console.error("Failed to fetch reports", err);
-      setError("ไม่สามารถโหลดรายงานได้");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditClick = (r: ReportType) => {
-    setEditId(r.id);
-    setTitle(r.title);
-    setDescription(r.description);
-    setTargetType(r.target_type);
-    setTargetId(r.target_id || null);
-    if (r.media && r.media.length > 0) {
-      setImage(r.media[0].url);
-    } else {
-      setImage("");
-    }
-    setActiveTab("create");
-    setError(null);
-    setSuccess(null);
-  };
-
-  const handleViewDetail = (r: ReportType) => {
-    setSelectedReport(r);
-    setActiveTab("detail");
-  };
-
-  const handleDeleteClick = async (id: number) => {
-    if (!window.confirm("คุณต้องการลบรายงานนี้ใช่หรือไม่?")) return;
-    try {
-      await ReportService.deleteReport(id);
-      setReports(reports.filter(r => r.id !== id));
-    } catch (err) {
-      alert("ไม่สามารถลบรายงานได้ (อาจได้รับการดำเนินการแล้ว)");
-    }
-  };
-
-  const resetForm = () => {
-    setEditId(null);
-    setTitle("");
-    setDescription("");
-    setTargetType("system");
-    setTargetId(null);
-    setImage("");
-    setError(null);
-    setSuccess(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    if (!title.trim() || !description.trim()) {
-      setError("กรุณากรอกหัวข้อและรายละเอียดให้ครบถ้วน");
-      return;
-    }
-
+  // Handle Submit
+  const onFinish = async (values: any) => {
     setSubmitting(true);
     try {
+      // Handle Image
+      let imageBase64 = "";
+      if (fileList.length > 0 && fileList[0].originFileObj) {
+        const file = fileList[0].originFileObj;
+        if (file.size > 5 * 1024 * 1024) {
+          message.error("รูปภาพขนาดใหญ่เกิน 5MB");
+          setSubmitting(false);
+          return;
+        }
+        const reader = new FileReader();
+        imageBase64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      } else if (fileList.length > 0 && fileList[0].url) {
+        // Existing image (if valid logic existed to keep old images)
+        // For simplicity in this demo, we might re-upload or handle backend persistence
+        imageBase64 = fileList[0].url;
+      }
+
       const payload: CreateReportInput = {
-        target_type: targetType,
-        target_id: targetId || undefined,
-        title,
-        description,
-        medias: image ? [{ url: image, type: 'image', is_attachment: false }] : []
+        title: values.title,
+        description: values.description,
+        target_type: values.target_type,
+        medias: imageBase64 ? [{ url: imageBase64, type: 'image', is_attachment: false }] : []
       };
 
       if (editId) {
         await ReportService.updateReport(editId, payload);
-        setSuccess("แก้ไขรายงานเรียบร้อยแล้ว");
-        await new Promise(r => setTimeout(r, 1500)); // Brief delay to show success
-        setActiveTab("history");
+        message.success("แก้ไขรายงานเรียบร้อย");
         resetForm();
-        setPage(1);
+        setActiveTab("history"); // Go to history to see change
       } else {
         await ReportService.createReport(payload);
-        setSuccess("ส่งรายงานเรียบร้อยแล้ว ขอบคุณที่แจ้งปัญหาครับ!");
-        await new Promise(r => setTimeout(r, 1500));
+        message.success("ส่งรายงานเรียบร้อย ขอบคุณครับ!");
         resetForm();
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || "เกิดข้อผิดพลาด");
+      console.error(err);
+      message.error(err.response?.data?.error || "เกิดข้อผิดพลาดในการส่งข้อมูล");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    resetForm();
-    if (editId) {
-      setActiveTab("history");
+  const resetForm = () => {
+    form.resetFields();
+    setFileList([]);
+    setEditId(null);
+  };
+
+  const handleEdit = (item: ReportType) => {
+    setEditId(item.id);
+    setActiveTab("create");
+    form.setFieldsValue({
+      title: item.title,
+      description: item.description,
+      target_type: item.target_type,
+    });
+    // If has media
+    if (item.media && item.media.length > 0) {
+      setFileList([{
+        uid: '-1',
+        name: 'image.png',
+        status: 'done',
+        url: item.media[0].url,
+        thumbUrl: item.media[0].url,
+      }]);
     } else {
-      navigate("/User");
+      setFileList([]);
     }
   };
 
-  // Helper to get status label
-  const getStatusLabel = (statusId: number) => {
+  const handleDelete = (id: number) => {
+    confirm({
+      title: "ยืนยันการลบ?",
+      icon: <ExclamationCircleOutlined />,
+      content: "คุณต้องการลบรายงานปัญหานี้ใช่หรือไม่",
+      onOk: async () => {
+        try {
+          await ReportService.deleteReport(id);
+          message.success("ลบรายงานสำเร็จ");
+          fetchReports();
+        } catch (e) {
+          message.error("ลบไม่ได้");
+        }
+      }
+    });
+  };
+
+  const getStatusTag = (statusId: number) => {
     switch (statusId) {
-      case 1: return <span className="status-badge pending">รอตรวจสอบ</span>;
-      case 2: return <span className="status-badge progress">กำลังดำเนินการ</span>;
-      case 3: return <span className="status-badge done">เสร็จสิ้น</span>;
-      case 4: return <span className="status-badge reject">ปฏิเสธ</span>;
-      default: return <span className="status-badge unknown">ไม่ทราบสถานะ</span>;
+      case 1: return <Tag color="orange">รอตรวจสอบ</Tag>;
+      case 2: return <Tag color="blue">กำลังดำเนินการ</Tag>;
+      case 3: return <Tag color="green">เสร็จสิ้น</Tag>;
+      case 4: return <Tag color="red">ปฏิเสธ</Tag>;
+      default: return <Tag>ไม่ทราบสถานะ</Tag>;
     }
   };
 
   return (
-    <main className="flex-1 overflow-y-auto bg-transparent p-8">
-      <div className="report-container">
-        <div className="report-header">
-          <h2 className="report-title">
-            {editId ? "แก้ไขรายงาน" : "แจ้งปัญหา / ร้องเรียน"}
-          </h2>
-          <div className="tab-switcher">
-            <button
-              className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('create'); if (!editId) resetForm(); }}
-            >
-              {editId ? 'แบบฟอร์มแก้ไข' : 'แจ้งปัญหาใหม่'}
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('history'); resetForm(); }}
-            >
-              ประวัติการแจ้ง
-            </button>
+    <main className="flex-1 overflow-y-auto bg-transparent p-6">
+      <div className="max-w-4xl mx-auto">
+        <Card
+          bordered={false}
+          className="shadow-sm rounded-2xl"
+          bodyStyle={{ padding: 0 }}
+        >
+          <div className="p-8 border-b border-gray-100">
+            <Title level={3} style={{ margin: 0, color: "#c42e0a" }}>
+              แจ้งปัญหาและร้องเรียน
+            </Title>
+            <Text type="secondary">
+              พบปัญหาการใช้งาน หรือต้องการแจ้งเบาะแส แจ้งเราได้ที่นี่
+            </Text>
           </div>
-        </div>
 
-        {activeTab === 'create' ? (
-          <>
-            <p className="report-subtitle">พบปัญหาการใช้งาน หรือต้องการแจ้งเบาะแสการกระทำผิด แจ้งเราได้ที่นี่</p>
+          <div className="p-8 pt-0">
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              size="large"
+              items={[
+                {
+                  label: (<span><FormOutlined /> แจ้งปัญหาใหม่</span>),
+                  key: "create",
+                  children: (
+                    <div className="max-w-2xl mt-4">
+                      <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={onFinish}
+                        initialValues={{ target_type: "system" }}
+                      >
+                        <Form.Item
+                          label="หัวข้อปัญหา"
+                          name="title"
+                          rules={[{ required: true, message: "กรุณาระบุหัวข้อ" }]}
+                        >
+                          <Input placeholder="เช่น เว็บเข้าไม่ได้, พบเนื้อหาไม่เหมาะสม" size="large" />
+                        </Form.Item>
 
-            <form className="report-form" onSubmit={handleSubmit}>
-              <label className="form-label">หัวข้อปัญหา</label>
-              <input
-                className="form-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="เช่น เว็บเข้าไม่ได้, พบเนื้อหาไม่เหมาะสม"
-                required
-              />
+                        <Form.Item
+                          label="ประเภท"
+                          name="target_type"
+                          rules={[{ required: true }]}
+                        >
+                          <Select size="large">
+                            <Option value="system">ปัญหาการใช้งานระบบ (Bug)</Option>
+                            <Option value="content">เนื้อหาไม่เหมาะสม</Option>
+                            <Option value="user">รายงานผู้ใช้งาน</Option>
+                            <Option value="other">อื่นๆ</Option>
+                          </Select>
+                        </Form.Item>
 
-              <label className="form-label">ประเภทปัญหา</label>
-              <select
-                className="form-select"
-                value={targetType}
-                onChange={(e) => setTargetType(e.target.value)}
-              >
-                <option value="system">ปัญหาการใช้งานระบบ (Bug)</option>
-                <option value="content">เนื้อหาไม่เหมาะสม</option>
-                <option value="user">รายงานผู้ใช้งาน</option>
-                <option value="other">อื่นๆ</option>
-              </select>
+                        <Form.Item
+                          label="รายละเอียด"
+                          name="description"
+                          rules={[{ required: true, message: "กรุณาระบุรายละเอียด" }]}
+                        >
+                          <TextArea rows={6} placeholder="อธิบายปัญหาที่พบให้ชัดเจน..." />
+                        </Form.Item>
 
-              <label className="form-label">รายละเอียด</label>
-              <textarea
-                className="form-textarea"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="อธิบายปัญหาที่พบให้ชัดเจน..."
-                rows={5}
-                required
-              />
+                        <Form.Item label="รูปภาพประกอบ (ถ้ามี)">
+                          <Upload
+                            listType="picture-card"
+                            maxCount={1}
+                            fileList={fileList}
+                            beforeUpload={() => false}
+                            onChange={({ fileList }) => setFileList(fileList)}
+                          >
+                            {fileList.length < 1 && (
+                              <div>
+                                <UploadOutlined />
+                                <div style={{ marginTop: 8 }}>อัปโหลด</div>
+                              </div>
+                            )}
+                          </Upload>
+                        </Form.Item>
 
-              <label className="form-label">รูปภาพประกอบ (ถ้ามี)</label>
-              <div className="file-upload-wrapper">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="form-input"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setImage(reader.result as string);
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-                {image && (
-                  <div className="preview-container">
-                    <img src={image} alt="Preview" className="image-preview" />
-                    <button type="button" className="remove-img-btn" onClick={() => setImage("")}>✕</button>
-                  </div>
-                )}
-              </div>
-
-              {error && <p className="form-error">{error}</p>}
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCancel}
-                  disabled={submitting}
-                >
-                  ยกเลิก
-                </button>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submitting}
-                >
-                  {submitting ? "กำลังบันทึก..." : (editId ? "บันทึกการแก้ไข" : "ส่งรายงาน")}
-                </button>
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="report-history">
-            {loading ? (
-              <p className="loading-text">กำลังโหลดข้อมูล...</p>
-            ) : reports.length === 0 ? (
-              <div className="empty-state">
-                <p>คุณยังไม่มีประวัติการแจ้งปัญหา</p>
-              </div>
-            ) : (
-              <div className="history-list">
-                {reports.map((report) => (
-                  <div key={report.id} className="history-item">
-                    <div className="history-header">
-                      <span className="history-title">{report.title}</span>
-                      {getStatusLabel(report.status_id)}
+                        <div className="flex gap-4 mt-8">
+                          <Button
+                            type="primary"
+                            htmlType="submit"
+                            size="large"
+                            loading={submitting}
+                            style={{ background: "#c42e0a", borderColor: "#c42e0a", minWidth: 120 }}
+                          >
+                            {editId ? "บันทึกการแก้ไข" : "ส่งรายงาน"}
+                          </Button>
+                          {editId && (
+                            <Button size="large" onClick={() => { resetForm(); setActiveTab("history"); }}>
+                              ยกเลิก
+                            </Button>
+                          )}
+                        </div>
+                      </Form>
                     </div>
-                    <p className="history-date">
-                      เมื่อ: {new Date(report.created_at).toLocaleString('th-TH')}
-                    </p>
-                    <p className="history-desc">{report.description}</p>
-                    {report.status_id === 1 && (
-                      <div className="history-actions">
-                        <button
-                          className="btn-text edit"
-                          onClick={() => handleEditClick(report)}
-                        >
-                          แก้ไข
-                        </button>
-                        <button
-                          className="btn-text delete"
-                          onClick={() => handleDeleteClick(report.id)}
-                        >
-                          ลบ
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  )
+                },
+                {
+                  label: (<span><HistoryOutlined /> ประวัติการแจ้ง</span>),
+                  key: "history",
+                  children: (
+                    <div className="mt-4">
+                      <List
+                        loading={loadingHistory}
+                        itemLayout="vertical"
+                        dataSource={reports}
+                        locale={{ emptyText: <Empty description="ไม่มีประวัติการแจ้งปัญหา" /> }}
+                        renderItem={(item) => (
+                          <List.Item
+                            style={{ background: "#fafafa", borderRadius: 8, padding: 20, marginBottom: 16 }}
+                            actions={item.status_id === 1 ? [
+                              <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(item)}>แก้ไข</Button>,
+                              <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDelete(item.id)}>ลบ</Button>
+                            ] : []}
+                          >
+                            <List.Item.Meta
+                              title={
+                                <div className="flex justify-between items-start">
+                                  <span className="text-lg font-semibold">{item.title}</span>
+                                  {getStatusTag(item.status_id)}
+                                </div>
+                              }
+                              description={
+                                <Space direction="vertical" size={2}>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    เมื่อ: {new Date(item.created_at).toLocaleString("th-TH")}
+                                  </Text>
+                                  <Paragraph ellipsis={{ rows: 2, expandable: true, symbol: 'อ่านต่อ' }} style={{ marginTop: 8 }}>
+                                    {item.description}
+                                  </Paragraph>
+                                </Space>
+                              }
+                            />
+                            {item.media && item.media.length > 0 && (
+                              <div className="mt-4">
+                                <Image
+                                  width={100}
+                                  src={item.media[0].url}
+                                  style={{ borderRadius: 8 }}
+                                />
+                              </div>
+                            )}
+                          </List.Item>
+                        )}
+                      />
+                    </div>
+                  )
+                }
+              ]}
+            />
           </div>
-        )}
+        </Card>
       </div>
     </main>
   );
 };
 
-export default Report;
+export default ReportPage;
