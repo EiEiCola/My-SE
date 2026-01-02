@@ -10,21 +10,44 @@ type StatusName =
   | "PUBLISHED"
   | "REJECTED"
   | "CLOSED"
+  | "OPEN"
+  | "UPCOMING"
   | "UNKNOWN";
 
+// ====== helpers (อยู่นอก component ได้) ======
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const toFullUrl = (u?: string) => {
+  if (!u) return "";
+  const s = String(u).trim();
+  if (!s) return "";
+  if (
+    s.startsWith("http://") ||
+    s.startsWith("https://") ||
+    s.startsWith("data:") ||
+    s.startsWith("blob:")
+  )
+    return s;
+  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  return `${API_BASE}/${s}`;
+};
+
+const optionImgUrl = (opt: any) =>
+  opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imgUrl ?? "";
+
+// ====== StatusBadge ======
 const StatusBadge = ({ status }: { status: StatusName }) => {
   const cls =
     status === "PENDING_REVIEW"
       ? "badge badge-pending"
-      : status === "PUBLISHED"
-      ? "badge badge-published"
-      : status === "REJECTED"
-      ? "badge badge-rejected"
-      : status === "CLOSED"
-      ? "badge badge-closed"
-      : status === "DRAFT"
-      ? "badge badge-draft"
-      : "badge";
+      : status === "PUBLISHED" || status === "OPEN" || status === "UPCOMING"
+        ? "badge badge-published"
+        : status === "REJECTED"
+          ? "badge badge-rejected"
+          : status === "CLOSED"
+            ? "badge badge-closed"
+            : status === "DRAFT"
+              ? "badge badge-draft"
+              : "badge";
 
   return <span className={cls}>{status}</span>;
 };
@@ -32,9 +55,24 @@ const StatusBadge = ({ status }: { status: StatusName }) => {
 const MyPolls: React.FC = () => {
   const navigate = useNavigate();
 
+  // ✅ lightbox (ดูรูปใหญ่) — ต้องอยู่ใน component
+  const [imgOpen, setImgOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState<string>("");
+
+  const openImg = (src: string) => {
+    if (!src) return;
+    setImgSrc(src);
+    setImgOpen(true);
+  };
+
+  const closeImg = () => {
+    setImgOpen(false);
+    setImgSrc("");
+  };
+
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
-  const [activeTab, setActiveTab] = useState<number>(0); // 0=All
+  const [activeTab, setActiveTab] = useState<number>(0);
   const [q, setQ] = useState("");
 
   // detail modal
@@ -42,25 +80,61 @@ const MyPolls: React.FC = () => {
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-
   // confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDesc, setConfirmDesc] = useState("");
   const [confirmDanger, setConfirmDanger] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<null | (() => Promise<void>)>(null);
+  const [confirmAction, setConfirmAction] = useState<null | (() => Promise<void>)>(
+    null
+  );
 
   // -------- helpers: กัน field name ไม่ตรง --------
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
   const getQuestion = (p: Poll) => (p as any).question ?? "";
   const getCreatedAt = (p: Poll) => (p as any).created_at ?? (p as any).CreatedAt ?? null;
 
-  // ✅ สำคัญ: fallback จาก status_id ถ้าไม่มี poll_status.name
-  const getStatus = (p: Poll): StatusName => {
-    const name = (p as any)?.poll_status?.name as StatusName | undefined;
+  const getAllowMultiple = (p: Poll) =>
+    Boolean((p as any)?.allow_multiple ?? (p as any)?.AllowMultiple ?? false);
+
+  const getMaxChoice = (p: Poll) => (p as any)?.max_choice ?? (p as any)?.MaxChoice ?? null;
+
+  const getStartAt = (p: Poll) => (p as any)?.start_at ?? (p as any)?.StartAt ?? null;
+  const getEndAt = (p: Poll) => (p as any)?.end_at ?? (p as any)?.EndAt ?? null;
+
+  const getOptions = (p: Poll) =>
+    (((p as any).poll_options || (p as any).options || []) as any[]);
+
+  const getRejectReason = (p: Poll) =>
+    (p as any)?.last_reject_reason ??
+    (p as any)?.LastRejectReason ??
+    (p as any)?.lastRejectReason ??
+    "";
+
+  const optionLabel = (opt: any) =>
+    opt?.text ??
+    opt?.title ??
+    opt?.option_text ??
+    opt?.optionText ??
+    opt?.OptionText ??
+    opt?.name ??
+    opt?.label ??
+    "-";
+
+  const getBaseStatus = (p: Poll): StatusName => {
+    const name =
+      ((p as any)?.status_name as StatusName | undefined) ??
+      ((p as any)?.StatusName as StatusName | undefined) ??
+      ((p as any)?.poll_status?.name as StatusName | undefined);
+
     if (name) return name;
 
-    const sid = (p as any)?.status_id ?? (p as any)?.poll_status_id ?? (p as any)?.StatusID;
+    const sid =
+      (p as any)?.status_id ??
+      (p as any)?.poll_status_id ??
+      (p as any)?.StatusID ??
+      (p as any)?.PollStatusID;
+
     switch (Number(sid)) {
       case 1:
         return "DRAFT";
@@ -77,35 +151,60 @@ const MyPolls: React.FC = () => {
     }
   };
 
-  const getAllowMultiple = (p: Poll) =>
-    Boolean((p as any)?.allow_multiple ?? (p as any)?.AllowMultiple ?? false);
+  // ✅ รวม: อ่าน computed_status จาก backend ก่อน ถ้าไม่มี → fallback คำนวณเองจากเวลา
+  const getComputedStatus = (p: Poll): "OPEN" | "UPCOMING" | "CLOSED" | "" => {
+    const csRaw =
+      (p as any)?.computed_status ??
+      (p as any)?.computedStatus ??
+      (p as any)?.ComputedStatus ??
+      "";
 
-  const getMaxChoice = (p: Poll) =>
-    (p as any)?.max_choice ?? (p as any)?.MaxChoice ?? null;
+    const cs = String(csRaw || "").toUpperCase();
+    if (cs === "OPEN" || cs === "UPCOMING" || cs === "CLOSED") return cs as any;
 
-  const getStartAt = (p: Poll) => (p as any)?.start_at ?? (p as any)?.StartAt ?? null;
-  const getEndAt = (p: Poll) => (p as any)?.end_at ?? (p as any)?.EndAt ?? null;
+    // ---- fallback: คำนวณเอง (เผื่อ endpoint list ยังไม่ส่ง computed_status) ----
+    const now = dayjs();
 
-  const getOptions = (p: Poll) => ((p as any).poll_options || (p as any).options || []) as any[];
+    const eff =
+      (p as any)?.effective_start_at ??
+      (p as any)?.EffectiveStartAt ??
+      (p as any)?.effectiveStartAt ??
+      null;
 
-  const optionLabel = (opt: any) =>
-    opt?.text ??
-    opt?.title ??
-    opt?.option_text ??
-    opt?.optionText ??
-    opt?.OptionText ??
-    opt?.name ??
-    opt?.label ??
-    "-";
+    const start = eff ?? getStartAt(p);
+    const end = getEndAt(p);
+
+    const s = start ? dayjs(start) : null;
+    const e = end ? dayjs(end) : null;
+
+    if (e && now.isAfter(e)) return "CLOSED";
+    if (s && now.isBefore(s)) return "UPCOMING";
+    return "OPEN";
+  };
+
+  // ✅ แสดง/นับ/กรองตาม computed สำหรับโพลที่ published แล้ว
+  const getDisplayStatus = (p: Poll): StatusName => {
+    const base = getBaseStatus(p);
+
+    // ถ้า DB ปิดจริง (status_id=5) ก็ปิดเลย
+    if (base === "CLOSED") return "CLOSED";
+
+    // ใช้ computed เฉพาะตอนเป็น PUBLISHED
+    if (base !== "PUBLISHED") return base;
+
+    const cs = getComputedStatus(p);
+    if (cs === "CLOSED") return "CLOSED";
+    if (cs === "UPCOMING") return "UPCOMING";
+    if (cs === "OPEN") return "OPEN";
+
+    return "PUBLISHED";
+  };
 
   // -----------------------------------------------
-
   const fetchPolls = async (statusID?: number) => {
     setLoading(true);
     try {
       const res = await pollAPI.getMyPolls(statusID);
-
-      // รองรับได้ทั้ง {data:{data:[]}} หรือ {data:[]}
       const rows = (res as any)?.data?.data ?? (res as any)?.data ?? [];
       setPolls(Array.isArray(rows) ? rows : []);
     } catch (error) {
@@ -117,20 +216,28 @@ const MyPolls: React.FC = () => {
     }
   };
 
+  // ✅ ดึงทั้งหมดครั้งเดียว (ไม่ดึงตาม tab) แล้ว filter ใน FE
   useEffect(() => {
-    const status = activeTab === 0 ? undefined : activeTab;
-    fetchPolls(status);
+    fetchPolls(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, []);
 
   const stats = useMemo(() => {
     const list = polls;
-    const count = (s: StatusName) => list.filter((p) => getStatus(p) === s).length;
+
+    const count = (s: StatusName) => list.filter((p) => getDisplayStatus(p) === s).length;
+
+    // Published tab: รวม OPEN/UPCOMING/PUBLISHED (ไม่รวม CLOSED)
+    const publishedLike = list.filter((p) => {
+      const ds = getDisplayStatus(p);
+      return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
+    }).length;
+
     return {
       total: list.length,
       draft: count("DRAFT"),
       pending: count("PENDING_REVIEW"),
-      published: count("PUBLISHED"),
+      published: publishedLike,
       rejected: count("REJECTED"),
       closed: count("CLOSED"),
     };
@@ -147,25 +254,38 @@ const MyPolls: React.FC = () => {
 
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
-    const base =
-      activeTab === 0
-        ? polls
-        : polls.filter((p) => {
-            const s = getStatus(p);
-            const sid =
-              s === "DRAFT"
-                ? 1
-                : s === "PENDING_REVIEW"
-                ? 2
-                : s === "PUBLISHED"
+
+    // ✅ base filter ตาม tab (ใช้ displayStatus)
+    let base: Poll[] = polls;
+
+    if (activeTab !== 0) {
+      base = polls.filter((p) => {
+        const ds = getDisplayStatus(p);
+
+        // tab=Published(3): เอา OPEN/UPCOMING/PUBLISHED (ไม่รวม CLOSED)
+        if (activeTab === 3) return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
+
+        // tab=Closed(5): เอา CLOSED
+        if (activeTab === 5) return ds === "CLOSED";
+
+        // tab อื่น ๆ: ตรงตาม base status เดิม (DB)
+        const baseS = getBaseStatus(p);
+        const sid =
+          baseS === "DRAFT"
+            ? 1
+            : baseS === "PENDING_REVIEW"
+              ? 2
+              : baseS === "PUBLISHED"
                 ? 3
-                : s === "REJECTED"
-                ? 4
-                : s === "CLOSED"
-                ? 5
-                : 0;
-            return sid === activeTab;
-          });
+                : baseS === "REJECTED"
+                  ? 4
+                  : baseS === "CLOSED"
+                    ? 5
+                    : 0;
+
+        return sid === activeTab;
+      });
+    }
 
     if (!keyword) return base;
 
@@ -177,7 +297,12 @@ const MyPolls: React.FC = () => {
   }, [polls, q, activeTab]);
 
   // --------- confirm modal ----------
-  const openConfirm = (title: string, desc: string, danger: boolean, action: () => Promise<void>) => {
+  const openConfirm = (
+    title: string,
+    desc: string,
+    danger: boolean,
+    action: () => Promise<void>
+  ) => {
     setConfirmTitle(title);
     setConfirmDesc(desc);
     setConfirmDanger(danger);
@@ -201,7 +326,7 @@ const MyPolls: React.FC = () => {
   const handleDelete = (id: number) => {
     openConfirm("Delete this poll?", "This action cannot be undone.", true, async () => {
       await pollAPI.deletePoll(id);
-      await fetchPolls(activeTab === 0 ? undefined : activeTab);
+      await fetchPolls(undefined); // ✅ refresh ทั้งหมด
     });
   };
 
@@ -212,43 +337,41 @@ const MyPolls: React.FC = () => {
       false,
       async () => {
         await pollAPI.submitForReview(id);
-        await fetchPolls(activeTab === 0 ? undefined : activeTab);
+        await fetchPolls(undefined); // ✅ refresh ทั้งหมด
       }
     );
   };
 
   const handleCancel = (id: number) => {
     openConfirm(
-       "Withdraw submission?",
+      "Withdraw submission?",
       "This will withdraw your request and move the poll back to Draft so you can edit it.",
       true,
       async () => {
-      await pollAPI.cancelRequest(id);
-      await fetchPolls(activeTab === 0 ? undefined : activeTab);
-  }
-);
+        await pollAPI.cancelRequest(id);
+        await fetchPolls(undefined); // ✅ refresh ทั้งหมด
+      }
+    );
   };
 
   const openDetail = async (p: Poll) => {
-  const id = getId(p);
+    const id = getId(p);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setSelectedPoll(null);
 
-  setDetailOpen(true);
-  setDetailLoading(true);
-  setSelectedPoll(null); // เคลียร์ก่อน กันเห็นข้อมูลเก่าค้าง
-
-  try {
-    const res = await pollAPI.getMyPollByID(id);
-    const payload = (res as any)?.data?.data ?? (res as any)?.data; // กัน shape
-    setSelectedPoll(payload);
-  } catch (e) {
-    console.error(e);
-    alert("Failed to load poll detail");
-    setDetailOpen(false);
-  } finally {
-    setDetailLoading(false);
-  }
-};
-
+    try {
+      const res = await pollAPI.getMyPollByID(id);
+      const payload = (res as any)?.data?.data ?? (res as any)?.data;
+      setSelectedPoll(payload);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to load poll detail");
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const closeDetail = () => {
     setDetailOpen(false);
@@ -256,15 +379,16 @@ const MyPolls: React.FC = () => {
   };
 
   const canEditSubmitDelete = (p: Poll) => {
-    const s = getStatus(p);
+    const s = getBaseStatus(p);
     return s === "DRAFT" || s === "REJECTED";
   };
-  const canCancel = (p: Poll) => getStatus(p) === "PENDING_REVIEW";
 
-  // ✅ ปรับ: PUBLISHED + CLOSED ควรดูผลได้ (PUBLISHED อาจโดน backend บังคับ "ต้องโหวตก่อน")
+  const canCancel = (p: Poll) => getBaseStatus(p) === "PENDING_REVIEW";
+
+  // ✅ ดูผล: OPEN หรือ CLOSED เท่านั้น (UPCOMING ไม่ให้ดูผล)
   const canViewResult = (p: Poll) => {
-    const s = getStatus(p);
-    return s === "PUBLISHED" || s === "CLOSED";
+    const ds = getDisplayStatus(p);
+    return ds === "OPEN" || ds === "CLOSED";
   };
 
   return (
@@ -292,7 +416,7 @@ const MyPolls: React.FC = () => {
         </div>
       </div>
 
-      {/* STATS (เหมือน admin) */}
+      {/* STATS */}
       <div className="stats">
         <div className="stat">
           <div className="k">Total</div>
@@ -314,8 +438,6 @@ const MyPolls: React.FC = () => {
           <div className="k">Rejected</div>
           <div className="v">{stats.rejected}</div>
         </div>
-
-        {/* ✅ แนะนำ: เพิ่ม Closed ให้ตรงกับ tab */}
         <div className="stat">
           <div className="k">Closed</div>
           <div className="v">{stats.closed}</div>
@@ -370,7 +492,7 @@ const MyPolls: React.FC = () => {
               ) : (
                 filtered.map((p) => {
                   const id = getId(p);
-                  const status = getStatus(p);
+                  const status = getDisplayStatus(p);
                   const created = getCreatedAt(p);
                   const question = getQuestion(p);
 
@@ -394,10 +516,14 @@ const MyPolls: React.FC = () => {
 
                       <td style={{ textAlign: "right" }}>
                         <div className="actions">
-                          <button className="btn btn-outline" onClick={() => openDetail(p)} type="button" title="Detail">
-  👁 Detail
-</button>
-
+                          <button
+                            className="btn btn-outline"
+                            onClick={() => openDetail(p)}
+                            type="button"
+                            title="Detail"
+                          >
+                            👁 Detail
+                          </button>
 
                           {canEditSubmitDelete(p) && (
                             <>
@@ -448,102 +574,141 @@ const MyPolls: React.FC = () => {
       </div>
 
       {/* DETAIL CARD MODAL */}
-    {detailOpen && (
-  <div className="card-backdrop" onMouseDown={closeDetail}>
-    <div className="card-modal" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="card-head">
-        <div>
-          <div className="card-title">Poll Detail</div>
+      {detailOpen && (
+        <div className="card-backdrop" onMouseDown={closeDetail}>
+          <div className="card-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="card-head">
+              <div>
+                <div className="card-title">Poll Detail</div>
 
-          {/* ถ้า selectedPoll ยังไม่มา ให้โชว์ - */}
-          <div className="card-sub">
-            ID #{selectedPoll ? getId(selectedPoll) : "-"} • Created{" "}
-            {selectedPoll && getCreatedAt(selectedPoll)
-              ? dayjs(getCreatedAt(selectedPoll)).format("DD/MM/YYYY")
-              : "-"}
-          </div>
-        </div>
-
-        <button className="icon-btn" onClick={closeDetail} type="button">
-          ✕
-        </button>
-      </div>
-
-      <div className="card-body">
-        {detailLoading ? (
-          <div className="muted">Loading detail...</div>
-        ) : selectedPoll ? (
-          <>
-            {/* ✅ เดิมทั้งหมดของ detail ที่เคยอยู่ใน modal ใส่ไว้ตรงนี้ */}
-            <div className="detail-block">
-              <div className="detail-label">Question</div>
-              <div className="detail-value">{getQuestion(selectedPoll)}</div>
-            </div>
-
-            <div className="detail-grid">
-              <div className="detail-block">
-                <div className="detail-label">Status</div>
-                <div className="detail-value">
-                  <StatusBadge status={getStatus(selectedPoll)} />
-                </div>
-              </div>
-
-              <div className="detail-block">
-                <div className="detail-label">Allow Multiple</div>
-                <div className="detail-value">
-                  {getAllowMultiple(selectedPoll) ? "Yes" : "No"}
-                </div>
-              </div>
-
-              <div className="detail-block">
-                <div className="detail-label">Max Choice</div>
-                <div className="detail-value">{getMaxChoice(selectedPoll) ?? "-"}</div>
-              </div>
-
-              <div className="detail-block">
-                <div className="detail-label">Time Range</div>
-                <div className="detail-value muted">
-                  {getStartAt(selectedPoll)
-                    ? dayjs(getStartAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
-                    : "-"}{" "}
-                  →{" "}
-                  {getEndAt(selectedPoll)
-                    ? dayjs(getEndAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
+                <div className="card-sub">
+                  ID #{selectedPoll ? getId(selectedPoll) : "-"} • Created{" "}
+                  {selectedPoll && getCreatedAt(selectedPoll)
+                    ? dayjs(getCreatedAt(selectedPoll)).format("DD/MM/YYYY")
                     : "-"}
                 </div>
               </div>
-            </div>
 
-            <div className="detail-block" style={{ marginTop: 10 }}>
-              <div className="detail-label">Options</div>
-              <div className="opt-list">
-                {getOptions(selectedPoll).length ? (
-                  getOptions(selectedPoll).map((opt, idx) => (
-                    <div className="opt-item" key={idx}>
-                      <span className="opt-dot" />
-                      <span className="opt-text">{optionLabel(opt)}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="muted">No options in payload.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="card-actions">
-              <button className="btn btn-outline" onClick={closeDetail} type="button">
-                Close
+              <button className="icon-btn" onClick={closeDetail} type="button">
+                ✕
               </button>
             </div>
-          </>
-        ) : (
-          <div className="muted">No data</div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
 
+            <div className="card-body">
+              {detailLoading ? (
+                <div className="muted">Loading detail...</div>
+              ) : selectedPoll ? (
+                <>
+                  <div className="detail-block">
+                    <div className="detail-label">Question</div>
+                    <div className="detail-value">{getQuestion(selectedPoll)}</div>
+                  </div>
+
+                  <div className="detail-grid">
+                    <div className="detail-block">
+                      <div className="detail-label">Status</div>
+                      <div className="detail-value">
+                        <StatusBadge status={getDisplayStatus(selectedPoll)} />
+                      </div>
+                    </div>
+
+                    <div className="detail-block">
+                      <div className="detail-label">Allow Multiple</div>
+                      <div className="detail-value">{getAllowMultiple(selectedPoll) ? "Yes" : "No"}</div>
+                    </div>
+
+                    <div className="detail-block">
+                      <div className="detail-label">Max Choice</div>
+                      <div className="detail-value">{getMaxChoice(selectedPoll) ?? "-"}</div>
+                    </div>
+
+                    <div className="detail-block">
+                      <div className="detail-label">Time Range</div>
+                      <div className="detail-value muted">
+                        {getStartAt(selectedPoll)
+                          ? dayjs(getStartAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
+                          : "-"}{" "}
+                        →{" "}
+                        {getEndAt(selectedPoll)
+                          ? dayjs(getEndAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
+                          : "-"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reject reason */}
+                  {getBaseStatus(selectedPoll) === "REJECTED" && (
+                    <div className="detail-block" style={{ marginTop: 10 }}>
+                      <div className="detail-label">Reject Reason</div>
+                      <div className="detail-value">{getRejectReason(selectedPoll)?.trim() || "-"}</div>
+                    </div>
+                  )}
+
+                  {/* ✅ OPTIONS + click to zoom */}
+                  <div className="detail-block" style={{ marginTop: 10 }}>
+                    <div className="detail-label">Options</div>
+
+                    <div className="opt-grid">
+                      {getOptions(selectedPoll).map((opt, idx) => {
+                        const raw = optionImgUrl(opt);
+                        const img = raw ? toFullUrl(raw) : "";
+
+                        return (
+                          <div className="opt-item" key={idx}>
+                            {img ? (
+                              <button
+                                type="button"
+                                className="opt-imgBtn"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openImg(img);
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                title="ดูรูป"
+                              >
+                                <img className="opt-img" src={img} alt={optionLabel(opt)} draggable={false} />
+                              </button>
+                            ) : null}
+
+                            <div className="opt-meta">
+                              <div className="opt-title">Option {idx + 1}</div>
+                              <div className="opt-text">{optionLabel(opt)}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button className="btn btn-outline" onClick={closeDetail} type="button">
+                      Close
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="muted">No data</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ IMAGE LIGHTBOX OVERLAY */}
+      {imgOpen && (
+        <div className="img-overlay" onMouseDown={closeImg}>
+          <div className="img-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className="img-close" onClick={closeImg}>
+              ✕
+            </button>
+            <img className="img-full" src={imgSrc} alt="poll option" />
+          </div>
+        </div>
+      )}
 
       {/* CONFIRM MODAL */}
       {confirmOpen && (

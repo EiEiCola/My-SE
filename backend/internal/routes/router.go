@@ -68,7 +68,7 @@ func SetupRoutes(
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
 
-		SetupAdminPostRoutes(adminAPI)
+		
 	}
 
 	// =========================
@@ -78,6 +78,7 @@ func SetupRoutes(
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
 		SetupMemberPostRoutes(memberAPI)
+		
 	}
 
 	// =========================

@@ -13,6 +13,7 @@ type Poll struct {
 	MaxChoice        *int       `json:"max_choice"`         // ถ้า AllowMultiple = true จะใช้กำหนดจำนวนสูงสุด
 	StartAt          *time.Time `json:"start_at"`           // เวลาเริ่มโหวต
 	EndAt            *time.Time `json:"end_at"`             // เวลาสิ้นสุดโหวต
+	PublishedAt *time.Time `json:"published_at"`            // เวลา admin approve/publish  เพิ่ม
 	LastRejectReason string     `json:"last_reject_reason"` // เหตุผลที่ล่าสุดถูก reject (ถ้ามี)
 
 	// FK ไปยังคนสร้างโพล (สมาชิก)

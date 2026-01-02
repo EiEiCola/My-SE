@@ -1,8 +1,14 @@
 package controller
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
@@ -213,16 +219,11 @@ func (ctl *PollController) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	memberIDAny, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "member_id not found"})
-		return
-	}
-	memberID, ok := memberIDAny.(uint)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
-		return
-	}
+	memberID, ok := getMemberID(c)
+if !ok {
+  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+  return
+}
 
 	res, err := ctl.pollService.CreateRequest(memberID, req)
 	if err != nil {
@@ -234,13 +235,68 @@ func (ctl *PollController) CreateRequest(c *gin.Context) {
 }
 
 func (ctl *PollController) ListPublished(c *gin.Context) {
-	res, err := ctl.pollService.ListPublished()
+  memberID, ok := getMemberID(c)
+  if !ok {
+    c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+    return
+  }
+
+  res, err := ctl.pollService.ListPublished(memberID)
+  if err != nil {
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
+  c.JSON(http.StatusOK, res)
+}
+
+// ✅ GET /api/member/polls/:id
+func (ctl *PollController) GetPublishedByID(c *gin.Context) {
+	pollID, err := parseUintParam(c, "id")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	res, err := ctl.pollService.GetPublishedByID(memberID, pollID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+// ✅ GET /api/member/polls/:id/my-vote
+func (ctl *PollController) GetMyVote(c *gin.Context) {
+	pollID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
+		return
+	}
+
+	memberID, ok := getMemberID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	res, err := ctl.pollService.GetMyVote(memberID, pollID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+
+
+
+
 
 func (ctl *PollController) Vote(c *gin.Context) {
 	pollID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -256,22 +312,22 @@ func (ctl *PollController) Vote(c *gin.Context) {
 		return
 	}
 
-	memberIDAny, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "member_id not found"})
-		return
-	}
-	memberID, ok := memberIDAny.(uint)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
-		return
-	}
+	memberID, ok := getMemberID(c)
+if !ok {
+  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+  return
+}
 
 	res, err := ctl.pollService.Vote(memberID, pollID, req)
 	if err != nil {
+	switch err.Error() {
+	case "poll_closed", "poll_not_started", "poll_not_open", "already_voted":
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
 	}
+	return
+}
 
 	c.JSON(http.StatusOK, res)
 }
@@ -283,16 +339,11 @@ func (ctl *PollController) Results(c *gin.Context) {
 	}
 	pollID := uint(pollID64)
 
-	memberIDAny, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "member_id not found"})
-		return
-	}
-	memberID, ok := memberIDAny.(uint)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
-		return
-	}
+	memberID, ok := getMemberID(c)
+if !ok {
+  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+  return
+}
 
 	res, err := ctl.pollService.Results(memberID, pollID)
 	if err != nil {
@@ -303,3 +354,49 @@ func (ctl *PollController) Results(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 	
+// ✅ POST /api/member/polls/options/upload (multipart/form-data)
+// form key: file
+func (ctl *PollController) UploadOptionImage(c *gin.Context) {
+	_, ok := getMemberID(c) // แค่เช็คว่า login อยู่
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	f, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no file uploaded (key must be 'file')"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(f.Filename))
+	if ext == "" {
+		ext = ".jpg"
+	}
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported file type", "filename": f.Filename})
+		return
+	}
+
+	saveDir := filepath.Join("uploads", "polls", "options")
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot create upload dir", "detail": err.Error()})
+		return
+	}
+
+	rb := make([]byte, 8)
+	_, _ = rand.Read(rb)
+	name := hex.EncodeToString(rb) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + ext
+
+	dst := filepath.Join(saveDir, name)
+	if err := c.SaveUploadedFile(f, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save file failed", "detail": err.Error()})
+		return
+	}
+
+	publicURL := "/uploads/polls/options/" + name
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "image uploaded",
+		"url":     publicURL,
+	})
+}

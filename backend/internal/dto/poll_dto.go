@@ -50,19 +50,26 @@ type PollOptionResponse struct {
 	Label     string `json:"label"`
 	ImgURL    string `json:"img_url"`
 	SortOrder int    `json:"sort_order"`
+
+	VoteCount int64 `json:"vote_count,omitempty"`
+	Percent   float64 `json:"percent,omitempty"`
 }
 
 type PollResponse struct {
 	ID       uint   `json:"id"`
 	Question string `json:"question"`
-
 	StatusID uint `json:"poll_status_id"`
 	MemberID uint `json:"member_id"`
-
+	AuthorName string `json:"author_name,omitempty"`
 	AllowMultiple bool       `json:"allow_multiple"`
 	MaxChoice     *int       `json:"max_choice"`
 	StartAt       *time.Time `json:"start_at"`
 	EndAt         *time.Time `json:"end_at"`
+
+	PublishedAt      *time.Time `json:"published_at,omitempty"` //“เผยแพร่จริง” ตอนแอดมินกด Approve/Publish
+    EffectiveStartAt *time.Time `json:"effective_start_at,omitempty"` // เวลาเริ่มโหวตที่แท้จริง (หลังจาก publish) แบบstart_at=10:10, published_at=10:20 → effective_start_at=10:20
+    ComputedStatus   string     `json:"computed_status"` // "UPCOMING" | "OPEN" | "CLOSED" คือสถานะที่ backend คำนวณให้จากเวลา (ไม่ใช่ status ในdb)
+
 
 	LastRejectReason string `json:"last_reject_reason,omitempty"`
 
@@ -70,6 +77,11 @@ type PollResponse struct {
 	CreatedAt time.Time            `json:"created_at"`
 	
 	StatusName string `json:"status_name"`
+
+	HasVoted    bool   `json:"has_voted"`
+ 	MyOptionIDs []uint `json:"my_option_ids"`
+
+	
 }
 
 // สำหรับรายการโพลของสมาชิก (My Polls)
@@ -82,6 +94,8 @@ type MyPollsResponse struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartAt          *time.Time `json:"start_at"`
 	EndAt            *time.Time `json:"end_at"`
+
+	
 }
 
 /* =========================
@@ -126,4 +140,9 @@ type PollResultsResponse struct {
 	Question string           `json:"question"`
 	Total    int64            `json:"total_votes"`
 	Items    []PollResultItem `json:"items"`
+}
+
+type MyVoteResponse struct {
+	HasVoted  bool   `json:"has_voted"`
+	OptionIDs []uint `json:"option_ids"`
 }

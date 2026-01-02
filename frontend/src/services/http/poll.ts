@@ -1,5 +1,16 @@
 import api from "./api";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+export const toFullUrl = (u?: string) => {
+  if (!u) return "";
+  const s = String(u).trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
+  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  return `${API_BASE}/${s}`;
+};
+
 // ========== Types ==========
 
 export interface PollOption {
@@ -7,7 +18,7 @@ export interface PollOption {
   label: string;
   img_url?: string;
   sort_order?: number;
-  vote_count?: number; // เผื่อบาง endpoint ส่งมา
+  vote_count?: number;
   poll_id?: number;
 }
 
@@ -20,23 +31,26 @@ export interface Poll {
   start_at?: string;
   end_at?: string;
 
-  // Relations
   options?: PollOption[];
   member_id: number;
 
-  // Status
   poll_status_id: number;
   poll_status?: {
     id: number;
     name: string;
   };
 
-  // Categories (Optional)
+  status_name?: string;
+  last_reject_reason?: string;
+
   main_category_id?: number;
   sub_category_l1_id?: number;
   sub_category_l2_id?: number;
 
   created_at?: string;
+
+  has_voted?: boolean;
+  my_option_ids?: number[];
 }
 
 export interface PollHistory {
@@ -87,7 +101,7 @@ export interface PollResultItem {
 export interface PollResultsResponse {
   poll_id: number;
   question: string;
-  total_votes: number;
+  total_votes: number;   // ✅ ชื่อตรง backend
   items: PollResultItem[];
 }
 
@@ -95,7 +109,6 @@ export interface VotePollRequest {
   option_ids: number[];
 }
 
-// ✅ เพิ่ม: response สำหรับเช็คว่า user โหวตแล้วไหม (ใช้ตอน OPEN ซ่อนผลก่อนโหวต)
 export interface MyVoteResponse {
   has_voted: boolean;
   option_ids: number[];
@@ -104,55 +117,137 @@ export interface MyVoteResponse {
 // ========== Poll APIs ==========
 
 export const pollAPI = {
-  // Public / Published
-  listPublished: () => api.get<Poll[]>("/members/polls"),
+  // Published feed
+  listPublished: async () => {
+    const res = await api.get<Poll[]>("/member/polls");
+    const rows: any[] = (res as any).data ?? [];
 
-  // ✅ เพิ่ม: list โพลที่ปิดแล้ว (ใช้หน้า /User/Polls/archive)
-  // ต้องมี backend route: GET /members/polls/closed
-  listClosed: () => api.get<Poll[]>("/members/polls/closed"),
+    for (const p of rows) {
+      const opts = (p?.options ?? p?.poll_options ?? []) as any[];
+      if (Array.isArray(opts)) {
+        p.options = opts.map((o: any) => ({
+          ...o,
+          img_url: toFullUrl(o.img_url),
+        }));
+      }
+    }
 
-  // ✅ เพิ่ม: ดึงโพล published รายตัว (ถ้าต้องการ)
-  // ต้องมี backend route: GET /members/polls/:id
-  getPublishedById: (id: number) => api.get<Poll>(`/members/polls/${id}`),
+    (res as any).data = rows;
+    return res;
+  },
 
-  // ✅ เพิ่ม: ดึงรายละเอียดโพล (รวม options/vote_count ถ้า backend preload)
-  // ใช้ได้กับหน้า detail หรือ refresh หลังโหวต
-  // ต้องมี backend route: GET /members/polls/:id
-  getPollDetail: (id: number) => api.get<Poll>(`/members/polls/${id}`),
+  listClosed: () => api.get<Poll[]>("/member/polls/closed"),
 
-  // ✅ เพิ่ม: เช็คว่า user โหวตโพลนี้แล้วหรือยัง
-  // ต้องมี backend route: GET /members/polls/:id/my-vote
-  getMyVote: (id: number) => api.get<MyVoteResponse>(`/members/polls/${id}/my-vote`),
+  // ✅ published detail
+  getPublishedById: async (id: number) => {
+    const res = await api.get<Poll>(`/member/polls/${id}`);
+    const p: any = (res as any).data;
 
-  // ✅ แก้ type ให้ตรง backend ของหนู (PollResultsResponse)
-  getResults: (id: number) =>
-    api.get<PollResultsResponse>(`/members/polls/${id}/results`),
+    if (p?.options) {
+      p.options = p.options.map((o: any) => ({
+        ...o,
+        img_url: toFullUrl(o.img_url),
+      }));
+    }
+    (res as any).data = p;
+    return res;
+  },
+
+  // (เหมือนกัน) เผื่อหน้าอื่นเรียก
+  getPollDetail: async (id: number) => {
+    const res = await api.get<Poll>(`/member/polls/${id}`);
+    const p: any = (res as any).data;
+
+    if (p?.options) {
+      p.options = p.options.map((o: any) => ({
+        ...o,
+        img_url: toFullUrl(o.img_url),
+      }));
+    }
+    (res as any).data = p;
+    return res;
+  },
+
+  getMyVote: (id: number) => api.get<MyVoteResponse>(`/member/polls/${id}/my-vote`),
+
+ getResults: async (id: number) => {
+  const res = await api.get<PollResultsResponse>(`/member/polls/${id}/results`);
+  const data: any = (res as any).data;
+
+  // ✅ แปลง img_url
+  if (data?.items) {
+    data.items = data.items.map((it: any) => ({
+      ...it,
+      img_url: toFullUrl(it.img_url),
+    }));
+  }
+
+  // ✅ normalize (เผื่อบางหน้าใช้ results.total)
+  if (data && data.total_votes !== undefined) {
+    data.total = data.total_votes;
+  }
+
+  (res as any).data = data;
+  return res;
+},
 
   vote: (id: number, payload: VotePollRequest) =>
-    api.post(`/members/polls/${id}/vote`, payload),
+    api.post(`/member/polls/${id}/vote`, payload),
 
   // Draft & Management
   createDraft: (payload: CreatePollRequest) =>
-    api.post<Poll>("/members/polls/draft", payload),
+    api.post<Poll>("/member/polls/draft", payload),
 
   updateDraft: (id: number, payload: UpdatePollRequest) =>
-    api.put<Poll>(`/members/polls/${id}`, payload),
+    api.put<Poll>(`/member/polls/${id}`, payload),
 
   deletePoll: (id: number) =>
-    api.delete(`/members/polls/${id}`),
+    api.delete(`/member/polls/${id}`),
 
   submitForReview: (id: number) =>
-    api.post(`/members/polls/${id}/submit`, {}),
+    api.post(`/member/polls/${id}/submit`, {}),
 
   cancelRequest: (id: number) =>
-    api.post(`/members/polls/${id}/cancel`, {}),
+    api.post(`/member/polls/${id}/cancel`, {}),
+
+  uploadOptionImage: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post<{ message: string; url: string }>(
+      "/member/polls/options/upload",
+      fd,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+  },
 
   // My Polls
   getMyPolls: (statusID?: number) => {
     const params = statusID ? { status_id: statusID } : {};
-    return api.get<Poll[]>("/members/polls/my", { params });
+    return api.get<Poll[]>("/member/polls/my", { params });
   },
 
-  getMyPollByID: (id: number) =>
-    api.get<Poll>(`/members/polls/my/${id}`),
+  getMyPollByID: async (id: number) => {
+    const res = await api.get<Poll>(`/member/polls/my/${id}`);
+    const p: any = (res as any).data;
+
+    if (p?.options) {
+      p.options = p.options.map((o: any) => ({
+        ...o,
+        img_url: toFullUrl(o.img_url),
+      }));
+    }
+
+    (res as any).data = p;
+    return res;
+  },
+
+  // =========================
+  // ✅ ALIASES (แก้แดงให้หน้าเดิมที่เรียกชื่ออื่น)
+  // =========================
+
+  // หน้า PollDetail ของหนูเรียก getPublishedByID (ตัวใหญ่) -> ชี้มาที่ getPublishedById
+  getPublishedByID: (id: number) => (pollAPI as any).getPublishedById(id),
+
+  // หน้า PollDetail ของหนูเรียก results(...) -> ชี้มาที่ getResults
+  results: (id: number) => (pollAPI as any).getResults(id),
 };

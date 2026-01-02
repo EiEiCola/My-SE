@@ -55,6 +55,18 @@ function toISOOrNull(dtLocal: string | null): string | null {
   return d.toISOString();
 }
 
+// ✅ เพิ่ม helper เหมือน Review: แปลง /uploads/... ให้เป็น full url
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const toFullUrl = (u?: string) => {
+  if (!u) return "";
+  const s = String(u).trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:"))
+    return s;
+  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  return `${API_BASE}/${s}`;
+};
+
 const PollCreate: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
@@ -223,20 +235,19 @@ const PollCreate: React.FC = () => {
     };
   };
 
- const saveDraft = async (): Promise<number> => {
-  const payload = buildPayload();
+  const saveDraft = async (): Promise<number> => {
+    const payload = buildPayload();
 
-  if (!isEdit) {
-    const res = await (pollAPI as any).createDraft(payload); // ✅ เปลี่ยนจาก saveDraft -> createDraft
-    const data = (res as any)?.data ?? res;
-    return Number(data?.id ?? data?.ID ?? 0);
-  } else {
-    const res = await (pollAPI as any).updateDraft(pollId, payload);
-    const data = (res as any)?.data ?? res;
-    return Number(data?.id ?? data?.ID ?? pollId);
-  }
-};
-
+    if (!isEdit) {
+      const res = await (pollAPI as any).createDraft(payload);
+      const data = (res as any)?.data ?? res;
+      return Number(data?.id ?? data?.ID ?? 0);
+    } else {
+      const res = await (pollAPI as any).updateDraft(pollId, payload);
+      const data = (res as any)?.data ?? res;
+      return Number(data?.id ?? data?.ID ?? pollId);
+    }
+  };
 
   const handleSaveDraft = async () => {
     setSubmitting(true);
@@ -291,13 +302,9 @@ const PollCreate: React.FC = () => {
       <div className="pc-topbar">
         <div>
           <div className="pc-title">{isEdit ? "Edit Poll" : "Create Poll"}</div>
-          <div className="pc-subtitle">
-            Flow: Save Draft → Submit for Admin Review → (Admin Approve) → Published
-          </div>
+          <div className="pc-subtitle">Flow: Save Draft → Submit for Admin Review → (Admin Approve) → Published</div>
 
-          {isEdit && pollStatusID !== null && (
-            <div className="pc-statusline">Current Status ID: {pollStatusID}</div>
-          )}
+          {isEdit && pollStatusID !== null && <div className="pc-statusline">Current Status ID: {pollStatusID}</div>}
         </div>
 
         <button type="button" className="pc-btn pc-btn-back" onClick={() => navigate("/User/Polls/my")}>
@@ -319,9 +326,7 @@ const PollCreate: React.FC = () => {
         <div className="pc-grid2">
           <div className="pc-panel">
             <div className="pc-panel-title">Allow multiple choices</div>
-            <div className="pc-panel-sub">
-              If enabled, user can pick more than 1 option.
-            </div>
+            <div className="pc-panel-sub">If enabled, user can pick more than 1 option.</div>
 
             <div className="pc-checkrow">
               <input
@@ -356,9 +361,7 @@ const PollCreate: React.FC = () => {
 
           <div className="pc-panel">
             <div className="pc-panel-title">Time range (optional)</div>
-            <div className="pc-panel-sub">
-              If set, vote allowed only in this time window.
-            </div>
+            <div className="pc-panel-sub">If set, vote allowed only in this time window.</div>
 
             <div className="pc-grid2 pc-grid2-tight">
               <div>
@@ -386,9 +389,7 @@ const PollCreate: React.FC = () => {
 
         <div className="pc-panel pc-panel-soft">
           <div className="pc-panel-title">Category IDs (optional)</div>
-          <div className="pc-panel-sub">
-            If you haven't implemented category selection UI yet, you can leave these empty.
-          </div>
+          <div className="pc-panel-sub">If you haven't implemented category selection UI yet, you can leave these empty.</div>
 
           <div className="pc-grid3">
             <input
@@ -481,18 +482,68 @@ const PollCreate: React.FC = () => {
                 <span className="pc-checktext">Include image (optional)</span>
               </div>
 
+              {/* ✅ เปลี่ยนตรงนี้: ให้เลือกไฟล์ได้เลย + preview (ไม่ต้องกรอก URL เอง) */}
               {opt.hasImage && (
                 <div className="pc-subsection">
-                  <div className="pc-mini">Image URL</div>
-                  <input
-                    className="pc-input"
-                    value={opt.img_url}
-                    onChange={(e) => setOption(idx, { img_url: e.target.value })}
-                    placeholder="https://... (optional)"
-                  />
-                  <div className="pc-hint">(ตอนนี้ใช้ URL ก่อน ถ้าจะทำ upload ทีหลังค่อยเปลี่ยน)</div>
+                  <div className="pc-mini">Image</div>
+
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        try {
+                          const res = await (pollAPI as any).uploadOptionImage(file);
+                          const url = (res as any)?.data?.url ?? (res as any)?.data?.data?.url ?? "";
+                          if (!url) throw new Error("upload url missing");
+
+                          setOption(idx, { img_url: url, hasImage: true });
+                        } catch (err) {
+                          console.error(err);
+                          alert("Upload image failed");
+                          setOption(idx, { img_url: "" });
+                        } finally {
+                          // reset input so selecting same file again triggers onChange
+                          e.currentTarget.value = "";
+                        }
+                      }}
+                    />
+
+                    {opt.img_url ? (
+                      <>
+                        <img
+                          src={toFullUrl(opt.img_url)}
+                          alt={`option-${idx + 1}`}
+                          style={{
+                            width: 96,
+                            height: 96,
+                            objectFit: "cover",
+                            borderRadius: 12,
+                            border: "1px solid #eee",
+                            background: "#fff",
+                          }}
+                        />
+
+                        <button type="button" className="pc-btn pc-btn-outline" onClick={() => setOption(idx, { img_url: "" })}>
+                          ลบรูป
+                        </button>
+                      </>
+                    ) : (
+                      <div className="pc-hint">เลือกรูปเพื่ออัปโหลด (ระบบจะเก็บ url ให้อัตโนมัติ)</div>
+                    )}
+                  </div>
+
+                  {opt.img_url && (
+                    <div className="pc-hint">
+                      Saved URL: <span className="mono">{opt.img_url}</span>
+                    </div>
+                  )}
                 </div>
               )}
+              {/* ✅ จบส่วนเลือกรูป */}
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+// frontend/src/app/(protected)/User/Poll/PollList.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -22,12 +23,16 @@ const PollList: React.FC = () => {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [sort, setSort] = useState<SortMode>("LATEST");
-  const [category, setCategory] = useState<string>("ALL"); // ใช้ title ไปก่อน (ง่ายสุด)
+  const [category, setCategory] = useState<string>("ALL");
+
+  // ✅ selection per poll (ยังไม่ยิงโหวตจนกดยืนยัน)
+  const [selectedByPoll, setSelectedByPoll] = useState<Record<number, number[]>>({});
+  const [submittingByPoll, setSubmittingByPoll] = useState<Record<number, boolean>>({});
 
   // ---------- helpers กัน field ไม่ตรง ----------
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
-  const getQuestion = (p: Poll) => clampStr((p as any).question);
-  const getDesc = (p: Poll) => clampStr((p as any).description);
+  const getQuestion = (p: Poll) => clampStr((p as any).question ?? (p as any).Question);
+  const getDesc = (p: Poll) => clampStr((p as any).description ?? (p as any).Description);
   const getCreatedAt = (p: Poll) => (p as any).created_at ?? (p as any).CreatedAt ?? null;
   const getStartAt = (p: Poll) => (p as any).start_at ?? (p as any).StartAt ?? null;
   const getEndAt = (p: Poll) => (p as any).end_at ?? (p as any).EndAt ?? null;
@@ -37,15 +42,24 @@ const PollList: React.FC = () => {
 
   const getMaxChoice = (p: Poll) => (p as any)?.max_choice ?? (p as any)?.MaxChoice ?? null;
 
-  const getOptions = (p: Poll) =>
-    ((p as any).poll_options || (p as any).options || []) as any[];
+  const getOptions = (p: Poll) => ((p as any).poll_options || (p as any).options || []) as any[];
 
   const optionId = (opt: any) => Number(opt?.ID ?? opt?.id ?? opt?.option_id ?? 0);
   const optionLabel = (opt: any) =>
-    clampStr(opt?.text ?? opt?.title ?? opt?.option_text ?? opt?.optionText ?? opt?.OptionText ?? opt?.name ?? opt?.label);
+    clampStr(
+      opt?.text ??
+        opt?.title ??
+        opt?.option_text ??
+        opt?.optionText ??
+        opt?.OptionText ??
+        opt?.name ??
+        opt?.label ??
+        opt?.Label
+    );
 
   const optionVotes = (opt: any) => {
-    const v = opt?.vote_count ?? opt?.VoteCount ?? opt?.votes ?? opt?.Votes ?? opt?.count ?? opt?.Count;
+    const v =
+      opt?.vote_count ?? opt?.VoteCount ?? opt?.votes ?? opt?.Votes ?? opt?.count ?? opt?.Count;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
@@ -59,15 +73,38 @@ const PollList: React.FC = () => {
         (p as any)?.Category?.Title
     ) || "";
 
-  const getStatus = (p: Poll): Exclude<StatusFilter, "ALL"> => {
-    const now = dayjs();
-    const s = getStartAt(p) ? dayjs(getStartAt(p)) : null;
-    const e = getEndAt(p) ? dayjs(getEndAt(p)) : null;
+      const getAuthorName = (p: Poll) =>
+  clampStr(
+    (p as any)?.author_name ??        // ✅ ตัวนี้คือของจริงจาก backend
+    (p as any)?.authorName ??
+    (p as any)?.creator?.display_name ??
+    (p as any)?.creator?.name ??
+    (p as any)?.member?.display_name ??
+    (p as any)?.member?.username ??
+    (p as any)?.member_user?.display_name ??
+    (p as any)?.member_user?.username ??
+    (p as any)?.created_by_name ??
+    (p as any)?.createdByName ??
+    (p as any)?.owner_name ??
+    (p as any)?.ownerName ??
+    ""
+  );
 
-    if (e && now.isAfter(e)) return "CLOSED";
-    if (s && now.isBefore(s)) return "UPCOMING";
-    return "OPEN";
-  };
+
+  const getStatus = (p: Poll): Exclude<StatusFilter, "ALL"> => {
+  const cs = String((p as any)?.computed_status ?? (p as any)?.computedStatus ?? "").toUpperCase();
+  if (cs === "OPEN" || cs === "UPCOMING" || cs === "CLOSED") return cs as any;
+
+  // fallback เดิม (เผื่อ backend ยังไม่ปล่อย field)
+  const now = dayjs();
+  const s = getStartAt(p) ? dayjs(getStartAt(p)) : null;
+  const e = getEndAt(p) ? dayjs(getEndAt(p)) : null;
+
+  if (e && now.isAfter(e)) return "CLOSED";
+  if (s && now.isBefore(s)) return "UPCOMING";
+  return "OPEN";
+};
+
 
   const totalVotesFromOptions = (p: Poll) => {
     const opts = getOptions(p);
@@ -91,6 +128,7 @@ const PollList: React.FC = () => {
   // ---------- load ----------
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load = async () => {
@@ -107,7 +145,7 @@ const PollList: React.FC = () => {
     }
   };
 
-  // ---------- categories for dropdown (derive from polls) ----------
+  // ---------- categories for dropdown ----------
   const categories: CategoryOption[] = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of polls) {
@@ -116,7 +154,6 @@ const PollList: React.FC = () => {
     }
     const opts = Array.from(map.values()).sort((a, b) => a.localeCompare(b));
     return [{ value: "ALL", label: "หมวดหมู่ทั้งหมด" }, ...opts.map((x) => ({ value: x, label: x }))];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polls]);
 
   // ---------- filtered + sorted ----------
@@ -124,13 +161,8 @@ const PollList: React.FC = () => {
     const keyword = q.trim().toLowerCase();
     let base = polls.slice();
 
-    if (category !== "ALL") {
-      base = base.filter((p) => getCategoryTitle(p) === category);
-    }
-
-    if (status !== "ALL") {
-      base = base.filter((p) => getStatus(p) === status);
-    }
+    if (category !== "ALL") base = base.filter((p) => getCategoryTitle(p) === category);
+    if (status !== "ALL") base = base.filter((p) => getStatus(p) === status);
 
     if (keyword) {
       base = base.filter((p) => {
@@ -164,9 +196,11 @@ const PollList: React.FC = () => {
           if (sa === "OPEN") return -1;
           if (sb === "OPEN") return 1;
         }
+
         const ea = endAtTime(a) ?? Number.MAX_SAFE_INTEGER;
         const eb = endAtTime(b) ?? Number.MAX_SAFE_INTEGER;
         if (ea !== eb) return ea - eb;
+
         const ta = getCreatedAt(a) ? dayjs(getCreatedAt(a)).valueOf() : 0;
         const tb = getCreatedAt(b) ? dayjs(getCreatedAt(b)).valueOf() : 0;
         return tb - ta;
@@ -174,7 +208,6 @@ const PollList: React.FC = () => {
     }
 
     return base;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polls, q, category, status, sort]);
 
   const stats = useMemo(() => {
@@ -183,7 +216,6 @@ const PollList: React.FC = () => {
     const upcoming = polls.filter((p) => getStatus(p) === "UPCOMING").length;
     const closed = polls.filter((p) => getStatus(p) === "CLOSED").length;
     return { total, open, upcoming, closed };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polls]);
 
   const resetFilters = () => {
@@ -193,21 +225,62 @@ const PollList: React.FC = () => {
     setSort("LATEST");
   };
 
-  // ---------- vote adapter (แก้ endpoint ที่นี่จุดเดียว) ----------
+  // ---------- vote adapter ----------
   const votePollAdapter = async (pollId: number, optionIds: number[]) => {
-    const api: any = pollAPI as any;
+    const apiAny: any = pollAPI as any;
 
-    if (typeof api.vote === "function") return api.vote(pollId, optionIds);
-    if (typeof api.votePoll === "function") return api.votePoll({ poll_id: pollId, option_ids: optionIds });
-    if (typeof api.submitVote === "function") return api.submitVote({ poll_id: pollId, option_ids: optionIds });
+    // backend ต้องการ { option_ids: [...] }
+    if (typeof apiAny.vote === "function") return apiAny.vote(pollId, { option_ids: optionIds });
+    if (typeof apiAny.votePoll === "function") return apiAny.votePoll({ poll_id: pollId, option_ids: optionIds });
+    if (typeof apiAny.submitVote === "function") return apiAny.submitVote({ poll_id: pollId, option_ids: optionIds });
 
-    console.warn("No vote method found in pollAPI. Please wire votePollAdapter() to your backend.");
-    return null;
+    throw new Error("No vote method found in pollAPI");
   };
 
-  const handleVoted = async (pollId: number, optionIds: number[]) => {
-    await votePollAdapter(pollId, optionIds);
-    await load(); // refresh results
+  // ✅ click option = แค่เลือก/ยกเลิกเลือก (ไม่ยิงโหวต)
+  const toggleOption = (pollId: number, optId: number, allowMultiple: boolean, maxChoice: number | null) => {
+    setSelectedByPoll((prev) => {
+      const cur = prev[pollId] ?? [];
+
+      // single choice: เลือกใหม่ = ทับของเก่า (และกดซ้ำ = unselect)
+      if (!allowMultiple) {
+        if (cur.length === 1 && cur[0] === optId) return { ...prev, [pollId]: [] };
+        return { ...prev, [pollId]: [optId] };
+      }
+
+      // multiple choice
+      const exists = cur.includes(optId);
+      const next = exists ? cur.filter((x) => x !== optId) : [...cur, optId];
+
+      if (!exists && maxChoice != null && maxChoice > 0 && next.length > maxChoice) {
+        // เกิน max_choice -> ไม่เพิ่ม
+        return prev;
+      }
+
+      return { ...prev, [pollId]: next };
+    });
+  };
+
+  const clearSelection = (pollId: number) => {
+    setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
+  };
+
+  const confirmVote = async (pollId: number) => {
+    const optionIds = selectedByPoll[pollId] ?? [];
+    if (optionIds.length === 0) return;
+
+    setSubmittingByPoll((p) => ({ ...p, [pollId]: true }));
+    try {
+      await votePollAdapter(pollId, optionIds);
+      // เคลียร์ selection หลังโหวตสำเร็จ
+      setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert("โหวตไม่สำเร็จ");
+    } finally {
+      setSubmittingByPoll((p) => ({ ...p, [pollId]: false }));
+    }
   };
 
   return (
@@ -219,7 +292,7 @@ const PollList: React.FC = () => {
           <div className="pf-title">
             โพลในชุมชน <span className="pf-emoji">🗳️</span>
           </div>
-          <div className="pf-sub">โหวตได้เลยบนฟีด ไม่ต้องกดเข้าไปหลายขั้น</div>
+          <div className="pf-sub">โหวตได้เลยบนฟีด (เลือกก่อน แล้วค่อยกดยืนยัน)</div>
 
           <div className="pf-stats">
             <div className="stat">
@@ -266,10 +339,7 @@ const PollList: React.FC = () => {
               <button className={status === "OPEN" ? "chip chip-active" : "chip"} onClick={() => setStatus("OPEN")}>
                 เปิดอยู่
               </button>
-              <button
-                className={status === "UPCOMING" ? "chip chip-active" : "chip"}
-                onClick={() => setStatus("UPCOMING")}
-              >
+              <button className={status === "UPCOMING" ? "chip chip-active" : "chip"} onClick={() => setStatus("UPCOMING")}>
                 กำลังจะมา
               </button>
               <button className={status === "CLOSED" ? "chip chip-active" : "chip"} onClick={() => setStatus("CLOSED")}>
@@ -285,9 +355,10 @@ const PollList: React.FC = () => {
                 <option value="CLOSING_SOON">ใกล้ปิด</option>
               </select>
             </div>
+
             <button className="btn btn-outline" type="button" onClick={() => (window.location.href = "/User/Polls/archive")}>
-  📌 โพลปิดแล้ว (ดูผล)
-</button>
+              📌 โพลปิดแล้ว (ดูผล)
+            </button>
 
             <button className="btn btn-outline" type="button" onClick={resetFilters}>
               รีเซ็ต
@@ -307,28 +378,61 @@ const PollList: React.FC = () => {
             <div className="empty-sub">ลองเปลี่ยนตัวกรอง หรือค้นหาด้วยคำอื่น</div>
           </div>
         ) : (
-          visible.map((p) => (
-            <PollCard
-              key={getId(p)}
-              poll={p}
-              getId={getId}
-              getQuestion={getQuestion}
-              getDesc={getDesc}
-              getCreatedAt={getCreatedAt}
-              getStartAt={getStartAt}
-              getEndAt={getEndAt}
-              getStatus={getStatus}
-              getAllowMultiple={getAllowMultiple}
-              getMaxChoice={getMaxChoice}
-              getOptions={getOptions}
-              optionId={optionId}
-              optionLabel={optionLabel}
-              optionVotes={optionVotes}
-              getCategoryTitle={getCategoryTitle}
-              onVoted={handleVoted}
-              onOpenDetail={(pid) => (window.location.href = `/User/Polls/${pid}`)}
-            />
-          ))
+          visible.map((p) => {
+            const pid = getId(p);
+            const allowMultiple = getAllowMultiple(p);
+            const maxChoice = getMaxChoice(p);
+            const selectedOptionIds = selectedByPoll[pid] ?? [];
+            const submitting = Boolean(submittingByPoll[pid]);
+            const canConfirm = selectedOptionIds.length > 0 && !submitting;
+
+            // ✅ NEW: read vote state from backend response (snake_case / camelCase)
+            const initialHasVoted =
+              typeof (p as any)?.has_voted === "boolean"
+                ? (p as any).has_voted
+                : typeof (p as any)?.hasVoted === "boolean"
+                  ? (p as any).hasVoted
+                  : false;
+
+            const initialMyOptionIds: number[] = Array.isArray((p as any)?.my_option_ids)
+              ? (p as any).my_option_ids
+              : Array.isArray((p as any)?.myOptionIds)
+                ? (p as any).myOptionIds
+                : [];
+
+            return (
+              <PollCard
+                key={pid}
+                poll={p}
+                getId={getId}
+                getQuestion={getQuestion}
+                getDesc={getDesc}
+                getCreatedAt={getCreatedAt}
+                getStartAt={getStartAt}
+                getEndAt={getEndAt}
+                getStatus={getStatus}
+                getAllowMultiple={getAllowMultiple}
+                getMaxChoice={getMaxChoice}
+                getOptions={getOptions}
+                optionId={optionId}
+                optionLabel={optionLabel}
+                optionVotes={optionVotes}
+                getCategoryTitle={getCategoryTitle}
+                getAuthorName={getAuthorName}
+                onOpenDetail={(id) => (window.location.href = `/User/Polls/${id}`)}
+                // ✅ selection + vote
+                selectedOptionIds={selectedOptionIds}
+                onToggleOption={(optId) => toggleOption(pid, optId, allowMultiple, maxChoice)}
+                onClearSelection={() => clearSelection(pid)}
+                onConfirmVote={() => confirmVote(pid)}
+                submitting={submitting}
+                canConfirm={canConfirm}
+                // ✅ NEW: ส่งให้ PollCard รู้ว่าโหวตแล้วตั้งแต่โหลด
+                initialHasVoted={initialHasVoted}
+                initialMyOptionIds={initialMyOptionIds}
+              />
+            );
+          })
         )}
       </div>
 
