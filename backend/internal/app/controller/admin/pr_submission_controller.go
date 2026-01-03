@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -174,6 +175,7 @@ func (ctl *AdminPRController) Update(c *gin.Context) {
 // DELETE /admin/pr-submissions/:id
 func (ctl *AdminPRController) Delete(c *gin.Context) {
 	idStr := c.Param("id")
+	fmt.Println("Deleting PR Submission ID:", idStr)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})

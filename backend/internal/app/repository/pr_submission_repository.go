@@ -87,10 +87,21 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 // Delete removes a PR submission and its related media and reviews
 func (r *PRSubmissionRepository) Delete(id int) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("\"pr_id\" = ?", id).Delete(&entity.PRReview{}).Error; err != nil {
+		// Remove media and reviews first
+		if err := tx.Where(&entity.PRReview{PRID: id}).Delete(&entity.PRReview{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("\"pr_ID\" = ?", id).Delete(&entity.PRSubmissionMedia{}).Error; err != nil {
+		if err := tx.Where(&entity.PRSubmissionMedia{PRID: id}).Delete(&entity.PRSubmissionMedia{}).Error; err != nil {
+			return err
+		}
+		// Remove related reports
+		uid := uint(id)
+		if err := tx.Where(&entity.Report{TargetType: "pr_submission", TargetID: &uid}).Delete(&entity.Report{}).Error; err != nil {
+			return err
+		}
+		// Unlink announcements (set pr_id to null)
+		prIdPtr := id
+		if err := tx.Model(&entity.Announcement{}).Where(&entity.Announcement{PRSubmissionID: &prIdPtr}).Update("pr_id", nil).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&entity.PRSubmission{}, id).Error; err != nil {

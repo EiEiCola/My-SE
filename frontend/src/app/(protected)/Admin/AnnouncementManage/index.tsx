@@ -21,7 +21,7 @@ import {
 
 const { Title } = Typography;
 const { Option } = Select;
-const { confirm } = Modal;
+// const { confirm } = Modal;
 
 interface RequestRow {
   id: number;
@@ -90,34 +90,43 @@ const AnnouncementManage: React.FC = () => {
     fetchRequests();
   }, [filterStatus]);
 
-  const handleDeletePR = (prId: number) => {
-    confirm({
-      title: `ยืนยันลบคำขอ PR #${prId}?`,
-      icon: <ExclamationCircleOutlined />,
-      content: "การกระทำนี้ไม่สามารถย้อนกลับได้",
-      okText: "ลบ",
-      okType: "danger",
-      cancelText: "ยกเลิก",
-      onOk: async () => {
-        try {
-          const token = localStorage.getItem("token");
-          const headers: HeadersInit = {};
-          if (token) {
-            headers.Authorization = `Bearer ${token}`;
-          }
-          const resp = await fetch(`/api/admin/pr-submissions/${prId}`, {
-            method: "DELETE",
-            headers,
-          });
-          if (!resp.ok) throw new Error(await resp.text());
+  // Delete Modal State
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteProcessing, setDeleteProcessing] = useState(false);
 
-          message.success("ลบคำขอสำเร็จ");
-          setRequests((prev) => prev.filter((r) => r.id !== prId));
-        } catch (e: any) {
-          message.error(e.message || "ลบคำขอไม่สำเร็จ");
-        }
-      },
-    });
+  const handleDeletePR = (prId: number) => {
+    console.log("Open delete modal for PR ID:", prId);
+    setDeleteTargetId(prId);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setDeleteProcessing(true);
+    console.log("Deleting PR:", deleteTargetId);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const resp = await fetch(`/api/admin/pr-submissions/${deleteTargetId}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+
+      message.success("ลบคำขอสำเร็จ");
+      setRequests((prev) => prev.filter((r) => r.id !== deleteTargetId));
+      setDeleteModalVisible(false);
+      setDeleteTargetId(null);
+    } catch (e: any) {
+      console.error("Delete PR Error:", e);
+      message.error(e.message || "ลบคำขอไม่สำเร็จ");
+    } finally {
+      setDeleteProcessing(false);
+    }
   };
 
   const handleRowClick = (record: RequestRow) => {
@@ -261,6 +270,27 @@ const AnnouncementManage: React.FC = () => {
           })}
         />
       </Card>
+      <Modal
+        title={`ยืนยันลบคำขอ PR #${deleteTargetId}?`}
+        open={deleteModalVisible}
+        onOk={confirmDelete}
+        onCancel={() => {
+          if (!deleteProcessing) setDeleteModalVisible(false);
+        }}
+        okText="ลบ"
+        cancelText="ยกเลิก"
+        okButtonProps={{ danger: true, loading: deleteProcessing }}
+        cancelButtonProps={{ disabled: deleteProcessing }}
+        centered
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <ExclamationCircleOutlined style={{ fontSize: '24px', color: '#ff4d4f' }} />
+          <div>
+            <p>การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+            <p>คุณต้องการลบคำขอนี้ใช่หรือไม่?</p>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 };

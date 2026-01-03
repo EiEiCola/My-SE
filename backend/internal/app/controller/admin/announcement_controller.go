@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -134,6 +135,7 @@ func (ctl *AdminAnnouncementController) Update(c *gin.Context) {
 // DELETE /admin/announcements/:id
 func (ctl *AdminAnnouncementController) Delete(c *gin.Context) {
 	idStr := c.Param("id")
+	fmt.Println("Deleting Announcement ID:", idStr)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
