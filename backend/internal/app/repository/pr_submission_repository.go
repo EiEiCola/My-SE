@@ -26,7 +26,7 @@ func (r *PRSubmissionRepository) Update(sub *entity.PRSubmission) error {
 
 func (r *PRSubmissionRepository) GetByID(id int) (*entity.PRSubmission, error) {
 	var s entity.PRSubmission
-	err := r.DB.Preload("Media").Preload("Reviews").Where(&entity.PRSubmission{ID: id}).First(&s).Error
+	err := r.DB.Preload("Media").Preload("Reviews").Preload("Member").Where(&entity.PRSubmission{ID: id}).First(&s).Error
 	if err != nil {
 		return nil, err
 	}
