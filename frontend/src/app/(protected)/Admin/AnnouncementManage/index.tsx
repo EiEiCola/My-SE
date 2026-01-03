@@ -166,7 +166,7 @@ const AnnouncementManage: React.FC = () => {
       align: "center" as const,
       render: (_: any, record: RequestRow) => {
         let color = "default";
-        let text = record.status;
+        let text: string = record.status;
         if (record.status === "pending") {
           color = "orange";
           text = "รอตรวจสอบ";

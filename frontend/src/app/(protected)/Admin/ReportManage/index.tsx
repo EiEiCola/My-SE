@@ -38,7 +38,7 @@ const ReportManage: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to fetch reports:", error);
-      message.error("Failed to load reports");
+      message.error("โหลดรายงานไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
@@ -63,12 +63,12 @@ const ReportManage: React.FC = () => {
     if (!currentReport) return;
     try {
       await ReportService.updateReportStatus(currentReport.id, newStatus);
-      message.success("Status updated successfully");
+      message.success("อัปเดตสถานะสำเร็จ");
       setStatusVisible(false);
       fetchReports(); // Refresh list
     } catch (error) {
       console.error("Update status error:", error);
-      message.error("Failed to update status");
+      message.error("อัปเดตสถานะไม่สำเร็จ");
     }
   };
 
@@ -80,20 +80,20 @@ const ReportManage: React.FC = () => {
       width: 60,
     },
     {
-      title: "Reporter",
+      title: "ผู้แจ้ง",
       key: "reporter",
       render: (_: any, record: Report) => {
         // Assuming reporter object exists based on preloads, otherwise show ID
-        return (record as any).reporter?.username || (record as any).reporter?.email || `User #${record.reporter_id}`;
+        return (record as any).reporter?.username || (record as any).reporter?.email || `ผู้ใช้ #${record.reporter_id}`;
       }
     },
     {
-      title: "Title",
+      title: "หัวข้อ",
       dataIndex: "title",
       key: "title",
     },
     {
-      title: "Target",
+      title: "เป้าหมาย",
       key: "target",
       render: (_: any, record: Report) => (
         <span>
@@ -103,18 +103,18 @@ const ReportManage: React.FC = () => {
       ),
     },
     {
-      title: "Status",
+      title: "สถานะ",
       key: "status",
       render: (_: any, record: Report) => {
         let color = "default";
         // Map by id first, then fallback to name (backend field is `name` not `status_name`)
         const statusId = record.status?.id || record.status_id;
         const statusName = (() => {
-          if (statusId === 1) return "Pending";
-          if (statusId === 2) return "In Progress";
-          if (statusId === 3) return "Resolved";
-          if (statusId === 4) return "Rejected";
-          return record.status?.status_name || "Unknown";
+          if (statusId === 1) return "รอดำเนินการ";
+          if (statusId === 2) return "กำลังดำเนินการ";
+          if (statusId === 3) return "เสร็จสิ้น";
+          if (statusId === 4) return "ปฏิเสธ";
+          return record.status?.status_name || "ไม่ทราบ";
         })();
 
         if (statusId === 1) color = "orange";
@@ -126,13 +126,13 @@ const ReportManage: React.FC = () => {
       },
     },
     {
-      title: "Created At",
+      title: "วันที่สร้าง",
       dataIndex: "created_at",
       key: "created_at",
       render: (text: string) => dayjs(text).format("YYYY-MM-DD HH:mm"),
     },
     {
-      title: "Action",
+      title: "จัดการ",
       key: "action",
       render: (_: any, record: Report) => (
         <Space size="middle">
@@ -148,9 +148,9 @@ const ReportManage: React.FC = () => {
       <Card className="rounded-2xl shadow-sm" bodyStyle={{ padding: "40px" }}>
         <div className="flex justify-between items-center mb-6">
           <Title level={3} style={{ color: "#C42E0A", margin: 0 }}>
-            Report Management
+            จัดการรายงานปัญหา
           </Title>
-          <Button onClick={fetchReports}>Refresh</Button>
+          <Button onClick={fetchReports}>รีเฟรช</Button>
         </div>
 
         <Table
@@ -163,40 +163,40 @@ const ReportManage: React.FC = () => {
 
         {/* Detail Modal */}
         <Modal
-          title="Report Details"
+          title="รายละเอียดรายงาน"
           open={detailVisible}
           onCancel={() => setDetailVisible(false)}
           footer={[
             <Button key="close" onClick={() => setDetailVisible(false)}>
-              Close
+              ปิด
             </Button>,
           ]}
           width={700}
         >
           {currentReport && (
             <Descriptions bordered column={1}>
-              <Descriptions.Item label="ID">{currentReport.id}</Descriptions.Item>
-              <Descriptions.Item label="Reporter">
-                {(currentReport as any).reporter?.username || `User #${currentReport.reporter_id}`}
+              <Descriptions.Item label="รหัส">{currentReport.id}</Descriptions.Item>
+              <Descriptions.Item label="ผู้แจ้ง">
+                {(currentReport as any).reporter?.username || `ผู้ใช้ #${currentReport.reporter_id}`}
               </Descriptions.Item>
-              <Descriptions.Item label="Title">{currentReport.title}</Descriptions.Item>
-              <Descriptions.Item label="Description">
+              <Descriptions.Item label="หัวข้อ">{currentReport.title}</Descriptions.Item>
+              <Descriptions.Item label="รายละเอียด">
                 <div className="whitespace-pre-wrap">{currentReport.description}</div>
               </Descriptions.Item>
-              <Descriptions.Item label="Target">
+              <Descriptions.Item label="เป้าหมาย">
                 {currentReport.target_type} #{currentReport.target_id}
               </Descriptions.Item>
-              <Descriptions.Item label="Status">
+              <Descriptions.Item label="สถานะ">
                 {(() => {
                   const sid = currentReport.status?.id || currentReport.status_id;
-                  if (sid === 1) return "Pending";
-                  if (sid === 2) return "In Progress";
-                  if (sid === 3) return "Resolved";
-                  if (sid === 4) return "Rejected";
-                  return currentReport.status?.status_name || "Unknown";
+                  if (sid === 1) return "รอดำเนินการ";
+                  if (sid === 2) return "กำลังดำเนินการ";
+                  if (sid === 3) return "เสร็จสิ้น";
+                  if (sid === 4) return "ปฏิเสธ";
+                  return currentReport.status?.status_name || "ไม่ทราบ";
                 })()}
               </Descriptions.Item>
-              <Descriptions.Item label="Medias">
+              <Descriptions.Item label="สื่อ">
                 {currentReport.media && currentReport.media.length > 0 ? (
                   <div className="flex gap-2 flex-wrap">
                     {currentReport.media.map((m, idx) => (
@@ -208,10 +208,10 @@ const ReportManage: React.FC = () => {
                       />
                     ))}
                   </div>
-                ) : "No Media"}
+                ) : "ไม่มีสื่อ"}
               </Descriptions.Item>
-              <Descriptions.Item label="Admin Handler">
-                {(currentReport as any).admin?.username || ((currentReport as any).admin_id ? `Admin #${(currentReport as any).admin_id}` : "-")}
+              <Descriptions.Item label="แอดมินผู้รับผิดชอบ">
+                {(currentReport as any).admin?.username || ((currentReport as any).admin_id ? `แอดมิน #${(currentReport as any).admin_id}` : "-")}
               </Descriptions.Item>
             </Descriptions>
           )}
@@ -219,23 +219,23 @@ const ReportManage: React.FC = () => {
 
         {/* Update Status Modal */}
         <Modal
-          title="Update Report Status"
+          title="อัปเดตสถานะรายงาน"
           open={statusVisible}
           onOk={submitStatusUpdate}
           onCancel={() => setStatusVisible(false)}
         >
           <div className="py-4">
-            <p className="mb-2">Select new status for report #{currentReport?.id}:</p>
+            <p className="mb-2">เลือกสถานะใหม่สำหรับรายงาน #{currentReport?.id}:</p>
             <Select
               value={newStatus}
               onChange={setNewStatus}
               style={{ width: "100%" }}
             >
               {/* TODO: Fetch these from backend if possible, or use constants */}
-              <Option value={1}>Pending</Option>
-              <Option value={2}>In Progress</Option>
-              <Option value={3}>Resolved</Option>
-              <Option value={4}>Rejected</Option>
+              <Option value={1}>รอดำเนินการ</Option>
+              <Option value={2}>กำลังดำเนินการ</Option>
+              <Option value={3}>เสร็จสิ้น</Option>
+              <Option value={4}>ปฏิเสธ</Option>
             </Select>
           </div>
         </Modal>

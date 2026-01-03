@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom'
 
 const FriendBirthday = () => {
   const [message, setMessage] = useState("");
-  const [activeMessages, setActiveMessages] = useState({});
-  
+  const [activeMessages, setActiveMessages] = useState<Record<number, string>>({});
+
 
   const recentBirthdays = [
     {
@@ -55,7 +55,7 @@ const FriendBirthday = () => {
     { id: 8, name: "ธีราคณ นันทวรรณ", date: "16 ธันวาคม 1997", days: 28, avatar: "😊" },
   ];
 
-  const handleQuickMessage = (personId, msg) => {
+  const handleQuickMessage = (personId: number, msg: string) => {
     setActiveMessages(prev => ({
       ...prev,
       [personId]: msg
@@ -72,7 +72,7 @@ const FriendBirthday = () => {
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <button className="hover:bg-gray-200 rounded-full p-2 transition-colors">
-              <ArrowLeft className="w-6 h-6 text-gray-700" onClick={() => navigate('/User/Friends')}/>
+              <ArrowLeft className="w-6 h-6 text-gray-700" onClick={() => navigate('/User/Friends')} />
             </button>
             <h1 className="text-2xl font-bold text-gray-800">วันเกิด</h1>
           </div>
@@ -80,7 +80,7 @@ const FriendBirthday = () => {
           {/* Recent Birthdays */}
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">วันเกิดเมื่อไม่นานมานี้</h2>
-            
+
             <div className="space-y-4">
               {recentBirthdays.map((person) => (
                 <div key={person.id} className="bg-white rounded-2xl shadow-md p-5">
