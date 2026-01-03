@@ -19,8 +19,6 @@ const AnnouncementCreate: React.FC = () => {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
-  // Users should not set status; backend will decide. Default to active when sending.
-  // Keep no UI control for status.
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,36 +26,49 @@ const AnnouncementCreate: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) {
+    // Sanitize inputs
+    const sanitizedTitle = title.trim();
+    const sanitizedContent = content.trim();
+
+    if (!sanitizedTitle) {
       setError("กรุณากรอกหัวข้อประกาศ");
+      return;
+    }
+    if (!sanitizedContent) {
+      setError("กรุณากรอกเนื้อหาประกาศ");
       return;
     }
 
     setSubmitting(true);
     try {
-      // Replace endpoint with your backend API
       // Validate end date is not before start date
       if (endDate && endDate < date) {
         throw new Error("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น");
       }
 
-      // Convert dates to ISO string or RFC3339 format for Go backend
-      // Assuming existing `date` is YYYY-MM-DD
+      // Convert dates to ISO string for backend
       const reqStart = date ? new Date(date).toISOString() : null;
       const reqEnd = endDate ? new Date(endDate).toISOString() : null;
 
       const payload = {
-        title,
-        content,
+        title: sanitizedTitle,
+        content: sanitizedContent,
         req_start_at: reqStart,
         req_end_at: reqEnd,
         medias: image ? [{ url: image, type: 'image', is_cover: true }] : []
       };
 
+      // Get JWT token from localStorage
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       // Send to Member PR Submission endpoint
       const res = await fetch(`/api/members/pr-submissions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -123,9 +134,26 @@ const AnnouncementCreate: React.FC = () => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
+                  // Validate file size (5MB max)
+                  const maxSize = 5 * 1024 * 1024; // 5MB
+                  if (file.size > maxSize) {
+                    setError("ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์ที่เล็กกว่า");
+                    e.target.value = ""; // Reset input
+                    return;
+                  }
+
+                  // Validate file type
+                  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                  if (!allowedTypes.includes(file.type)) {
+                    setError("รองรับเฉพาะไฟล์ .jpg, .png, .gif, .webp เท่านั้น");
+                    e.target.value = ""; // Reset input
+                    return;
+                  }
+
                   const reader = new FileReader();
                   reader.onloadend = () => {
                     setImage(reader.result as string);
+                    setError(null); // Clear error on successful load
                   };
                   reader.readAsDataURL(file);
                 }
@@ -134,7 +162,7 @@ const AnnouncementCreate: React.FC = () => {
             {image && <img src={image} alt="Preview" className="image-preview" />}
           </div>
 
-          <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
+          <label className="form-label">วันที่ต้องการให้แสดง</label>
           <input
             id="start-date"
             type="date"
@@ -161,8 +189,6 @@ const AnnouncementCreate: React.FC = () => {
             placeholder="รายละเอียดประกาศ"
             rows={8}
           />
-
-          {/* Status is not editable by users */}
 
           {error && <p className="form-error">{error}</p>}
 

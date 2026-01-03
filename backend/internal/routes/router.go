@@ -55,6 +55,9 @@ func SetupRoutes(
 		SetupRewardRoutes(api)
 		//revirew
 		SetupReviewRoutes(api)
+
+		// Report System
+		SetupReportRoutes(api)
 	}
 
 	// =========================

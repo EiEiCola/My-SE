@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sut68/team12/backend/internal/entity"
+	"github.com/sut68/team12/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +43,8 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(pr_title) LIKE ? OR LOWER(pr_content) LIKE ?", like, like)
 	}
 
@@ -68,7 +70,8 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 		db = db.Where("status = ?", *statusID)
 	}
 	if q != "" {
-		like := "%" + strings.ToLower(q) + "%"
+		escaped := utils.EscapeLikePattern(q)
+		like := "%" + strings.ToLower(escaped) + "%"
 		db = db.Where("LOWER(pr_title) LIKE ? OR LOWER(pr_content) LIKE ?", like, like)
 	}
 
@@ -79,4 +82,20 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 	offset := (page - 1) * pageSize
 	err := db.Preload("Media").Preload("Reviews").Preload("Member").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
+}
+
+// Delete removes a PR submission and its related media and reviews
+func (r *PRSubmissionRepository) Delete(id int) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("\"pr_id\" = ?", id).Delete(&entity.PRReview{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("\"pr_ID\" = ?", id).Delete(&entity.PRSubmissionMedia{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&entity.PRSubmission{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

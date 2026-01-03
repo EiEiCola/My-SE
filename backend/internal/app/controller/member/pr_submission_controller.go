@@ -32,9 +32,9 @@ func (ctl *PRSubmissionController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	val, ok := c.Get("member_id")
+	val, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
 		return
 	}
 	// parse memberID to uint
@@ -93,9 +93,9 @@ func (ctl *PRSubmissionController) Create(c *gin.Context) {
 
 // GET /member/pr-submissions
 func (ctl *PRSubmissionController) List(c *gin.Context) {
-	val, ok := c.Get("member_id")
+	val, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member id"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id"})
 		return
 	}
 	var uid uint
@@ -152,7 +152,7 @@ func (ctl *PRSubmissionController) GetByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	val, _ := c.Get("member_id")
+	val, _ := c.Get("user_id")
 	var uid uint
 	switch v := val.(type) {
 	case string:

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"time"
 
 	"github.com/sut68/team12/backend/internal/app/repository"
@@ -21,8 +22,8 @@ func (s *AnnouncementService) ListAnnouncements(page, pageSize int, now time.Tim
 	return s.AnnRepo.ListPublished(page, pageSize, now, start, end)
 }
 
-func (s *AnnouncementService) ListAll(page, pageSize int) ([]entity.Announcement, int64, error) {
-	return s.AnnRepo.ListAll(page, pageSize)
+func (s *AnnouncementService) ListAll(page, pageSize int, prID *int) ([]entity.Announcement, int64, error) {
+	return s.AnnRepo.ListAll(page, pageSize, prID)
 }
 
 // CreateFromSubmission creates an Announcement and associated media from a PRSubmission using the provided tx
@@ -79,6 +80,13 @@ func (s *AnnouncementService) CreateAnnouncement(adminID int, in *CreateAnnounce
 	}
 	if in.PublishEndAt != nil {
 		ann.PublishEndAt = *in.PublishEndAt
+	}
+
+	// Validate date range
+	if in.PublishStartAt != nil && in.PublishEndAt != nil {
+		if in.PublishEndAt.Before(*in.PublishStartAt) {
+			return nil, errors.New("publish_end_at must be after publish_start_at")
+		}
 	}
 
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
@@ -153,4 +161,33 @@ func (s *AnnouncementService) GetPublishedByID(id int) (*entity.Announcement, er
 		return nil, gorm.ErrRecordNotFound
 	}
 	return ann, nil
+}
+
+func (s *AnnouncementService) GetUnreadAnnouncements(memberID uint, limit int) ([]entity.Announcement, error) {
+	now := time.Now()
+	var announcements []entity.Announcement
+
+	// Subquery: Select IDs read by member
+	readSubQuery := s.DB.Model(&entity.AnnouncementRead{}).Select("announcement_id").Where("member_id = ?", memberID)
+
+	err := s.DB.Preload("Media").
+		Where("status = ?", 1). // Active
+		Where("publish_start_at <= ? AND publish_end_at >= ?", now, now).
+		Where("ann_id NOT IN (?)", readSubQuery).
+		Order("publish_start_at DESC").
+		Limit(limit).
+		Find(&announcements).Error
+
+	return announcements, err
+}
+
+func (s *AnnouncementService) MarkAsRead(memberID uint, announcementID int) error {
+	read := entity.AnnouncementRead{
+		MemberID:       memberID,
+		AnnouncementID: announcementID,
+		ReadAt:         time.Now(),
+	}
+	// Use FirstOrCreate to avoid duplicates
+	return s.DB.Where("member_id = ? AND announcement_id = ?", memberID, announcementID).
+		FirstOrCreate(&read).Error
 }

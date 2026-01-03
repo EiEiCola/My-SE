@@ -9,13 +9,13 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"github.com/joho/godotenv"
 	"github.com/sut68/team12/backend/config"
+	"github.com/sut68/team12/backend/config/dataseed"
 	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/routes"
-	"github.com/sut68/team12/backend/config/dataseed"
-	"github.com/joho/godotenv" 
 )
 
 const PORT = "8080"
@@ -35,20 +35,34 @@ func main() {
 	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
 		allowedOrigins = append(allowedOrigins, strings.Split(envOrigins, ",")...)
 	}
-// 3. CORS (ต้องมาก่อน SetupRoutes)
+	// 3. CORS (ต้องมาก่อน SetupRoutes)
 	r.Use(cors.New(cors.Config{
-  AllowOrigins:     allowedOrigins,
-  AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-  AllowHeaders: []string{"Origin","Content-Type","Authorization","X-Admin-ID","x-idempotency-key","X-Idempotency-Key",
-  },
-  AllowCredentials: true,
-  MaxAge:           12 * time.Hour,
-}))
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Admin-ID", "x-idempotency-key", "X-Idempotency-Key"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
-
-	// Health check
+	// Health check with database connectivity test
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		// Check database connectivity
+		if err := config.DB.Exec("SELECT 1").Error; err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status": "unhealthy",
+				"checks": gin.H{
+					"database": "down",
+					"error":    err.Error(),
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"checks": gin.H{
+				"database": "up",
+			},
+		})
 	})
 
 	dataseed.SeedAll(config.DB)
@@ -65,18 +79,29 @@ func main() {
 	adminUserSvc := services.NewAdminUserService(adminUserRepo)
 	adminUserCtl := controller.NewAdminUserController(adminUserSvc)
 
-	// ---- ✅ Category Management ----
+	// ---- Category Management ----
 	mainCatRepo := repository.NewMainCategoryRepository(db)
 	sub1CatRepo := repository.NewSubCategoryL1Repository(db)
 	sub2CatRepo := repository.NewSubCategoryL2Repository(db)
 	categorySvc := services.NewCategoryService(db, mainCatRepo, sub1CatRepo, sub2CatRepo)
 	categoryCtl := controller.NewAdminCategoryController(categorySvc)
 
-	// 4. Setup Routes
+	// 5. Setup Routes
 	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl)
 
-	// 6. Run
-	r.Run(":" + PORT)
+	// 6. Configure HTTP server with timeouts for security and stability
+	srv := &http.Server{
+		Addr:           ":" + PORT,
+		Handler:        r,
+		ReadTimeout:    15 * time.Second, // Maximum duration for reading request
+		WriteTimeout:   15 * time.Second, // Maximum duration for writing response
+		IdleTimeout:    60 * time.Second, // Maximum idle time between requests
+		MaxHeaderBytes: 1 << 20,          // 1 MB maximum header size
+	}
 
-	
+	// 7. Start server
+	println("Server running on http://localhost:" + PORT)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		panic(err)
+	}
 }

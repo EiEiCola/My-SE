@@ -41,9 +41,6 @@ func Connect() *gorm.DB {
 	//s.ResetDatabase(db) //ลบข้อมูลในตารางทั้งหมดแล้วค่อย seed
 	//dataseed.ResetDatabaseByDROP(db)
 
-	
-
-
 	dsn := DBURL()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
@@ -57,12 +54,10 @@ func Connect() *gorm.DB {
 	//dataseed.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
-	
 
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(
-		// --- 1. ตารางหลักพื้นฐาน (Master & Core Tables) ---
 		&entity.Member{}, // ถูกอ้างอิงเยอะที่สุด
 		&entity.Role{},
 		&entity.Gender{},
@@ -139,18 +134,28 @@ func Connect() *gorm.DB {
 		// --- 11. ตาราง Bookmark และ PostStar ---
 		&entity.Bookmark{},
 		&entity.PostStar{},
+		&entity.AnnouncementRead{},
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}
 	log.Println("Database migrations completed.")
 
+	// Ensure index is non-unique so multiple members without accounts don't collide
+	seedSQLs := []string{
+		`DROP INDEX IF EXISTS idx_members_member_account_id`,
+		`CREATE INDEX IF NOT EXISTS idx_members_member_account_id ON members(member_account_id)`,
+		`DROP INDEX IF EXISTS idx_members_national_id`,
+		`CREATE INDEX IF NOT EXISTS idx_members_national_id ON members(national_id)`,
+	}
+	for _, s := range seedSQLs {
+		if err := db.Exec(s).Error; err != nil {
+			log.Println("Safe schema exec error:", err)
+		}
+	}
 
-	
 	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
-	log.Println("SeedInitialPointsSafe error:", err)
-}
-
-
+		log.Println("SeedInitialPointsSafe error:", err)
+	}
 
 	// Data seeding
 	// s.SeedRole(db)

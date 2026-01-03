@@ -33,7 +33,16 @@ func (r *AnnouncementRepository) Update(a *entity.Announcement) error {
 }
 
 func (r *AnnouncementRepository) Delete(id int) error {
-	return r.DB.Delete(&entity.Announcement{}, id).Error
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		// Remove media rows first to avoid FK/constraint issues
+		if err := tx.Where("\"ann_ID\" = ?", id).Delete(&entity.AnnouncementMedia{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&entity.Announcement{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // ListPublished lists announcements that are within publish window (publish_start_at/publish_end_at)
@@ -59,11 +68,14 @@ func (r *AnnouncementRepository) ListPublished(page, pageSize int, now time.Time
 }
 
 // ListAll lists all announcements without date filtering (for admin)
-func (r *AnnouncementRepository) ListAll(page, pageSize int) ([]entity.Announcement, int64, error) {
+func (r *AnnouncementRepository) ListAll(page, pageSize int, prID *int) ([]entity.Announcement, int64, error) {
 	var items []entity.Announcement
 	var total int64
 
 	db := r.DB.Model(&entity.Announcement{})
+	if prID != nil {
+		db = db.Where("pr_id = ?", *prID)
+	}
 	db.Count(&total)
 	if page < 1 {
 		page = 1
