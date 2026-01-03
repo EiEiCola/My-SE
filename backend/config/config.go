@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	s "github.com/sut68/team12/backend/config/dataseed"
@@ -11,6 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Config func to get env value
@@ -36,13 +38,26 @@ func Connect() *gorm.DB {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Note: .env file not found. Using system environment variables instead.")
 	}
+
+	// สร้าง Logger ตัวใหม่ (ปรับแต่งความเงียบ)
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             time.Second, // ⭐ ต้องช้าเกิน 1 วินาที ถึงจะบ่น (เดิม 200ms)
+			LogLevel:                  logger.Warn, // ระดับการแจ้งเตือน
+			IgnoreRecordNotFoundError: false,       // ⭐ ปิด error "record not found" (รก Log)
+			Colorful:                  true,        // สีสันสดใส
+		},
+	)
+
 	//============================== ตอน Dev เท่านั้น
 	//s.ResetDatabaseByDROP(db) //ถ้าอยากล้าง ตารางทั้งหมดเลย
 	//s.ResetDatabase(db) //ลบข้อมูลในตารางทั้งหมดแล้วค่อย seed
-	//dataseed.ResetDatabaseByDROP(db)
+	//s.ResetDatabaseByDROP(db)
 
 	dsn := DBURL()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger:                                   newLogger, // <--- ใส่ตรงนี้
 		DisableForeignKeyConstraintWhenMigrating: true,
 		PrepareStmt:                              false,
 	})
@@ -51,7 +66,7 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Connected to database")
 
-	//dataseed.ResetDatabaseByDROP(db) // Reset here
+	//s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
 
@@ -160,8 +175,7 @@ func Connect() *gorm.DB {
 	s.SeedStatusData(db)
 	// s.SeedPRSystem(db)
 
-
-    log.Println("Master data seeding completed.")
+	log.Println("Master data seeding completed.")
 
 	return db
 }

@@ -22,7 +22,7 @@ func NewBlockController(s *services.FriendService) *BlockController {
 func (c *BlockController) getMemberID(ctx *gin.Context) (int, error) {
 	accountID := ctx.MustGet("user_id").(uint) // Middleware JWT ส่งมาเป็น uint
 	var member entity.Member
-	if err := c.Service.Repo.DB.Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
+	if err := c.Service.Repo.DB.Where("id = ?", accountID).First(&member).Error; err != nil {
 		return 0, err
 	}
 	return int(member.ID), nil
