@@ -26,7 +26,7 @@ func (r *PRSubmissionRepository) Update(sub *entity.PRSubmission) error {
 
 func (r *PRSubmissionRepository) GetByID(id int) (*entity.PRSubmission, error) {
 	var s entity.PRSubmission
-	err := r.DB.Preload("Media").Preload("Reviews").Where("pr_id = ?", id).First(&s).Error
+	err := r.DB.Preload("Media").Preload("Reviews").Where(&entity.PRSubmission{ID: id}).First(&s).Error
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +38,9 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 	var items []entity.PRSubmission
 	var total int64
 
-	db := r.DB.Model(&entity.PRSubmission{}).Where("m_id = ?", memberID)
+	db := r.DB.Model(&entity.PRSubmission{}).Where(&entity.PRSubmission{MemberID: memberID})
 	if statusID != nil {
-		db = db.Where("status = ?", *statusID)
+		db = db.Where(&entity.PRSubmission{StatusID: *statusID})
 	}
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)
@@ -64,10 +64,10 @@ func (r *PRSubmissionRepository) ListAll(page, pageSize int, memberID *uint, sta
 
 	db := r.DB.Model(&entity.PRSubmission{})
 	if memberID != nil {
-		db = db.Where("m_id = ?", *memberID)
+		db = db.Where(&entity.PRSubmission{MemberID: *memberID})
 	}
 	if statusID != nil {
-		db = db.Where("status = ?", *statusID)
+		db = db.Where(&entity.PRSubmission{StatusID: *statusID})
 	}
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)

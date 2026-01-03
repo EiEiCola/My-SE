@@ -78,7 +78,7 @@ func (r *AnnouncementRepository) ListAll(page, pageSize int, prID *int) ([]entit
 
 	db := r.DB.Model(&entity.Announcement{})
 	if prID != nil {
-		db = db.Where("pr_id = ?", *prID)
+		db = db.Where(&entity.Announcement{PRSubmissionID: prID})
 	}
 	db.Count(&total)
 	if page < 1 {

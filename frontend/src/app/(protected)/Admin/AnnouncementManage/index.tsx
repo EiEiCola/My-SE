@@ -96,7 +96,6 @@ const AnnouncementManage: React.FC = () => {
   const [deleteProcessing, setDeleteProcessing] = useState(false);
 
   const handleDeletePR = (prId: number) => {
-    console.log("Open delete modal for PR ID:", prId);
     setDeleteTargetId(prId);
     setDeleteModalVisible(true);
   };
@@ -104,7 +103,6 @@ const AnnouncementManage: React.FC = () => {
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     setDeleteProcessing(true);
-    console.log("Deleting PR:", deleteTargetId);
     try {
       const token = localStorage.getItem("token");
       const headers: HeadersInit = {};

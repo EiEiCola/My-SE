@@ -60,7 +60,6 @@ const AnnouncementsList: React.FC = () => {
   const [deleteProcessing, setDeleteProcessing] = useState(false);
 
   const handleDelete = (id: number) => {
-    console.log("Open delete announcement modal for ID:", id);
     setDeleteTargetId(id);
     setDeleteModalVisible(true);
   };
@@ -68,7 +67,6 @@ const AnnouncementsList: React.FC = () => {
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     setDeleteProcessing(true);
-    console.log("Deleting Announcement:", deleteTargetId);
     try {
       await deleteAdminAnnouncement(deleteTargetId);
       message.success("ลบประกาศสำเร็จ");
