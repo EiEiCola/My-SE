@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/sut68/team12/backend/config/dataseed"
+	s "github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
 
@@ -96,7 +96,6 @@ func Connect() *gorm.DB {
 
 		// --- 7. ตารางลูกที่ซับซ้อน/อ้างอิงเนื้อหาหลัก (Complex Children) ---
 		&entity.Comment{},
-		&entity.PostLike{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
@@ -153,28 +152,16 @@ func Connect() *gorm.DB {
 		}
 	}
 
-	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
+	if err := s.SeedInitialPointsSafe(db, 300); err != nil {
 		log.Println("SeedInitialPointsSafe error:", err)
 	}
 
 	// Data seeding
-	// s.SeedRole(db)
-	// s.SeedFaculty(db)
-	// s.SeedLogin(db)
-	// s.SeedUser(db)
-	// s.SeedAdmin(db)
+	s.SeedStatusData(db)
+	// s.SeedPRSystem(db)
 
-	//s.SeedClubAdmin(db)
-	// s.SeedClubRequestStatus(db)
-	// s.SeedClubMemberStatus(db)
-	// s.SeedClubType(db)
-	// s.SeedPosition(db)
-	// s.SeedClubAdministrator(db)
-	// s.SeedClub(db)
-	// s.SeedClubRequest(db)
-	// s.SeedClubMember(db)
-	// s.SeedEvent(db)
-	// dataseed.SeedPRSystem(db)
-	dataseed.SeedReviewSystem(db)
+
+    log.Println("Master data seeding completed.")
+
 	return db
 }

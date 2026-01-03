@@ -2,10 +2,11 @@ package services
 
 import (
 	"errors"
+	"time"
+
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/dto"
-	"github.com/sut68/team12/backend/internal/entity" // <-- แก้เป็น module ของคุณ
-	"time"
+	"github.com/sut68/team12/backend/internal/entity"
 )
 
 type FriendService struct {
@@ -16,148 +17,213 @@ func NewFriendService(repo *repository.FriendRepository) *FriendService {
 	return &FriendService{Repo: repo}
 }
 
-// ---------------------- Send Request -----------------------
-func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
+// ---------------------- Friend Requests -----------------------
 
-	req := entity.RequesFriend{
-		SentMemID:      data.SenderID,
-		ReciveMemID:    data.ReceiverID,
-		RequesStatusID: 1,
-		CreatedAt:      time.Now(),
+func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
+	if data.SenderID == data.ReceiverID {
+		return errors.New("ไม่สามารถส่งคำขอเป็นเพื่อนให้ตนเองได้")
 	}
 
+	isBlocked, err := s.Repo.IsBlocked(data.SenderID, data.ReceiverID)
+	if err == nil && isBlocked {
+		return errors.New("ไม่สามารถส่งคำขอได้ เนื่องจากมีการบล็อกผู้ใช้")
+	}
+
+	// ตรวจสอบในตาราง Relation ว่าเป็นเพื่อนกันอยู่หรือไม่ (Active: true)
+	isFriend, err := s.Repo.CheckActiveFriend(data.SenderID, data.ReceiverID)
+	if err == nil && isFriend {
+		return errors.New("คุณเป็นเพื่อนกับสมาชิกท่านนี้อยู่แล้ว")
+	}
+
+	// 2. ค้นหาคำขอล่าสุดเพื่อเช็คประวัติ (Logic เดิมที่คุณมี)
+	existingReq, err := s.Repo.GetLatestRequest(data.SenderID, data.ReceiverID)
+
+	if err == nil && existingReq != nil {
+		if existingReq.RequesStatusID == 1 {
+			return errors.New("คุณมีคำขอที่รอดำเนินการอยู่แล้ว")
+		}
+		// กรณีเป็น Accepted (2) ไปแล้วแต่ในตาราง Relation อาจจะถูก Unfriend (Active: false)
+		// จะยอมให้ส่งคำขอใหม่ได้ โดยการสร้าง Row ใหม่ (เนื่องจากคุณต้องการให้จบที่สถานะ 2, 3, 4)
+
+		if existingReq.RequesStatusID == 4 {
+			existingReq.RequesStatusID = 1
+			existingReq.FinishedAt = time.Now()
+			return s.Repo.UpdateFullRequest(existingReq)
+		}
+	}
+
+	// สร้างข้อมูลใหม่ (กรณีไม่เคยมี หรือกรณีของเดิมถูกปฏิเสธ/เลิกเป็นเพื่อนไปแล้ว)
+	req := entity.RequesFriend{
+		SentMemID:      data.SenderID,
+		ReceiveMemID:   data.ReceiverID,
+		RequesStatusID: 1,
+		CreatedAt:      time.Now(),
+		FinishedAt:     time.Now(),
+	}
 	return s.Repo.CreateRequest(&req)
 }
 
-// ---------------------- Respond Request -------------------
-func (s *FriendService) RespondRequestD(data dto.RespondRequestDTO) error {
-
+func (s *FriendService) RespondRequest(data dto.RespondRequestDTO) error {
 	req, err := s.Repo.GetRequestByID(data.RequestID)
 	if err != nil {
-		return errors.New("request not found")
+		return errors.New("ไม่พบข้อมูลคำขอ")
+	}
+
+	if req.RequesStatusID != 1 {
+		return errors.New("คำขอนี้ถูกดำเนินการไปแล้ว ไม่สามารถเปลี่ยนสถานะซ้ำได้")
+	}
+
+	if int(req.ReceiveMemID) != data.MemberID {
+		return errors.New("คุณไม่มีสิทธิ์ตอบรับคำขอนี้")
 	}
 
 	if data.Accept {
+		// 1. สร้างความสัมพันธ์เพื่อน (Relations)
 		rel := entity.Relations{
-			Member1_ID: req.SentMemID,
-			Member2_ID: req.ReciveMemID,
+			Member1_ID: int(req.SentMemID),
+			Member2_ID: int(req.ReceiveMemID),
 			Active:     true,
 			CreatedAt:  time.Now(),
 		}
-		s.Repo.CreateRelation(&rel)
+		if err := s.Repo.CreateRelation(&rel); err != nil {
+			return err
+		}
+
+		// สร้าง Follow อัตโนมัติ 2 ทาง พร้อมบันทึกเวลา
+		s.AutoFollow(int(req.SentMemID), int(req.ReceiveMemID))
+		s.AutoFollow(int(req.ReceiveMemID), int(req.SentMemID))
+
+		return s.Repo.UpdateRequestStatus(uint(req.ID), 2)
 	}
 
-	return s.Repo.DeleteRequest(req.ID)
+	return s.Repo.UpdateRequestStatus(uint(req.ID), 3)
 }
 
-// ---------------------- Cancel Request -------------------
 func (s *FriendService) CancelRequest(data dto.CancelRequestDTO) error {
-
 	req, err := s.Repo.GetRequestByID(data.RequestID)
 	if err != nil {
 		return err
 	}
 
 	if req.SentMemID != data.MemberID {
-		return errors.New("not allowed")
+		return errors.New("you are not authorized to cancel this request")
+	}
+	if req.RequesStatusID != 1 {
+		return errors.New("request cannot be cancelled (already processed)")
 	}
 
-	return s.Repo.DeleteRequest(req.ID)
+	// อัปเดตสถานะเป็น Cancelled (4) แทนการ Delete
+	return s.Repo.UpdateRequestStatus(uint(req.ID), 4)
 }
 
-// ---------------------- Unfriend -------------------
-func (s *FriendService) UnfriendD(data dto.UnfriendDTO) error {
-	return s.Repo.DeleteRelation(data.MemberID, data.FriendID)
+// ---------------------- Friendships (Relations) -------------------
+
+func (s *FriendService) Unfriend(data dto.UnfriendDTO) error {
+	// อัปเดต Active จาก 1 เป็น 0 เพื่อเก็บประวัติ
+	return s.Repo.UpdateRelationActive(data.MemberID, data.FriendID, false)
+}
+
+// ---------------------- Block -------------------
+
+func (s *FriendService) Block(data dto.BlockDTO) error {
+	// 1. ตรวจสอบว่าเคยมีข้อมูลการบล็อกคู่นี้อยู่ใน DB หรือไม่ (เพื่อประหยัดพื้นที่ตามที่คุณต้องการ)
+	err := s.Repo.UpdateBlockStatus(data.BlockerID, data.BlockedID, true)
+	if err != nil {
+		// ถ้าไม่เคยมีข้อมูลเลย ให้สร้างใหม่
+		block := entity.Block{
+			BlockerID: data.BlockerID,
+			BlockedID: data.BlockedID,
+			Active:    true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		s.Repo.CreateBlock(&block)
+	}
+
+	// ปฏิเสธคำขอที่เป็น Pending ทั้งหมดระหว่างคู่นี้ทันที
+	s.Repo.RejectPendingRequestsBetween(data.BlockerID, data.BlockedID)
+
+	// เลิกเป็นเพื่อนอัตโนมัติ (Active = false)
+	s.Repo.UpdateRelationActive(data.BlockerID, data.BlockedID, false)
+
+	//  เลิกติดตามอัตโนมัติทั้ง 2 ฝั่ง (Status 3 = Unfollowed)
+	s.Repo.UpdateFollowStatus(data.BlockerID, data.BlockedID, 3) // เราเลิกตามเขา
+	s.Repo.UpdateFollowStatus(data.BlockedID, data.BlockerID, 3) // เขาเลิกตามเรา (เพราะโดนบล็อก)
+
+	return nil
+}
+
+func (s *FriendService) Unblock(data dto.UnblockDTO) error {
+	// เลิกบล็อกคือเปลี่ยน Active เป็น false (0) และอัปเดตเวลา
+	// ข้อมูลจะยังอยู่ใน DB ไม่ได้ถูกลบออก
+	return s.Repo.UpdateBlockStatus(data.BlockerID, data.BlockedID, false)
+}
+
+func (s *FriendService) GetMyBlockedList(memberID int) ([]entity.Member, error) {
+	// เรียก Repo เพื่อดึงรายชื่อคนที่เราบล็อก
+	users, err := s.Repo.GetBlockedUsers(memberID)
+	if err != nil {
+		return nil, errors.New("ไม่สามารถดึงรายการที่บล็อกได้")
+	}
+	return users, nil
 }
 
 // ---------------------- Follow -------------------
 
-// Follow (ติดตาม) **
 func (s *FriendService) Follow(data dto.FollowDTO) error {
-	// เช็คว่าเคย Follow แล้วหรือยัง? ถ้า Follow แล้วอาจทำการ Unmute
-	// ในตัวอย่างนี้จะทำการสร้าง Follow ใหม่ หรืออัปเดตเป็นสถานะ Following (1)
+	if data.FollowerID == data.FollowedID {
+		return errors.New("ไม่สามารถติดตามตนเองได้")
+	}
+	// อัปเดตสถานะเป็น 1 (Following) และเวลา UpdatedAt
+	err := s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 1)
+	if err == nil {
+		return nil
+	}
+
 	follow := entity.Follow{
 		FollowerID:     data.FollowerID,
 		FollowedID:     data.FollowedID,
-		FollowStatusID: 1, // 1: Following
+		FollowStatusID: 1,
 		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
-	// ลองอัปเดตก่อน หากไม่มีให้สร้าง
-	err := s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 1)
-	if err == nil {
-		return nil // อัปเดตสำเร็จ (รวมถึงกรณี Unmute สำเร็จ)
-	}
-
-	// ถ้า Update ไม่สำเร็จ แสดงว่ายังไม่มี Follow Entity ให้ทำการสร้างใหม่
 	return s.Repo.CreateFollow(&follow)
 }
 
-// Unfollow (เลิกติดตาม) หรือ Mute **
+func (s *FriendService) AutoFollow(followerID, followedID int) {
+	// 1. ลองอัปเดตเป็นสถานะ 1 (Following) และอัปเดตเวลา
+	err := s.Repo.UpdateFollowStatus(followerID, followedID, 1)
+	if err != nil {
+		// 2. ถ้าไม่มีข้อมูลเดิม ให้สร้างใหม่
+		follow := entity.Follow{
+			FollowerID:     followerID,
+			FollowedID:     followedID,
+			FollowStatusID: 1,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(), // บันทึกเวลาเริ่มต้น
+		}
+		s.Repo.CreateFollow(&follow)
+	}
+}
+
 func (s *FriendService) Unfollow(data dto.UnfollowDTO) error {
-	// ในตัวอย่างนี้ ผมจะสมมติว่าถ้าเป็น Unfollow จะเป็นการลบ Entity Follow ทิ้งไปเลย
-	// ถ้าต้องการ Mute (ยังติดตามอยู่แต่ไม่เห็นโพสต์) ต้องเปลี่ยนสถานะเป็น Muted (2)
-
-	// หากต้องการ Mute แทนการลบ:
-	// return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 2) // 2: Muted
-
-	// หากต้องการ Unfollow (ลบ Entity):
-	return s.Repo.DeleteFollow(data.FollowerID, data.FollowedID)
+	// อัปเดตสถานะเป็น Unfollowed (3) แทนการลบ
+	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 3)
 }
 
 func (s *FriendService) Mute(data dto.MuteDTO) error {
-	// 2 คือสถานะ "Muted"
-	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 2)
+	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 2) // 2: Muted
 }
 
-// ** เมธอดใหม่: Unmute **
 func (s *FriendService) Unmute(data dto.UnmuteDTO) error {
-	// 1 คือสถานะ "Following"
-	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 1)
+	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 1) // 1: Following
 }
 
-// ---------------------- Unfriend -------------------
-func (s *FriendService) Unfriend(data dto.UnfriendDTO) error {
-	// เปลี่ยนจาก Delete เป็นการ Set Active = false
-	return s.Repo.UpdateRelationActive(data.MemberID, data.FriendID, false)
+func (s *FriendService) GetPopularMembers(myID int) ([]entity.Member, error) {
+	return s.Repo.GetPopularMembers(myID)
 }
 
-func (s *FriendService) RespondRequest(data dto.RespondRequestDTO) error {
-	req, err := s.Repo.GetRequestByID(data.RequestID)
-	if err != nil {
-		return err
-	}
-
-	if data.Accept {
-		// สร้าง Relations ใหม่ด้วยสถานะ Active = true
-		rel := entity.Relations{
-			Member1_ID: req.SentMemID,
-			Member2_ID: req.ReciveMemID,
-			Active:     true,
-			CreatedAt:  time.Now(),
-		}
-		s.Repo.CreateRelation(&rel)
-		return s.Repo.UpdateRequestStatus(req.ID, 2) // 2: Accepted
-	}
-	// หากปฏิเสธ ให้เปลี่ยนสถานะเป็น 3 (Rejected) สมาชิกจะไม่เห็นคำขอนี้ใน List อีก
-	return s.Repo.UpdateRequestStatus(req.ID, 3)
-}
-
-func (s *FriendService) Block(data dto.BlockDTO) error {
-	// บล็อกใหม่เสมอตามความต้องการของคุณ
-	block := entity.Block{
-		BlockerID: data.BlockerID,
-		BlockedID: data.BlockedID,
-		Active:    true, // 1
-		CreatedAt: time.Now(),
-	}
-	// เมื่อบล็อก ให้ตัดความสัมพันธ์เพื่อนเดิมออก (เปลี่ยนเป็น 0)
-	s.Repo.UpdateRelationActive(data.BlockerID, data.BlockedID, false)
-	return s.Repo.CreateBlock(&block)
-}
-
-func (s *FriendService) Unblock(data dto.UnblockDTO) error {
-	// เลิกบล็อกคือเปลี่ยน Active เป็น false (0)
-	return s.Repo.DB.Model(&entity.Block{}).
-		Where("blocker_id = ? AND blocked_id = ? AND active = ?", data.BlockerID, data.BlockedID, true).
-		Update("active", false).Error
+// ⭐ เพิ่มฟังก์ชัน GetAllMembers
+func (s *FriendService) GetAllMembers(myID int) ([]entity.Member, error) {
+	return s.Repo.GetAllMembers(myID)
 }
