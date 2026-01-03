@@ -65,9 +65,12 @@ admin.Use(
 )
 
 	{
+		
 		admin.GET("/polls", adminPollController.List)
+		 admin.GET("/polls/:id", adminPollController.GetByID)    
 		admin.POST("/polls/:id/approve", adminPollController.Approve)
 		admin.POST("/polls/:id/reject", adminPollController.Reject)
 		admin.POST("/polls/:id/close", adminPollController.Close)
+		admin.DELETE("/polls/:id", adminPollController.Delete)
 	}
 }

@@ -507,3 +507,26 @@
 
   box-shadow: 0 10px 24px rgba(0,0,0,.25);
 }
+
+
+.cat-box{
+  display: grid;
+  gap: 8px;
+}
+
+.cat-row{
+  display:flex;
+  gap:8px;
+  align-items: baseline;
+}
+
+.cat-k{
+  font-weight: 800;
+  color: #475569; /* เทาเข้ม */
+  min-width: 92px; /* ให้คอลัมน์ซ้ายตรงกัน */
+}
+
+.cat-v{
+  font-weight: 700;
+  color: #0f172a;
+}

@@ -251,3 +251,36 @@ export const pollAPI = {
   // หน้า PollDetail ของหนูเรียก results(...) -> ชี้มาที่ getResults
   results: (id: number) => (pollAPI as any).getResults(id),
 };
+
+//ดึงหมวดหมู่
+// in poll.ts (ท้ายไฟล์)
+export const categoryAPI = {
+  listMain: async () => {
+    const res = await api.get("/member/categories/main");
+    const data = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+    return (Array.isArray(data) ? data : []).map((x: any) => ({
+      id: Number(x?.id ?? x?.ID ?? 0),
+      title: x?.title ?? "",
+    }));
+  },
+  listSub1: async (mainCategoryId: number) => {
+    const res = await api.get("/member/categories/sub1", {
+      params: { main_category_id: mainCategoryId },
+    });
+    const data = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+    return (Array.isArray(data) ? data : []).map((x: any) => ({
+      id: Number(x?.id ?? x?.ID ?? 0),
+      title: x?.title ?? "",
+    }));
+  },
+  listSub2: async (sub1Id: number) => {
+    const res = await api.get("/member/categories/sub2", {
+      params: { sub_category_l1_id: sub1Id },
+    });
+    const data = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+    return (Array.isArray(data) ? data : []).map((x: any) => ({
+      id: Number(x?.id ?? x?.ID ?? 0),
+      title: x?.title ?? "",
+    }));
+  },
+};

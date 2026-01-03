@@ -6,7 +6,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import "./PollDetail.css";
 import { createPortal } from "react-dom";
 
-
 import {
   pollAPI,
   type Poll,
@@ -39,19 +38,17 @@ const computeStatusFromDetail = (p: Poll | null): UiStatus => {
   const cs = clampStr((p as any).computed_status).toUpperCase();
   if (cs === "UPCOMING" || cs === "OPEN" || cs === "CLOSED") return cs as UiStatus;
 
- 
-
   // fallback คำนวณเองจากเวลา
   const now = dayjs();
-  const start = p.start_at ? dayjs(p.start_at) : null;
-  const end = p.end_at ? dayjs(p.end_at) : null;
+  const start = (p as any)?.start_at ? dayjs((p as any).start_at) : null;
+  const end = (p as any)?.end_at ? dayjs((p as any).end_at) : null;
 
   if (end && now.isAfter(end)) return "CLOSED";
   if (start && now.isBefore(start)) return "UPCOMING";
   return "OPEN";
 };
 
-const isMulti = (p: Poll | null) => !!p?.allow_multiple;
+const isMulti = (p: Poll | null) => !!(p as any)?.allow_multiple;
 
 const PollDetail: React.FC = () => {
   const nav = useNavigate();
@@ -70,24 +67,42 @@ const PollDetail: React.FC = () => {
   const [imgModal, setImgModal] = useState<string | null>(null);
 
   const cs = useMemo(() => computeStatusFromDetail(poll), [poll]);
-
   const authorName = useMemo(() => getAuthorName(poll), [poll]);
 
   const voted = useMemo(() => {
     // priority: detail.has_voted (เพราะ backend เติมให้ได้)
     if (typeof (poll as any)?.has_voted === "boolean") return !!(poll as any).has_voted;
-    return !!myVote?.has_voted;
+    return !!(myVote as any)?.has_voted;
   }, [poll, myVote]);
 
   const maxChoice = useMemo(() => {
-    const v = (poll?.max_choice ?? undefined) as any;
+    const v = ((poll as any)?.max_choice ?? undefined) as any;
     return typeof v === "number" ? v : undefined;
   }, [poll]);
 
-  const canVote = useMemo(() => cs === "OPEN" && !voted, [cs, voted]);
+  // ===========================
+  // ✅ NEW: prevent owner voting
+  // ===========================
+  const myMemberId = useMemo(() => {
+    const raw = localStorage.getItem("id");
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }, []);
+
+  const ownerId = useMemo(() => {
+    const v = Number((poll as any)?.member_id ?? (poll as any)?.MemberID ?? 0);
+    return Number.isFinite(v) ? v : 0;
+  }, [poll]);
+
+  const isOwner = useMemo(() => {
+    return myMemberId > 0 && ownerId > 0 && myMemberId === ownerId;
+  }, [myMemberId, ownerId]);
+
+  // ✅ UPDATED: canVote now blocks owner
+  const canVote = useMemo(() => cs === "OPEN" && !voted && !isOwner, [cs, voted, isOwner]);
 
   const optionRows = useMemo(() => {
-    const opts = (poll?.options ?? []) as any[];
+    const opts = (((poll as any)?.options ?? []) as any[]) || [];
     // แปลง img_url เป็น full url
     return opts.map((o) => ({
       ...o,
@@ -101,12 +116,12 @@ const PollDetail: React.FC = () => {
   };
 
   const syncSelectedFromVote = (mv: MyVoteResponse | null, detail: Poll | null) => {
-    if (mv?.has_voted && Array.isArray(mv.option_ids)) {
-      setSelected(mv.option_ids);
+    if ((mv as any)?.has_voted && Array.isArray((mv as any)?.option_ids)) {
+      setSelected((mv as any).option_ids);
       return;
     }
     const hv = !!(detail as any)?.has_voted;
-    const ids = (((detail as any)?.my_option_ids ?? []) as number[]) ?? [];
+    const ids = ((((detail as any)?.my_option_ids ?? []) as number[]) ?? []) as number[];
     if (hv && Array.isArray(ids)) setSelected(ids);
   };
 
@@ -136,8 +151,8 @@ const PollDetail: React.FC = () => {
         // fallback ใช้จาก detail
         mvLocal = {
           has_voted: !!(detail as any).has_voted,
-          option_ids: (((detail as any).my_option_ids ?? []) as number[]) ?? [],
-        };
+          option_ids: ((((detail as any).my_option_ids ?? []) as number[]) ?? []) as number[],
+        } as any;
         setMyVote(mvLocal);
       }
 
@@ -150,7 +165,7 @@ const PollDetail: React.FC = () => {
       const localVoted =
         typeof (detail as any)?.has_voted === "boolean"
           ? !!(detail as any).has_voted
-          : !!mvLocal?.has_voted;
+          : !!(mvLocal as any)?.has_voted;
 
       if (localCs === "CLOSED" || (localCs === "OPEN" && localVoted)) {
         const rsRes = await pollAPI.getResults(pollID);
@@ -200,6 +215,13 @@ const PollDetail: React.FC = () => {
     if (!poll) return;
     if (!canVote) return;
 
+    // ✅ NEW: guard (extra safety)
+    if (isOwner) {
+      setToast("คุณเป็นเจ้าของโพล จึงโหวตโพลของตัวเองไม่ได้");
+      clearToastLater();
+      return;
+    }
+
     const ids = Array.from(new Set(selected)).filter((x) => x > 0);
 
     if (ids.length === 0) {
@@ -208,13 +230,13 @@ const PollDetail: React.FC = () => {
       return;
     }
 
-    if (!poll.allow_multiple && ids.length !== 1) {
+    if (!(poll as any)?.allow_multiple && ids.length !== 1) {
       setToast("โพลนี้เลือกได้แค่ 1 ตัวเลือก");
       clearToastLater();
       return;
     }
 
-    if (poll.allow_multiple && typeof maxChoice === "number" && maxChoice > 0 && ids.length > maxChoice) {
+    if ((poll as any)?.allow_multiple && typeof maxChoice === "number" && maxChoice > 0 && ids.length > maxChoice) {
       setToast(`เลือกได้สูงสุด ${maxChoice} ตัวเลือก`);
       clearToastLater();
       return;
@@ -233,11 +255,14 @@ const PollDetail: React.FC = () => {
       // หลังโหวต: โหลด detail + my-vote + results ใหม่ให้ครบ
       await load();
     } catch (e: any) {
-      const msg = String(e?.response?.data?.error || e?.message || "โหวตไม่สำเร็จ");
+      const msg = String((e as any)?.response?.data?.error || (e as any)?.message || "โหวตไม่สำเร็จ");
+
       if (msg.includes("already_voted")) setToast("โหวตไปแล้ว");
       else if (msg.includes("poll_not_started")) setToast("โพลยังไม่เริ่ม");
       else if (msg.includes("poll_closed")) setToast("โพลปิดแล้ว");
       else if (msg.includes("poll_not_open")) setToast("โพลยังไม่เปิดโหวต");
+      else if (msg.includes("owner_cannot_vote")) setToast("คุณเป็นเจ้าของโพล จึงโหวตโพลของตัวเองไม่ได้");
+      else if ((e as any)?.response?.status === 403) setToast("คุณไม่มีสิทธิ์โหวตโพลนี้");
       else setToast(msg);
 
       clearToastLater();
@@ -254,15 +279,25 @@ const PollDetail: React.FC = () => {
 
   const pill = (text: string) => <span className="pd-pill">{text}</span>;
 
+  const catPath = useMemo(() => {
+    const mc = (poll as any)?.main_category?.title;
+    const l1 = (poll as any)?.sub_category_l1?.title;
+    const l2 = (poll as any)?.sub_category_l2?.title;
+
+    const parts = [mc, l1, l2].map((x) => clampStr(x)).filter(Boolean);
+    return parts;
+  }, [poll]);
+
   const isSelected = (id: number) => selected.includes(id);
 
   const myChoiceText = useMemo(() => {
     if (!voted) return "";
     const ids = selected;
     if (!ids?.length) return "";
-    if (!poll?.options?.length) return "";
+    const opts = (((poll as any)?.options ?? []) as any[]) || [];
+    if (!opts.length) return "";
     const map = new Map<number, string>();
-    (poll.options as any[]).forEach((o) => map.set(Number(o.id), String(o.label ?? "")));
+    opts.forEach((o) => map.set(Number(o.id ?? o.ID), String(o.label ?? o.Label ?? "")));
     const names = ids.map((id) => map.get(id) || String(id)).filter(Boolean);
     return names.join(", ");
   }, [poll, selected, voted]);
@@ -281,9 +316,9 @@ const PollDetail: React.FC = () => {
   // ✅ map result per option_id
   const rsMap = useMemo(() => {
     const m = new Map<number, { count: number; percent: number; img_url?: string; label?: string }>();
-    if (results?.items?.length) {
-      results.items.forEach((it: any) => {
-        m.set(Number(it.option_id), {
+    if ((results as any)?.items?.length) {
+      (results as any).items.forEach((it: any) => {
+        m.set(Number(it.option_id ?? it.optionId), {
           count: Number(it.count ?? 0),
           percent: Number(it.percent ?? 0),
           img_url: it.img_url ? toFullUrl(it.img_url) : undefined,
@@ -294,45 +329,73 @@ const PollDetail: React.FC = () => {
     return m;
   }, [results]);
 
+  // ✅ สรุปอันดับ 1 (รองรับ tie)
+  const topSummary = useMemo(() => {
+    const items = ((results as any)?.items ?? []) as any[];
+    if (!items.length) return null;
+
+    const sorted = [...items].sort((a, b) => Number(b.count ?? 0) - Number(a.count ?? 0));
+    const topCount = Number(sorted[0]?.count ?? 0);
+    const tops = sorted.filter((it) => Number(it.count ?? 0) === topCount);
+
+    return { topCount, tops };
+  }, [results]);
+
+  const summaryLabel = useMemo(() => {
+    if (!poll) return "ผลสรุป";
+    return (poll as any)?.allow_multiple ? "ตัวเลือกยอดนิยม" : "ผู้ชนะ";
+  }, [poll]);
+
   return (
     <div className="pd-page">
       {/* image modal */}
       {imgModal
-  ? createPortal(
-      <div className="img-modal" onClick={() => setImgModal(null)} role="presentation">
-        <div className="img-modal-body" onClick={(e) => e.stopPropagation()} role="presentation">
-          <button className="img-modal-close" onClick={() => setImgModal(null)} type="button">
-            ✕
-          </button>
-          <img className="img-modal-img" src={imgModal} alt="option" />
-        </div>
-      </div>,
-      document.body
-    )
-  : null}
-
+        ? createPortal(
+            <div className="img-modal" onClick={() => setImgModal(null)} role="presentation">
+              <div className="img-modal-body" onClick={(e) => e.stopPropagation()} role="presentation">
+                <button className="img-modal-close" onClick={() => setImgModal(null)} type="button">
+                  ✕
+                </button>
+                <img className="img-modal-img" src={imgModal} alt="option" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       <div className="pd-wrap">
         {/* HERO */}
         <div className="pd-hero">
           <div>
             <div className="pd-kicker">POLL DETAIL</div>
-            <div className="pd-title">{poll?.question || (loading ? "กำลังโหลด..." : "ไม่พบโพล")}</div>
+            <div className="pd-title">{(poll as any)?.question || (loading ? "กำลังโหลด..." : "ไม่พบโพล")}</div>
 
-           <div className="pd-sub">
-  {authorName ? <span className="pd-author">by {authorName}</span> : null}
-  {poll?.created_at ? ` • Created ${dayjs(poll.created_at).fromNow()}` : ""}
-  {poll?.start_at ? ` • Start ${dayjs(poll.start_at).format("DD/MM/YYYY HH:mm")}` : ""}
-  {poll?.end_at ? ` • End ${dayjs(poll.end_at).format("DD/MM/YYYY HH:mm")}` : ""}
-</div>
+            <div className="pd-sub">
+              {authorName ? <span className="pd-author">by {authorName}</span> : null}
+              {(poll as any)?.created_at ? ` • Created ${dayjs((poll as any).created_at).fromNow()}` : ""}
+              {(poll as any)?.start_at ? ` • Start ${dayjs((poll as any).start_at).format("DD/MM/YYYY HH:mm")}` : ""}
+              {(poll as any)?.end_at ? ` • End ${dayjs((poll as any).end_at).format("DD/MM/YYYY HH:mm")}` : ""}
+            </div>
 
-
+            {catPath.length ? (
+              <div className="pd-catRow" title={catPath.join(" / ")}>
+                <span className="pd-catIcon">🏷️</span>
+                {catPath.map((t, i) => (
+                  <React.Fragment key={`${t}-${i}`}>
+                    <span className="pd-catChip">{t}</span>
+                    {i < catPath.length - 1 ? <span className="pd-catSep">›</span> : null}
+                  </React.Fragment>
+                ))}
+              </div>
+            ) : null}
 
             <div className="pd-row">
               {badge(cs)}
-              {poll?.allow_multiple ? pill("MULTI CHOICE") : pill("SINGLE CHOICE")}
+              {(poll as any)?.allow_multiple ? pill("MULTI CHOICE") : pill("SINGLE CHOICE")}
               {voted ? pill("VOTED") : null}
-              {poll?.last_reject_reason ? <span className="pd-warn">⚠ {poll.last_reject_reason}</span> : null}
+              {(poll as any)?.last_reject_reason ? (
+                <span className="pd-warn">⚠ {(poll as any).last_reject_reason}</span>
+              ) : null}
             </div>
           </div>
 
@@ -347,13 +410,12 @@ const PollDetail: React.FC = () => {
         <div className="pd-card">
           <div className="pd-sectionHead">
             <div className="pd-section-title">ตัวเลือก</div>
-
             {cs === "CLOSED" ? <span className="pd-badgeClosed">โพลปิดแล้ว</span> : null}
           </div>
 
           <div className="pd-options">
             {optionRows.map((o: any) => {
-              const id = Number(o.id);
+              const id = Number(o.id ?? o.ID);
               const img = clampStr(o.img_url);
               const sel = isSelected(id);
 
@@ -363,7 +425,7 @@ const PollDetail: React.FC = () => {
 
               return (
                 <button
-                  key={o.id}
+                  key={String(o.id ?? o.ID)}
                   className={`opt ${sel ? "opt-selected" : ""} ${!canVote ? "opt-readonly" : ""}`}
                   onClick={() => togglePick(id)}
                   type="button"
@@ -378,6 +440,7 @@ const PollDetail: React.FC = () => {
                         alt={o.label}
                         className="opt-thumb opt-thumb-click"
                         onClick={() => setImgModal(img)}
+                        draggable={false}
                       />
                     </span>
                   ) : null}
@@ -407,11 +470,17 @@ const PollDetail: React.FC = () => {
           <div className="pd-bottom">
             <div className="pd-hint">
               {cs === "UPCOMING" && "⏳ โพลยังไม่เริ่ม"}
+
+              {/* ✅ NEW: owner hint */}
+              {cs === "OPEN" && isOwner && "คุณเป็นเจ้าของโพล จึงโหวตโพลของตัวเองไม่ได้"}
+
               {cs === "OPEN" &&
                 !voted &&
-                (poll?.allow_multiple
+                !isOwner &&
+                ((poll as any)?.allow_multiple
                   ? `เลือกได้หลายข้อ${typeof maxChoice === "number" ? ` (สูงสุด ${maxChoice})` : ""}`
                   : "เลือกได้ 1 ข้อ")}
+
               {cs === "OPEN" && voted && (myChoiceText ? `คุณโหวต: ${myChoiceText}` : "คุณโหวตแล้ว")}
               {cs === "CLOSED" && "โหวตไม่ได้แล้ว (ปิดโพล)"}
             </div>
@@ -429,7 +498,7 @@ const PollDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* SUMMARY (แทนผลโหวตกล่องใหญ่) */}
+        {/* SUMMARY */}
         <div className="pd-card">
           <div className="pd-section-title"></div>
 
@@ -440,10 +509,39 @@ const PollDetail: React.FC = () => {
           ) : loading && resultsMode && !results ? (
             <div className="pd-muted">กำลังโหลดผลโหวต...</div>
           ) : results ? (
-            <div className="pd-totalWrap">
-              <div className="pd-total">Total Votes: {totalVotes}</div>
-              {poll?.allow_multiple ? <div className="pd-totalHint">(เลือกได้หลายข้อ จึงอาจรวมเกิน 100%)</div> : null}
-            </div>
+            <>
+              {/* ✅ Winner / Top summary (เฉพาะ CLOSED) */}
+              {cs === "CLOSED" && topSummary ? (
+                <div className="pd-winnerBox">
+                  <div className="pd-winnerTitle">🏆 {summaryLabel}</div>
+
+                  {topSummary.topCount === 0 ? (
+                    <div className="pd-muted">ยังไม่มีคนโหวต</div>
+                  ) : (
+                    <>
+                      <div className="pd-winnerText">
+                        {topSummary.tops.length === 1 ? "อันดับ 1:" : "เสมออันดับ 1:"}
+                      </div>
+
+                      <div className="pd-winnerChips">
+                        {topSummary.tops.map((it: any) => (
+                          <span key={String(it.option_id ?? it.optionId)} className="pd-winnerChip">
+                            {it.label ?? `#${it.option_id ?? it.optionId}`} ({Number(it.count ?? 0)} โหวต)
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="pd-totalWrap">
+                <div className="pd-total">Total Votes: {totalVotes}</div>
+                {(poll as any)?.allow_multiple ? (
+                  <div className="pd-totalHint">(เลือกได้หลายข้อ จึงอาจรวมเกิน 100%)</div>
+                ) : null}
+              </div>
+            </>
           ) : (
             <div className="pd-muted">ยังไม่มีผลโหวต</div>
           )}

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "./MyPolls.css";
 import { useNavigate } from "react-router-dom";
-import { type Poll, pollAPI } from "../../../../services/http/poll";
+import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
 
 type StatusName =
   | "DRAFT"
@@ -18,7 +18,7 @@ type StatusName =
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const toFullUrl = (u?: string) => {
   if (!u) return "";
-  const s = String(u).trim();
+  const s = String(u ?? "").trim();
   if (!s) return "";
   if (
     s.startsWith("http://") ||
@@ -74,11 +74,26 @@ const MyPolls: React.FC = () => {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState<number>(0); // 0 = all (ของ mypoll ใช้ status_id)
+  const [mainId, setMainId] = useState<number>(0);
+  const [sub1Id, setSub1Id] = useState<number>(0);
+  const [sub2Id, setSub2Id] = useState<number>(0);
+
+  const [mainMap, setMainMap] = useState<Record<number, string>>({});
+  const [sub1Map, setSub1Map] = useState<Record<number, string>>({});
+  const [sub2Map, setSub2Map] = useState<Record<number, string>>({});
 
   // detail modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // ✅ category names (map จาก id → title) ไม่ต้องแก้ backend
+  const [catNames, setCatNames] = useState<{
+    main?: string;
+    sub1?: string;
+    sub2?: string;
+  }>({});
 
   // confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -93,6 +108,15 @@ const MyPolls: React.FC = () => {
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
   const getQuestion = (p: Poll) => (p as any).question ?? "";
   const getCreatedAt = (p: Poll) => (p as any).created_at ?? (p as any).CreatedAt ?? null;
+
+  const getStatusId = (p: Poll) =>
+    Number(
+      (p as any)?.status_id ??
+        (p as any)?.StatusID ??
+        (p as any)?.poll_status_id ??
+        (p as any)?.PollStatusID ??
+        0
+    ) || 0;
 
   const getAllowMultiple = (p: Poll) =>
     Boolean((p as any)?.allow_multiple ?? (p as any)?.AllowMultiple ?? false);
@@ -200,13 +224,178 @@ const MyPolls: React.FC = () => {
     return "PUBLISHED";
   };
 
+  // ✅ extract category ids (กัน field ชื่อไม่ตรง)
+  const getMainCategoryId = (p: Poll | null) =>
+    Number(
+      (p as any)?.main_category_id ??
+        (p as any)?.MainCategoryID ??
+        (p as any)?.mainCategoryID ??
+        (p as any)?.main_category?.id ??
+        0
+    ) || 0;
+
+  const getSubCategoryL1Id = (p: Poll | null) =>
+    Number(
+      (p as any)?.sub_category_l1_id ??
+        (p as any)?.SubCategoryL1ID ??
+        (p as any)?.subCategoryL1ID ??
+        (p as any)?.sub_category_l1?.id ??
+        0
+    ) || 0;
+
+  const getSubCategoryL2Id = (p: Poll | null) =>
+    Number(
+      (p as any)?.sub_category_l2_id ??
+        (p as any)?.SubCategoryL2ID ??
+        (p as any)?.subCategoryL2ID ??
+        (p as any)?.sub_category_l2?.id ??
+        0
+    ) || 0;
+
+  const getCatTextFromIds = (p: Poll) => {
+    const mid = getMainCategoryId(p);
+    const s1 = getSubCategoryL1Id(p);
+    const s2 = getSubCategoryL2Id(p);
+
+    const t1 = mid ? (mainMap[mid] ?? "") : "";
+    const t2 = s1 ? (sub1Map[s1] ?? "") : "";
+    const t3 = s2 ? (sub2Map[s2] ?? "") : "";
+
+    return `${t1} ${t2} ${t3}`.trim().toLowerCase();
+  };
+
+  // ✅ load category names เมื่อเปิด detail / หรือ selectedPoll เปลี่ยน
+  useEffect(() => {
+    const loadCatNames = async () => {
+      try {
+        const mainId = getMainCategoryId(selectedPoll);
+        const sub1Id = getSubCategoryL1Id(selectedPoll);
+        const sub2Id = getSubCategoryL2Id(selectedPoll);
+
+        // ไม่มีหมวด -> เคลียร์
+        if (!mainId && !sub1Id && !sub2Id) {
+          setCatNames({});
+          return;
+        }
+
+        let mainTitle = "";
+        let sub1Title = "";
+        let sub2Title = "";
+
+        // main
+        if (mainId) {
+          const mains = await (categoryAPI as any).listMain();
+          mainTitle =
+            (mains || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === mainId)?.title ??
+            (mains || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === mainId)?.name ??
+            "";
+        }
+
+        // sub1 (ต้องมี mainId)
+        if (mainId && sub1Id) {
+          const sub1s = await (categoryAPI as any).listSub1(mainId);
+          sub1Title =
+            (sub1s || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === sub1Id)?.title ??
+            (sub1s || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === sub1Id)?.name ??
+            "";
+        }
+
+        // sub2 (ต้องมี sub1Id)
+        if (sub1Id && sub2Id) {
+          const sub2s = await (categoryAPI as any).listSub2(sub1Id);
+          sub2Title =
+            (sub2s || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === sub2Id)?.title ??
+            (sub2s || []).find((x: any) => Number(x?.id ?? x?.ID ?? 0) === sub2Id)?.name ??
+            "";
+        }
+
+        setCatNames({
+          main: mainTitle || undefined,
+          sub1: sub1Title || undefined,
+          sub2: sub2Title || undefined,
+        });
+      } catch (e) {
+        console.error(e);
+        setCatNames({});
+      }
+    };
+
+    if (detailOpen && selectedPoll && !detailLoading) {
+      loadCatNames();
+    } else {
+      // ปิด modal หรือยังโหลด detail อยู่ -> เคลียร์เพื่อไม่ให้ค้างค่าเก่า
+      setCatNames({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    detailOpen,
+    detailLoading,
+    selectedPoll?.id,
+    (selectedPoll as any)?.ID,
+    (selectedPoll as any)?.main_category_id,
+    (selectedPoll as any)?.MainCategoryID,
+    (selectedPoll as any)?.sub_category_l1_id,
+    (selectedPoll as any)?.SubCategoryL1ID,
+    (selectedPoll as any)?.sub_category_l2_id,
+    (selectedPoll as any)?.SubCategoryL2ID,
+  ]);
+
   // -----------------------------------------------
   const fetchPolls = async (statusID?: number) => {
     setLoading(true);
     try {
       const res = await pollAPI.getMyPolls(statusID);
       const rows = (res as any)?.data?.data ?? (res as any)?.data ?? [];
-      setPolls(Array.isArray(rows) ? rows : []);
+      const list = Array.isArray(rows) ? rows : [];
+      setPolls(list);
+
+      // ✅ สร้างชุด id ที่เจอ
+      const mainIds = Array.from(
+        new Set(list.map((p: any) => Number(p.main_category_id ?? 0)).filter(Boolean))
+      );
+      const sub1Ids = Array.from(
+        new Set(list.map((p: any) => Number(p.sub_category_l1_id ?? 0)).filter(Boolean))
+      );
+      const sub2Ids = Array.from(
+        new Set(list.map((p: any) => Number(p.sub_category_l2_id ?? 0)).filter(Boolean))
+      );
+
+      // ✅ โหลด main ทั้งหมดครั้งเดียว
+      if (mainIds.length) {
+        const mains = await (categoryAPI as any).listMain();
+        const m: Record<number, string> = {};
+        (mains || []).forEach((x: any) => {
+          const id = Number(x?.id ?? x?.ID ?? 0);
+          if (id) m[id] = x?.title ?? x?.name ?? "";
+        });
+        setMainMap(m);
+      }
+
+      // ✅ โหลด sub1 ตาม main ที่มีอยู่ (วน mainIds)
+      if (mainIds.length) {
+        const s1: Record<number, string> = {};
+        for (const mid of mainIds) {
+          const sub1s = await (categoryAPI as any).listSub1(mid);
+          (sub1s || []).forEach((x: any) => {
+            const id = Number(x?.id ?? x?.ID ?? 0);
+            if (id) s1[id] = x?.title ?? x?.name ?? "";
+          });
+        }
+        setSub1Map(s1);
+      }
+
+      // ✅ โหลด sub2 ตาม sub1 ที่มีอยู่ (วน sub1Ids)
+      if (sub1Ids.length) {
+        const s2: Record<number, string> = {};
+        for (const sid of sub1Ids) {
+          const sub2s = await (categoryAPI as any).listSub2(sid);
+          (sub2s || []).forEach((x: any) => {
+            const id = Number(x?.id ?? x?.ID ?? 0);
+            if (id) s2[id] = x?.title ?? x?.name ?? "";
+          });
+        }
+        setSub2Map(s2);
+      }
     } catch (error) {
       console.error(error);
       alert("Failed to load polls");
@@ -252,6 +441,7 @@ const MyPolls: React.FC = () => {
     { id: 5, label: "Closed", count: stats.closed },
   ];
 
+  // ✅✅✅ FIX: filtered (ค้นได้ทั้ง question + หมวด 3 ชั้น)
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
 
@@ -287,14 +477,59 @@ const MyPolls: React.FC = () => {
       });
     }
 
+    // ✅ filter ตาม status dropdown (0 = all)
+    if (status) base = base.filter((p) => getStatusId(p) === status);
+
+    // ✅ filter 3-level category (0 = all)
+    if (mainId) base = base.filter((p) => getMainCategoryId(p) === mainId);
+    if (sub1Id) base = base.filter((p) => getSubCategoryL1Id(p) === sub1Id);
+    if (sub2Id) base = base.filter((p) => getSubCategoryL2Id(p) === sub2Id);
+
+    // ✅ search: ถ้าไม่มี keyword ก็จบตรงนี้
     if (!keyword) return base;
 
     return base.filter((p) => {
       const idStr = String(getId(p));
-      const question = String(getQuestion(p)).toLowerCase();
-      return idStr.includes(keyword) || question.includes(keyword);
+      const question = String(getQuestion(p) ?? "").toLowerCase();
+
+      // ✅ ชื่อหมวดจาก map (id → title)
+      const catFromMaps = getCatTextFromIds(p);
+
+      // ✅ fallback: ถ้า backend แนบ object หมวดมาด้วย
+      const catFromObj = [
+        (p as any)?.main_category?.title,
+        (p as any)?.main_category?.name,
+        (p as any)?.sub_category_l1?.title,
+        (p as any)?.sub_category_l1?.name,
+        (p as any)?.sub_category_l2?.title,
+        (p as any)?.sub_category_l2?.name,
+
+        // เผื่อบาง endpoint ส่งรูปแบบอื่น
+        (p as any)?.MainCategory?.Title,
+        (p as any)?.MainCategory?.Name,
+        (p as any)?.SubCategoryL1?.Title,
+        (p as any)?.SubCategoryL1?.Name,
+        (p as any)?.SubCategoryL2?.Title,
+        (p as any)?.SubCategoryL2?.Name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      // ✅ optional: ค้น status / reject reason ด้วย
+      const statusText = String(getDisplayStatus(p) ?? "").toLowerCase();
+      const rejectText = String(getRejectReason(p) ?? "").toLowerCase();
+
+      return (
+        idStr.includes(keyword) ||
+        question.includes(keyword) ||
+        catFromMaps.includes(keyword) ||
+        catFromObj.includes(keyword) ||
+        statusText.includes(keyword) ||
+        rejectText.includes(keyword)
+      );
     });
-  }, [polls, q, activeTab]);
+  }, [polls, q, activeTab, status, mainId, sub1Id, sub2Id, mainMap, sub1Map, sub2Map]);
 
   // --------- confirm modal ----------
   const openConfirm = (
@@ -359,6 +594,7 @@ const MyPolls: React.FC = () => {
     setDetailOpen(true);
     setDetailLoading(true);
     setSelectedPoll(null);
+    setCatNames({}); // ✅ กันค้างค่าเก่า
 
     try {
       const res = await pollAPI.getMyPollByID(id);
@@ -376,6 +612,7 @@ const MyPolls: React.FC = () => {
   const closeDetail = () => {
     setDetailOpen(false);
     setSelectedPoll(null);
+    setCatNames({});
   };
 
   const canEditSubmitDelete = (p: Poll) => {
@@ -390,6 +627,75 @@ const MyPolls: React.FC = () => {
     const ds = getDisplayStatus(p);
     return ds === "OPEN" || ds === "CLOSED";
   };
+
+  useEffect(() => {
+    const loadCatNames = async () => {
+      try {
+        const mainId = Number(
+          (selectedPoll as any)?.main_category_id ??
+            (selectedPoll as any)?.MainCategoryID ??
+            0
+        );
+
+        const sub1Id = Number(
+          (selectedPoll as any)?.sub_category_l1_id ??
+            (selectedPoll as any)?.SubCategoryL1ID ??
+            0
+        );
+
+        const sub2Id = Number(
+          (selectedPoll as any)?.sub_category_l2_id ??
+            (selectedPoll as any)?.SubCategoryL2ID ??
+            0
+        );
+
+        console.log("selectedPoll raw:", selectedPoll);
+        console.log("cat ids:", { mainId, sub1Id, sub2Id });
+
+        // ไม่มีหมวดเลย
+        if (!mainId && !sub1Id && !sub2Id) {
+          setCatNames({});
+          return;
+        }
+
+        let mainTitle = "";
+        let sub1Title = "";
+        let sub2Title = "";
+
+        if (mainId) {
+          const mains = await (categoryAPI as any).listMain();
+          mainTitle = (mains || []).find((x: any) => Number(x.id) === mainId)?.title ?? "";
+        }
+
+        if (mainId && sub1Id) {
+          const sub1s = await (categoryAPI as any).listSub1(mainId);
+          sub1Title = (sub1s || []).find((x: any) => Number(x.id) === sub1Id)?.title ?? "";
+        }
+
+        if (sub1Id && sub2Id) {
+          const sub2s = await (categoryAPI as any).listSub2(sub1Id);
+          sub2Title = (sub2s || []).find((x: any) => Number(x.id) === sub2Id)?.title ?? "";
+        }
+
+        setCatNames({
+          main: mainTitle || undefined,
+          sub1: sub1Title || undefined,
+          sub2: sub2Title || undefined,
+        });
+      } catch (e) {
+        console.error("loadCatNames error:", e);
+        setCatNames({});
+      }
+    };
+
+    if (selectedPoll) loadCatNames();
+    else setCatNames({});
+  }, [
+    (selectedPoll as any)?.id,
+    (selectedPoll as any)?.main_category_id,
+    (selectedPoll as any)?.sub_category_l1_id,
+    (selectedPoll as any)?.sub_category_l2_id,
+  ]);
 
   return (
     <div className="my-polls-page">
@@ -406,7 +712,7 @@ const MyPolls: React.FC = () => {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by poll id or question..."
+              placeholder="Search by poll  question..."
             />
           </div>
 
@@ -534,7 +840,11 @@ const MyPolls: React.FC = () => {
                               >
                                 ✏️ Edit
                               </button>
-                              <button className="btn btn-primary" onClick={() => handleSubmit(id)} type="button">
+                              <button
+                                className="btn btn-primary"
+                                onClick={() => handleSubmit(id)}
+                                type="button"
+                              >
                                 📤 Submit
                               </button>
                               <button
@@ -548,7 +858,11 @@ const MyPolls: React.FC = () => {
                           )}
 
                           {canCancel(p) && (
-                            <button className="btn btn-danger" onClick={() => handleCancel(id)} type="button">
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleCancel(id)}
+                              type="button"
+                            >
                               ⛔ Cancel
                             </button>
                           )}
@@ -614,7 +928,9 @@ const MyPolls: React.FC = () => {
 
                     <div className="detail-block">
                       <div className="detail-label">Allow Multiple</div>
-                      <div className="detail-value">{getAllowMultiple(selectedPoll) ? "Yes" : "No"}</div>
+                      <div className="detail-value">
+                        {getAllowMultiple(selectedPoll) ? "Yes" : "No"}
+                      </div>
                     </div>
 
                     <div className="detail-block">
@@ -634,13 +950,52 @@ const MyPolls: React.FC = () => {
                           : "-"}
                       </div>
                     </div>
+
+                    {/* ✅ วางตรงนี้เลย */}
+                    <div className="detail-block">
+                      <div className="detail-label">Category</div>
+
+                      <div className="detail-value cat-grid">
+                        <div className="cat-row">
+                          <span className="cat-label">หมวดหลัก:</span>
+                          <span className="cat-value">
+                            {catNames.main ??
+                              ((selectedPoll as any)?.main_category_id
+                                ? `#${(selectedPoll as any).main_category_id}`
+                                : "-")}
+                          </span>
+                        </div>
+
+                        <div className="cat-row">
+                          <span className="cat-label">หมวดย่อย 1:</span>
+                          <span className="cat-value">
+                            {catNames.sub1 ??
+                              ((selectedPoll as any)?.sub_category_l1_id
+                                ? `#${(selectedPoll as any).sub_category_l1_id}`
+                                : "-")}
+                          </span>
+                        </div>
+
+                        <div className="cat-row">
+                          <span className="cat-label">หมวดย่อย 2:</span>
+                          <span className="cat-value">
+                            {catNames.sub2 ??
+                              ((selectedPoll as any)?.sub_category_l2_id
+                                ? `#${(selectedPoll as any).sub_category_l2_id}`
+                                : "-")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Reject reason */}
                   {getBaseStatus(selectedPoll) === "REJECTED" && (
                     <div className="detail-block" style={{ marginTop: 10 }}>
                       <div className="detail-label">Reject Reason</div>
-                      <div className="detail-value">{getRejectReason(selectedPoll)?.trim() || "-"}</div>
+                      <div className="detail-value">
+                        {getRejectReason(selectedPoll)?.trim() || "-"}
+                      </div>
                     </div>
                   )}
 
@@ -670,7 +1025,12 @@ const MyPolls: React.FC = () => {
                                 }}
                                 title="ดูรูป"
                               >
-                                <img className="opt-img" src={img} alt={optionLabel(opt)} draggable={false} />
+                                <img
+                                  className="opt-img"
+                                  src={img}
+                                  alt={optionLabel(opt)}
+                                  draggable={false}
+                                />
                               </button>
                             ) : null}
 
@@ -718,7 +1078,11 @@ const MyPolls: React.FC = () => {
             <div className="modal-sub">{confirmDesc}</div>
 
             <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmOpen(false)} type="button">
+              <button
+                className="btn btn-outline"
+                onClick={() => setConfirmOpen(false)}
+                type="button"
+              >
                 Cancel
               </button>
               <button

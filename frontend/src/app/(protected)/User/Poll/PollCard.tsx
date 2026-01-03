@@ -9,6 +9,9 @@ type AnyPoll = any;
 type Props = {
   poll: AnyPoll;
 
+  // ✅ NEW: id ของคนที่ login (เอามาเช็คว่าเป็นเจ้าของโพลไหม)
+  currentMemberId?: number;
+
   getId: (p: AnyPoll) => number;
   getQuestion: (p: AnyPoll) => string;
   getDesc: (p: AnyPoll) => string;
@@ -17,7 +20,6 @@ type Props = {
   getEndAt: (p: AnyPoll) => any;
 
   getAuthorName: (p: AnyPoll) => string;
-
 
   // status ที่ส่งเข้ามา: "OPEN" | "UPCOMING" | "CLOSED"
   getStatus: (p: AnyPoll) => "OPEN" | "UPCOMING" | "CLOSED";
@@ -38,7 +40,9 @@ type Props = {
   selectedOptionIds: number[];
   onToggleOption: (optId: number) => void;
   onClearSelection?: () => void;
-  onConfirmVote: () => Promise<void> | void;
+
+  // ✅ IMPORTANT: onConfirmVote ต้องบอกผลจริง (true/false)
+  onConfirmVote: () => Promise<boolean> | boolean;
 
   submitting: boolean;
   canConfirm: boolean;
@@ -49,6 +53,12 @@ type Props = {
   // ✅ ถ้า backend ส่งมาว่า user เคยโหวตแล้ว (optional)
   initialHasVoted?: boolean;
   initialMyOptionIds?: number[];
+
+  // ✅ NEW: map main_category_id -> title (จาก PollList)
+  mainNameById?: Record<number, string>;
+
+  // ✅ NEW: toast จาก PollList ต่อการ์ด
+  toastMessage?: string;
 };
 
 const optionImg = (opt: any) =>
@@ -62,11 +72,23 @@ export const PollCard: React.FC<Props> = (props) => {
   const question = props.getQuestion(p);
   const desc = props.getDesc(p);
   const created = props.getCreatedAt(p);
+
+  // ===== category: show only MAIN (short) =====
+  const mainId =
+    Number(p?.main_category_id ?? p?.MainCategoryID ?? p?.mainCategoryID ?? p?.main_category?.id ?? 0) || 0;
+
+  const mainTitle =
+    (mainId && props.mainNameById?.[mainId]) ||
+    String(p?.main_category?.title ?? p?.MainCategory?.Title ?? "").trim() ||
+    "";
+
+  // ✅ display text on card: show [Main] only; fallback show [#id] if map not found
+  const mainBadgeText = mainTitle ? `[${mainTitle}]` : mainId ? `[#${mainId}]` : "";
+
+  // (keep legacy variable, but we will show mainBadgeText)
   const cat = props.getCategoryTitle(p);
+
   const author = props.getAuthorName(p);
-
-
-
 
   const allowMultiple = props.getAllowMultiple(p);
   const maxChoice = props.getMaxChoice(p);
@@ -150,7 +172,6 @@ export const PollCard: React.FC<Props> = (props) => {
     if (status === "UPCOMING" && startAt) return `⏱ เริ่ม ${dayjs().to(startAt)}`;
     if (status === "CLOSED" && endAt) return `จบเมื่อ ${dayjs(endAt).fromNow()}`;
 
-
     return "";
   }, [p, props, status]);
 
@@ -158,10 +179,24 @@ export const PollCard: React.FC<Props> = (props) => {
     status === "OPEN" ? "badge badge-open" : status === "UPCOMING" ? "badge badge-upcoming" : "badge badge-closed";
   const badgeText = status === "OPEN" ? "เปิดอยู่" : status === "UPCOMING" ? "กำลังจะมา" : "ปิดแล้ว";
 
-  // ✅ ฟีด: ไม่โชว์ “ผลโหวต/กราฟ/เส้นๆ” แล้ว
-  // OPEN+ยังไม่โหวต => โชว์ฟอร์มโหวต
-  // อื่นๆ => โชว์สรุป + ปุ่มไปหน้า detail/results
-  const canVote = status === "OPEN" && !hasVoted;
+  // ✅ NEW: ตรวจว่าเป็นเจ้าของโพลไหม (กันกดโหวตตั้งแต่ UI)
+  const ownerId =
+    Number(
+      p?.member_id ??
+        p?.MemberID ??
+        p?.created_by ??
+        p?.createdBy ??
+        p?.creator_id ??
+        p?.creatorId ??
+        p?.CreatedByID ??
+        0
+    ) || 0;
+
+  const isOwner = Boolean(ownerId && props.currentMemberId && ownerId === props.currentMemberId);
+
+  // ✅ เพิ่มเงื่อนไข: owner ห้ามโหวต
+  const canVote = status === "OPEN" && !hasVoted && !isOwner;
+
   const selectedNow = canVote ? props.selectedOptionIds : selected;
 
   const submit = async () => {
@@ -171,13 +206,18 @@ export const PollCard: React.FC<Props> = (props) => {
     const snapshot = props.selectedOptionIds.slice();
     try {
       setLocalSubmitting(true);
-      await props.onConfirmVote();
+
+      // ✅ IMPORTANT: ต้องได้ผลจริงจาก parent
+      const ok = await props.onConfirmVote();
+
+      // ✅ ถ้าไม่สำเร็จ ห้าม set ว่าโหวตแล้ว
+      if (!ok) return;
 
       setHasVoted(true);
       setSelected(snapshot);
     } catch (e) {
       console.error(e);
-      alert("โหวตไม่สำเร็จ");
+      // ❌ ไม่ใช้ alert แล้ว (ให้ parent โชว์ toastMessage)
     } finally {
       setLocalSubmitting(false);
     }
@@ -207,30 +247,33 @@ export const PollCard: React.FC<Props> = (props) => {
           <div>
             <div className="pc-row">
               <div className="pc-author">{author}</div>
-              {cat ? <span className="chip chip-orange">{cat}</span> : null}
               <span className={badgeCls}>{badgeText}</span>
             </div>
+
             <div className="pc-meta">
               <span className="pc-date">{created ? dayjs(created).format("DD/MM/YYYY HH:mm") : "-"}</span>
-             {timeHint ? (
-  <span className={`pc-timePill pc-timePill-${status.toLowerCase()}`}>
-    <span className="pc-timeDot" />
-    {timeHint}
-  </span>
-) : null}
+
+              {timeHint ? (
+                <span className={`pc-timePill pc-timePill-${status.toLowerCase()}`}>
+                  <span className="pc-timeDot" />
+                  {timeHint}
+                </span>
+              ) : null}
 
               {totalVotes !== null ? <span className="pc-hint">• 🗳 {totalVotes} votes</span> : null}
             </div>
           </div>
         </div>
 
-        <button className="icon-btn" type="button" onClick={(e) => e.stopPropagation()} title="More">
-          ⋯
-        </button>
+        {mainTitle ? (
+          <div className="pc-topRight" onClick={(e) => e.stopPropagation()}>
+            <span className="pc-catPill">{mainTitle}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="pc-question">{question}</div>
-      <div className="pc-desc">{desc?.trim() ? desc : "ไม่มีคำอธิบาย"}</div>
+      {desc ? <div className="pc-desc">{desc}</div> : null}
 
       {/* vote / summary (NO RESULTS BARS IN FEED) */}
       <div className="pc-vote" onClick={(e) => e.stopPropagation()}>
@@ -280,18 +323,10 @@ export const PollCard: React.FC<Props> = (props) => {
                         alt={label}
                         draggable={false}
                         loading="lazy"
-                        onClickCapture={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onMouseUp={(e) => {
+                        onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           setPreviewUrl(img);
-                        }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
                         }}
                       />
                     ) : null}
@@ -330,11 +365,13 @@ export const PollCard: React.FC<Props> = (props) => {
             </div>
           </>
         ) : (
-          // ✅ CLOSED หรือ OPEN ที่โหวตแล้ว: โชว์สรุปสั้นๆ + ปุ่มไปหน้า detail/results
+          // ✅ CLOSED หรือ OPEN ที่โหวตแล้ว หรือ OWNER: โชว์สรุปสั้นๆ + ปุ่มไปหน้า detail/results
           <div className="pc-actions" style={{ justifyContent: "space-between" }}>
             <div className="pc-hint" style={{ fontWeight: 900, color: "rgba(31,35,40,.70)" }}>
               {status === "CLOSED"
                 ? "โพลปิดแล้ว • ดูผลในรายละเอียด"
+                : isOwner
+                ? "คุณเป็นเจ้าของโพลนี้ • โหวตไม่ได้"
                 : myChoiceText
                 ? `คุณโหวต: ${myChoiceText}`
                 : "คุณโหวตแล้ว • ดูผลในรายละเอียด"}
@@ -345,6 +382,24 @@ export const PollCard: React.FC<Props> = (props) => {
             </button>
           </div>
         )}
+
+        {/* ✅ NEW: Toast message (แสดงใน UI จริง ไม่ใช่ alert) */}
+        {props.toastMessage ? (
+          <div
+            className="pc-toast"
+            style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              borderRadius: 14,
+              border: "1px solid rgba(255,122,24,.25)",
+              background: "rgba(255,122,24,.10)",
+              fontWeight: 800,
+              color: "rgba(31,35,40,.85)",
+            }}
+          >
+            {props.toastMessage}
+          </div>
+        ) : null}
       </div>
 
       {/* ✅ Image Preview Modal */}

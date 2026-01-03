@@ -23,6 +23,8 @@ type CreatePollRequest struct {
 	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
 	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
 
+	
+
 	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
 }
 
@@ -55,6 +57,11 @@ type PollOptionResponse struct {
 	Percent   float64 `json:"percent,omitempty"`
 }
 
+type CategoryBrief struct {
+	ID    uint   `json:"id"`
+	Title string `json:"title"`
+}
+
 type PollResponse struct {
 	ID       uint   `json:"id"`
 	Question string `json:"question"`
@@ -65,6 +72,16 @@ type PollResponse struct {
 	MaxChoice     *int       `json:"max_choice"`
 	StartAt       *time.Time `json:"start_at"`
 	EndAt         *time.Time `json:"end_at"`
+
+	
+  	MainCategoryID  *uint `json:"main_category_id,omitempty"`
+ 	SubCategoryL1ID *uint `json:"sub_category_l1_id,omitempty"`
+  	SubCategoryL2ID *uint `json:"sub_category_l2_id,omitempty"`
+
+		// ✅ category objects (ใหม่) — ตัวนี้แหละที่ PollDetail จะใช้โชว์สวย ๆ
+	MainCategory  *CategoryBrief `json:"main_category,omitempty"`
+	SubCategoryL1 *CategoryBrief `json:"sub_category_l1,omitempty"`
+	SubCategoryL2 *CategoryBrief `json:"sub_category_l2,omitempty"`
 
 	PublishedAt      *time.Time `json:"published_at,omitempty"` //“เผยแพร่จริง” ตอนแอดมินกด Approve/Publish
     EffectiveStartAt *time.Time `json:"effective_start_at,omitempty"` // เวลาเริ่มโหวตที่แท้จริง (หลังจาก publish) แบบstart_at=10:10, published_at=10:20 → effective_start_at=10:20
@@ -81,6 +98,9 @@ type PollResponse struct {
 	HasVoted    bool   `json:"has_voted"`
  	MyOptionIDs []uint `json:"my_option_ids"`
 
+	TotalVoters *int64 `json:"total_voters,omitempty"` // ✅ จำนวน "คน" ที่โหวต (COUNT poll_votes)
+	
+
 	
 }
 
@@ -94,6 +114,10 @@ type MyPollsResponse struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartAt          *time.Time `json:"start_at"`
 	EndAt            *time.Time `json:"end_at"`
+	MainCategoryID  *uint `json:"main_category_id,omitempty"`
+	SubCategoryL1ID *uint `json:"sub_category_l1_id,omitempty"`
+	SubCategoryL2ID *uint `json:"sub_category_l2_id,omitempty"`
+
 
 	
 }

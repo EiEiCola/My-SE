@@ -321,7 +321,10 @@ if !ok {
 	res, err := ctl.pollService.Vote(memberID, pollID, req)
 	if err != nil {
 	switch err.Error() {
-	case "poll_closed", "poll_not_started", "poll_not_open", "already_voted":
+	case "poll_closed", "poll_not_started", "poll_not_open", "already_voted", "owner_cannot_vote":
+		
+    c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

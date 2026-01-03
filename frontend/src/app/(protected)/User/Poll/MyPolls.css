@@ -342,6 +342,17 @@
   gap: 10px;
 }
 
+/* ✅ category pill */
+.cat-pill{
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 950;
+  font-size: 12px;
+  background: rgba(255,122,24,0.10);
+  border: 1px solid rgba(255,122,24,0.20);
+  color: #9a3412;
+}
+
 /* responsive */
 @media (max-width: 1024px){
   .my-search{ min-width: 260px; }
@@ -470,4 +481,74 @@
   justify-content:center;
 
   box-shadow: 0 10px 24px rgba(0,0,0,.25);
+}
+
+.cat-box{
+  display: grid;
+  gap: 8px;
+}
+
+.cat-row{
+  display:flex;
+  gap:8px;
+  align-items: baseline;
+}
+
+.cat-k{
+  font-weight: 800;
+  color: #475569; /* เทาเข้ม */
+  min-width: 92px; /* ให้คอลัมน์ซ้ายตรงกัน */
+}
+
+.cat-v{
+  font-weight: 00;
+  color: #0f172a;
+}
+.cat-grid{
+  display: grid;
+  gap: 10px;
+}
+
+.cat-row{
+  display: grid;
+  grid-template-columns: 90px 1fr; /* ✅ ระยะซ้ายเท่ากันทุกบรรทัด */
+  align-items: center;
+  column-gap: 10px;
+}
+
+.cat-label{
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.cat-value{
+  color: #0f172a;       /* ✅ ตัวหมวดสีดำเข้ม */
+      /* ✅ หนาขึ้น */
+}
+
+
+
+
+.cat-grid{
+  display: grid;
+  gap: 8px;
+}
+
+.cat-row{
+  display: grid;
+  grid-template-columns: 92px 1fr; /* ✅ เว้นเท่าๆกัน */
+  align-items: center;
+  column-gap: 10px;
+}
+
+.cat-label{
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.92); /* ✅ ดำเข้ม */
+}
+
+.cat-value{
+  color: rgba(15, 23, 42, 0.70);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

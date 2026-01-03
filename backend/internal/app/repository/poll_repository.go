@@ -30,6 +30,7 @@ type PollRepository interface {
 	// Results
 	CountVotesByOption(pollID uint) ([]PollResultRow, error)
 	CountTotalVoters(pollID uint) (int64, error)
+	CountTotalVotersByPollIDs(pollIDs []uint) (map[uint]int64, error)
 
 	// History
 	CreateHistory(history *entity.PollHistory) error
@@ -68,6 +69,10 @@ func (r *pollRepository) GetPollByID(id uint) (*entity.Poll, error) {
 		Preload("PollStatus").
 		Preload("Member").              // ✅ เพิ่ม
   		// Preload("Member.MemberAccount"). // ✅ ถ้ามีจริงค่อยเปิด
+		Preload("MainCategory").
+  		Preload("SubCategoryL1").
+ 		 Preload("SubCategoryL2").
+
 		First(&poll, id).Error
 
 	if err != nil {
@@ -86,6 +91,9 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 		Preload("PollStatus").
 		Preload("Member").              // ✅ เพิ่ม
         // Preload("Member.MemberAccount"). // ✅ ถ้ามี
+		 Preload("MainCategory").
+ 		 Preload("SubCategoryL1").
+ 		 Preload("SubCategoryL2").
 		Model(&entity.Poll{})
 
 	if statusID != nil {
@@ -252,6 +260,35 @@ func (r *pollRepository) CountVotesByOption(pollID uint) ([]PollResultRow, error
 
 	return results, err
 }
+
+func (r *pollRepository) CountTotalVotersByPollIDs(pollIDs []uint) (map[uint]int64, error) {
+	out := make(map[uint]int64)
+	if len(pollIDs) == 0 {
+		return out, nil
+	}
+
+	type row struct {
+		PollID uint  `gorm:"column:poll_id"`
+		Total  int64 `gorm:"column:total"`
+	}
+
+	var rows []row
+	err := r.db.
+		Table("poll_votes").
+		Select("poll_id, COUNT(*) AS total").
+		Where("poll_id IN ?", pollIDs).
+		Group("poll_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rrow := range rows {
+		out[rrow.PollID] = rrow.Total
+	}
+	return out, nil
+}
+
 
 /* =========================
    HISTORY

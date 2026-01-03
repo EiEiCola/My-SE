@@ -14,6 +14,7 @@ func SetupRoutes(
 	adminProfileController *adminCtl.AdminProfileController,
 	adminUserController *adminCtl.AdminUserController,
 	adminCategoryController *adminCtl.AdminCategoryController,
+	
 ) {
 	// static files
 	r.Static("/uploads", "./uploads")
@@ -78,6 +79,8 @@ func SetupRoutes(
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
 		SetupMemberPostRoutes(memberAPI)
+
+		 SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
 		
 	}
 

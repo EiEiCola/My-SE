@@ -461,3 +461,101 @@
 
   box-shadow: 0 10px 22px rgba(255,122,24,.12);
 }
+.pd-catRow{
+  margin-top: 10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap: wrap;
+}
+
+.pd-catIcon{
+  font-size: 14px;
+  opacity: .85;
+}
+
+.pd-catChip{
+  display:inline-flex;
+  align-items:center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 122, 24, 0.12);
+  border: 1px solid rgba(255, 122, 24, 0.25);
+  color: #0f172a;
+}
+
+.pd-catSep{
+  font-weight: 900;
+  opacity: .35;
+  margin: 0 2px;
+}
+
+
+/* =============================
+   WINNER / TOP SUMMARY (CLOSED)
+   (put near bottom of PollDetail.css)
+============================= */
+.pd-winnerBox{
+  margin-top: 10px;
+  border-radius: 18px;
+  padding: 12px 12px;
+
+  background:
+    radial-gradient(900px 240px at 10% 0%, rgba(255,122,24,.18) 0%, transparent 60%),
+    linear-gradient(180deg, #fff 0%, #fff7ef 100%);
+  border: 1px solid rgba(255,122,24,.22);
+
+  box-shadow: 0 12px 28px rgba(255,122,24,.10);
+}
+
+.pd-winnerTitle{
+  font-size: 14px;
+  font-weight: 950;
+  color: #0f172a;
+
+  display:flex;
+  align-items:center;
+  gap: 8px;
+
+  margin-bottom: 8px;
+}
+
+.pd-winnerText{
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(31,35,40,.72);
+  margin-bottom: 8px;
+}
+
+.pd-winnerChips{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pd-winnerChip{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+
+  padding: 8px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 950;
+
+  color: #0f172a;
+  background: rgba(255,122,24,.14);
+  border: 1px solid rgba(255,122,24,.28);
+
+  box-shadow: 0 10px 22px rgba(255,122,24,.10);
+}
+
+/* ถ้าอยากให้ chip ที่ “ชนะ” เด่นขึ้นนิด (optional) */
+.pd-winnerChip::before{
+  content:"★";
+  font-size: 12px;
+  opacity: .75;
+}

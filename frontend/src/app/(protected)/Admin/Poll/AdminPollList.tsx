@@ -35,14 +35,14 @@ const StatusBadge = ({ status }: { status: StatusName }) => {
     status === "PENDING_REVIEW"
       ? "badge badge-pending"
       : status === "PUBLISHED" || status === "OPEN" || status === "UPCOMING"
-        ? "badge badge-published"
-        : status === "REJECTED"
-          ? "badge badge-rejected"
-          : status === "CLOSED"
-            ? "badge badge-closed"
-            : status === "DRAFT"
-              ? "badge badge-draft"
-              : "badge";
+      ? "badge badge-published"
+      : status === "REJECTED"
+      ? "badge badge-rejected"
+      : status === "CLOSED"
+      ? "badge badge-closed"
+      : status === "DRAFT"
+      ? "badge badge-draft"
+      : "badge";
   return <span className={cls}>{status}</span>;
 };
 
@@ -97,6 +97,14 @@ const AdminPollList: React.FC = () => {
           return ds === "CLOSED";
         });
         setPolls(closedOnly);
+      } else if (statusID === 3) {
+        // ✅ FIX: Published (ตามที่หนูเลือกแบบ 1) = OPEN + UPCOMING + (fallback PUBLISHED) เท่านั้น
+        // ไม่เอา CLOSED ปนเข้ามา
+        const publishedLike = list.filter((p: Poll) => {
+          const ds = getDisplayStatus(p);
+          return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
+        });
+        setPolls(publishedLike);
       } else {
         setPolls(list);
       }
@@ -179,29 +187,37 @@ const AdminPollList: React.FC = () => {
   const getStartAt = (p: Poll) => (p as any)?.start_at ?? (p as any)?.StartAt ?? null;
   const getEndAt = (p: Poll) => (p as any)?.end_at ?? (p as any)?.EndAt ?? null;
 
-  // categories (ถ้ามี)
+  // categories (รองรับทั้ง title / name / และ fallback เป็น *_id)
   const getMainCategory = (p: Poll) =>
+    (p as any)?.main_category?.title ??
     (p as any)?.main_category?.name ??
-    (p as any)?.main_category_name ??
-    (p as any)?.MainCategoryName ??
+    (p as any)?.MainCategory?.Title ??
+    (p as any)?.MainCategory?.Name ??
+    (p as any)?.main_category_title ??
+    (p as any)?.MainCategoryTitle ??
     "";
+
   const getSub1Category = (p: Poll) =>
+    (p as any)?.sub_category_l1?.title ??
     (p as any)?.sub_category_l1?.name ??
-    (p as any)?.sub_category_l1_name ??
-    (p as any)?.SubCategoryL1Name ??
+    (p as any)?.SubCategoryL1?.Title ??
+    (p as any)?.SubCategoryL1?.Name ??
+    (p as any)?.sub_category_l1_title ??
+    (p as any)?.SubCategoryL1Title ??
     "";
+
   const getSub2Category = (p: Poll) =>
+    (p as any)?.sub_category_l2?.title ??
     (p as any)?.sub_category_l2?.name ??
-    (p as any)?.sub_category_l2_name ??
-    (p as any)?.SubCategoryL2Name ??
+    (p as any)?.SubCategoryL2?.Title ??
+    (p as any)?.SubCategoryL2?.Name ??
+    (p as any)?.sub_category_l2_title ??
+    (p as any)?.SubCategoryL2Title ??
     "";
 
   // optional: backend อาจส่งชื่อมา
   const getAuthorName = (p: Poll) =>
-    (p as any).member?.name ||
-    (p as any).member?.username ||
-    (p as any).author_name ||
-    "";
+    (p as any).member?.name || (p as any).member?.username || (p as any).author_name || "";
 
   const getRejectReason = (p: Poll) =>
     (p as any)?.last_reject_reason ??
@@ -210,20 +226,12 @@ const AdminPollList: React.FC = () => {
     "";
 
   // ✅ options: รองรับทั้ง poll_options / options
-  const getOptions = (p: Poll) =>
-    (((p as any).poll_options || (p as any).options || []) as any[]);
+  const getOptions = (p: Poll) => (((p as any).poll_options || (p as any).options || []) as any[]);
 
   const optionLabel = (opt: any) =>
-    opt?.label ??
-    opt?.text ??
-    opt?.title ??
-    opt?.option_text ??
-    opt?.OptionText ??
-    opt?.name ??
-    "-";
+    opt?.label ?? opt?.text ?? opt?.title ?? opt?.option_text ?? opt?.OptionText ?? opt?.name ?? "-";
 
-  const optionImgRaw = (opt: any) =>
-    opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imgUrl ?? "";
+  const optionImgRaw = (opt: any) => opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imgUrl ?? "";
 
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
@@ -324,6 +332,7 @@ const AdminPollList: React.FC = () => {
 
   // Detail open/close
   const openDetail = (p: Poll) => {
+    console.log("selectedPoll:", p);
     setSelectedPoll(p);
     setDetailOpen(true);
   };
@@ -458,9 +467,7 @@ const AdminPollList: React.FC = () => {
 
                       <td>
                         <div className="author">
-                          <div className="author-name">
-                            {authorName ? authorName : `Member #${authorId}`}
-                          </div>
+                          <div className="author-name">{authorName ? authorName : `Member #${authorId}`}</div>
                           <div className="author-sub">ID: {authorId}</div>
                         </div>
                       </td>
@@ -586,14 +593,32 @@ const AdminPollList: React.FC = () => {
                 </div>
               </div>
 
-              {/* Categories (ถ้ามี) */}
+              {/* Category (แบบเดียวกับ MyPoll detail) */}
               {(getMainCategory(selectedPoll) || getSub1Category(selectedPoll) || getSub2Category(selectedPoll)) && (
                 <div className="detail-block" style={{ marginTop: 10 }}>
-                  <div className="detail-label">Categories</div>
-                  <div className="detail-value">
-                    {[getMainCategory(selectedPoll), getSub1Category(selectedPoll), getSub2Category(selectedPoll)]
-                      .filter(Boolean)
-                      .join(" / ")}
+                  <div className="detail-label">Category</div>
+
+                  <div className="detail-value cat-box">
+                    {getMainCategory(selectedPoll) ? (
+                      <div className="cat-row">
+                        <span className="cat-k">หมวดหลัก:</span>
+                        <span className="cat-v">{getMainCategory(selectedPoll)}</span>
+                      </div>
+                    ) : null}
+
+                    {getSub1Category(selectedPoll) ? (
+                      <div className="cat-row">
+                        <span className="cat-k">หมวดย่อย 1:</span>
+                        <span className="cat-v">{getSub1Category(selectedPoll)}</span>
+                      </div>
+                    ) : null}
+
+                    {getSub2Category(selectedPoll) ? (
+                      <div className="cat-row">
+                        <span className="cat-k">หมวดย่อย 2:</span>
+                        <span className="cat-v">{getSub2Category(selectedPoll)}</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -620,7 +645,7 @@ const AdminPollList: React.FC = () => {
                   <div className="opt-grid">
                     {getOptions(selectedPoll).map((opt: any, idx: number) => {
                       const raw =
-                        opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imageUrl ?? "";
+                        opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imageUrl ?? opt?.imgUrl ?? "";
                       const img = raw ? toFullUrl(raw) : "";
 
                       return (
@@ -645,7 +670,7 @@ const AdminPollList: React.FC = () => {
                               <img
                                 className="opt-img"
                                 src={img}
-                                alt={opt.label || opt.text || opt.title || `Option ${idx + 1}`}
+                                alt={optionLabel(opt) || `Option ${idx + 1}`}
                                 draggable={false}
                               />
                             </button>
@@ -653,9 +678,7 @@ const AdminPollList: React.FC = () => {
 
                           <div className="opt-meta">
                             <div className="opt-title">Option {idx + 1}</div>
-                            <div className="opt-text">
-                              {opt.label || opt.text || opt.title || "-"}
-                            </div>
+                            <div className="opt-text">{optionLabel(opt) || "-"}</div>
                           </div>
                         </div>
                       );

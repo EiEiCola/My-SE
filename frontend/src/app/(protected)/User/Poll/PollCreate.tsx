@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
-import "./PollCreate.css";
-import { pollAPI } from "../../../../services/http/poll";
+import "./PollCreate.css"; // ✅ ให้ไฟล์นี้เป็น CSS ใหม่ (pcx-*)
+import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
 
 type OptionForm = {
   label: string;
@@ -23,6 +23,8 @@ type PollForm = {
 
   options: OptionForm[];
 };
+
+type CatItem = { id: number; title: string };
 
 const emptyForm: PollForm = {
   question: "",
@@ -55,14 +57,13 @@ function toISOOrNull(dtLocal: string | null): string | null {
   return d.toISOString();
 }
 
-// ✅ เพิ่ม helper เหมือน Review: แปลง /uploads/... ให้เป็น full url
+// ✅ helper เหมือนเดิม
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const toFullUrl = (u?: string) => {
   if (!u) return "";
   const s = String(u).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:"))
-    return s;
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
   if (s.startsWith("/")) return `${API_BASE}${s}`;
   return `${API_BASE}/${s}`;
 };
@@ -79,9 +80,16 @@ const PollCreate: React.FC = () => {
   const [pollStatusID, setPollStatusID] = useState<number | null>(null);
   const [form, setForm] = useState<PollForm>(emptyForm);
 
+  // ✅ categories state
+  const [mainCats, setMainCats] = useState<CatItem[]>([]);
+  const [sub1Cats, setSub1Cats] = useState<CatItem[]>([]);
+  const [sub2Cats, setSub2Cats] = useState<CatItem[]>([]);
+  const [catLoading, setCatLoading] = useState(false);
+  
+  const [catNames, setCatNames] = useState<{ main?: string; sub1?: string; sub2?: string }>({});
+
+
   const optionCount = form.options.length;
-  const canShowMaxChoice = form.allow_multiple;
-  const maxChoiceLimit = optionCount;
 
   const errors = useMemo(() => {
     const e: string[] = [];
@@ -119,60 +127,6 @@ const PollCreate: React.FC = () => {
     if (filled.length < 2) w.push("Draft: recommended to have at least 2 options");
     return w;
   }, [form]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!isEdit) return;
-      setLoading(true);
-      try {
-        const res = await (pollAPI as any).getMyPollByID(pollId);
-        const data = (res as any)?.data ?? res;
-
-        const question = data?.question ?? "";
-        const allow_multiple = !!(data?.allow_multiple ?? false);
-        const max_choice = data?.max_choice ?? null;
-
-        const start_at = toDatetimeLocal(data?.start_at);
-        const end_at = toDatetimeLocal(data?.end_at);
-
-        const main_category_id = data?.main_category_id ?? null;
-        const sub_category_l1_id = data?.sub_category_l1_id ?? null;
-        const sub_category_l2_id = data?.sub_category_l2_id ?? null;
-
-        const opts = (data?.options ?? []).map((o: any) => {
-          const img = o?.img_url ?? o?.ImgURL ?? "";
-          return {
-            label: o?.label ?? "",
-            hasImage: !!img,
-            img_url: img || "",
-          } as OptionForm;
-        });
-
-        setPollStatusID(Number(data?.poll_status_id ?? data?.StatusID ?? null));
-
-        setForm({
-          question,
-          allow_multiple,
-          max_choice: max_choice === null ? null : Number(max_choice),
-          start_at,
-          end_at,
-          main_category_id: main_category_id === null ? null : Number(main_category_id),
-          sub_category_l1_id: sub_category_l1_id === null ? null : Number(sub_category_l1_id),
-          sub_category_l2_id: sub_category_l2_id === null ? null : Number(sub_category_l2_id),
-          options: opts.length ? opts : emptyForm.options,
-        });
-      } catch (err) {
-        console.error(err);
-        alert("Failed to load poll for edit");
-        navigate("/User/Polls/my");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, pollId]);
 
   const setField = <K extends keyof PollForm>(key: K, value: PollForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -278,6 +232,11 @@ const PollCreate: React.FC = () => {
       return;
     }
 
+    if (!form.main_category_id) {
+    alert("Please select Main Category before submit");
+    return;
+  }
+
     setSubmitting(true);
     try {
       const id = await saveDraft();
@@ -295,79 +254,225 @@ const PollCreate: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="pc-loading">Loading...</div>;
+  // ✅ Load categories (Main)
+  useEffect(() => {
+    const loadMain = async () => {
+      setCatLoading(true);
+      try {
+        const mains = await (categoryAPI as any).listMain();
+        setMainCats(mains ?? []);
+      } catch (e) {
+        console.error(e);
+        setMainCats([]);
+      } finally {
+        setCatLoading(false);
+      }
+    };
+    loadMain();
+  }, []);
+
+  // ✅ When main changes -> load sub1
+  useEffect(() => {
+    const loadSub1 = async () => {
+      setSub1Cats([]);
+      setSub2Cats([]);
+
+      if (!form.main_category_id) return;
+
+      try {
+        const sub1 = await (categoryAPI as any).listSub1(form.main_category_id);
+        setSub1Cats(sub1 ?? []);
+      } catch (e) {
+        console.error(e);
+        setSub1Cats([]);
+      }
+    };
+    loadSub1();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.main_category_id]);
+
+  // ✅ When sub1 changes -> load sub2
+  useEffect(() => {
+    const loadSub2 = async () => {
+      setSub2Cats([]);
+      if (!form.sub_category_l1_id) return;
+
+      try {
+        const sub2 = await (categoryAPI as any).listSub2(form.sub_category_l1_id);
+        setSub2Cats(sub2 ?? []);
+      } catch (e) {
+        console.error(e);
+        setSub2Cats([]);
+      }
+    };
+    loadSub2();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.sub_category_l1_id]);
+
+  // ✅ Edit mode: load poll first (ไม่กระทบ logic เดิม)
+  useEffect(() => {
+    const load = async () => {
+      if (!isEdit) return;
+      setLoading(true);
+      try {
+        const res = await (pollAPI as any).getMyPollByID(pollId);
+        const data = (res as any)?.data ?? res;
+
+        const question = data?.question ?? "";
+        const allow_multiple = !!(data?.allow_multiple ?? false);
+        const max_choice = data?.max_choice ?? null;
+
+        const start_at = toDatetimeLocal(data?.start_at);
+        const end_at = toDatetimeLocal(data?.end_at);
+
+        const main_category_id = data?.main_category_id ?? null;
+        const sub_category_l1_id = data?.sub_category_l1_id ?? null;
+        const sub_category_l2_id = data?.sub_category_l2_id ?? null;
+
+        const rawOptions = (data?.options ?? data?.poll_options ?? data?.PollOptions ?? []) as any[];
+
+        const opts = rawOptions.map((o: any) => {
+          const img = o?.img_url ?? o?.ImgURL ?? o?.image_url ?? o?.imageUrl ?? "";
+          const label =
+            o?.label ??
+            o?.text ??
+            o?.title ??
+            o?.option_text ??
+            o?.optionText ??
+            o?.OptionText ??
+            "";
+
+          return {
+            label: String(label ?? ""),
+            hasImage: !!String(img ?? "").trim(),
+            img_url: String(img ?? ""),
+          } as OptionForm;
+        });
+
+        setPollStatusID(Number(data?.poll_status_id ?? data?.StatusID ?? null));
+
+        setForm({
+          question,
+          allow_multiple,
+          max_choice: max_choice === null ? null : Number(max_choice),
+          start_at,
+          end_at,
+          main_category_id: main_category_id === null ? null : Number(main_category_id),
+          sub_category_l1_id: sub_category_l1_id === null ? null : Number(sub_category_l1_id),
+          sub_category_l2_id: sub_category_l2_id === null ? null : Number(sub_category_l2_id),
+          options: opts.length ? opts : emptyForm.options,
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load poll for edit");
+        navigate("/User/Polls/my");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, pollId]);
+
+  if (loading) return <div className="pcx-page">Loading...</div>;
 
   return (
-    <div className="pc-page">
-      <div className="pc-topbar">
-        <div>
-          <div className="pc-title">{isEdit ? "Edit Poll" : "Create Poll"}</div>
-          <div className="pc-subtitle">Flow: Save Draft → Submit for Admin Review → (Admin Approve) → Published</div>
-
-          {isEdit && pollStatusID !== null && <div className="pc-statusline">Current Status ID: {pollStatusID}</div>}
-        </div>
-
-        <button type="button" className="pc-btn pc-btn-back" onClick={() => navigate("/User/Polls/my")}>
-          ← Back
-        </button>
-      </div>
-
-      <div className="pc-card">
-        <div className="pc-section">
-          <div className="pc-label">Question</div>
-          <input
-            className="pc-input"
-            value={form.question}
-            onChange={(e) => setField("question", e.target.value)}
-            placeholder="Enter your poll question..."
-          />
-        </div>
-
-        <div className="pc-grid2">
-          <div className="pc-panel">
-            <div className="pc-panel-title">Allow multiple choices</div>
-            <div className="pc-panel-sub">If enabled, user can pick more than 1 option.</div>
-
-            <div className="pc-checkrow">
-              <input
-                type="checkbox"
-                checked={form.allow_multiple}
-                onChange={(e) => {
-                  const v = e.target.checked;
-                  setField("allow_multiple", v);
-                  if (!v) setField("max_choice", null);
-                  if (v && !form.max_choice) setField("max_choice", 2);
-                }}
-              />
-              <span className="pc-checktext">{form.allow_multiple ? "Enabled" : "Disabled"}</span>
-            </div>
-
-            {canShowMaxChoice && (
-              <div className="pc-subsection">
-                <div className="pc-label">Max choice</div>
-                <input
-                  className="pc-input"
-                  type="number"
-                  min={2}
-                  max={maxChoiceLimit}
-                  value={form.max_choice ?? ""}
-                  onChange={(e) => setField("max_choice", e.target.value ? Number(e.target.value) : null)}
-                  placeholder="2"
-                />
-                <div className="pc-hint">Max = number of options ({maxChoiceLimit})</div>
+    <div className="pcx-page">
+      <div className="pcx-card">
+        {/* Header */}
+        <div className="pcx-header">
+          <div className="pcx-headerLeft">
+            <div className="pcx-badge">{isEdit ? "EDIT POLL" : "CREATE POLL"}</div>
+            <div className="pcx-title">{isEdit ? "Edit Poll" : "Create Poll"}</div>
+            <div className="pcx-subtitle">Save Draft → Submit for Admin Review → (Approve) → Published</div>
+            {isEdit && pollStatusID !== null && (
+              <div className="pcx-status">
+                Current Status: <span>{pollStatusID}</span>
               </div>
             )}
           </div>
 
-          <div className="pc-panel">
-            <div className="pc-panel-title">Time range (optional)</div>
-            <div className="pc-panel-sub">If set, vote allowed only in this time window.</div>
+          <button type="button" className="pcx-btn pcx-btnGhost" onClick={() => navigate("/User/Polls/my")}>
+            ← Back
+          </button>
+        </div>
 
-            <div className="pc-grid2 pc-grid2-tight">
-              <div>
-                <div className="pc-mini">Start</div>
+        {/* Question */}
+        <div className="pcx-section pcx-sectionTop">
+          <div className="pcx-sectionHead">
+            <div className="pcx-sectionTitle">Question</div>
+            <div className="pcx-sectionHint">ใส่คำถามสั้น ๆ ให้คนตอบเข้าใจง่าย</div>
+          </div>
+          <input
+            className="pcx-input pcx-inputLg"
+            value={form.question}
+            onChange={(e) => setField("question", e.target.value)}
+            placeholder="เช่น อยากให้โรงอาหารเพิ่มเมนูอะไร?"
+          />
+        </div>
+
+        {/* Panels row */}
+        <div className="pcx-grid2">
+          {/* Multiple choice */}
+          <div className="pcx-panel">
+            <div className="pcx-panelHead">
+              <div className="pcx-panelTitle">Allow multiple choices</div>
+              <div className="pcx-pill">{form.allow_multiple ? "MULTI" : "SINGLE"}</div>
+            </div>
+            <div className="pcx-panelSub">เปิดแล้วผู้โหวตเลือกได้มากกว่า 1 ตัวเลือก</div>
+
+            <div className="pcx-row pcx-rowBetween">
+              <label className="pcx-switch">
                 <input
-                  className="pc-input"
+                  type="checkbox"
+                  checked={form.allow_multiple}
+                  onChange={(e) => {
+                    const v = e.target.checked;
+                    setField("allow_multiple", v);
+                    if (!v) setField("max_choice", null);
+                    if (v && !form.max_choice) setField("max_choice", 2);
+                  }}
+                />
+                <span className="pcx-slider" />
+                <span className="pcx-check">{form.allow_multiple ? "Enabled" : "Disabled"}</span>
+              </label>
+
+              {form.allow_multiple && (
+                <span className="pcx-miniPill">Max ≤ {form.options.length}</span>
+              )}
+            </div>
+
+            {form.allow_multiple && (
+              <div className="pcx-subsection">
+                <div className="pcx-label">Max choice</div>
+                <input
+                  className="pcx-input"
+                  type="number"
+                  min={2}
+                  max={form.options.length}
+                  value={form.max_choice ?? ""}
+                  onChange={(e) => setField("max_choice", e.target.value ? Number(e.target.value) : null)}
+                  placeholder="2"
+                />
+                <div className="pcx-help">กำหนดจำนวนสูงสุดที่เลือกได้</div>
+              </div>
+            )}
+          </div>
+
+          {/* Time range */}
+          <div className="pcx-panel">
+            <div className="pcx-panelHead">
+              <div className="pcx-panelTitle">Time range (optional)</div>
+              <div className="pcx-pill">SCHEDULE</div>
+            </div>
+            <div className="pcx-panelSub">ถ้าตั้งเวลา ระบบจะให้โหวตได้เฉพาะช่วงนั้น</div>
+
+            <div className="pcx-grid2tight">
+              <div>
+                <div className="pcx-label">Start</div>
+                <input
+                  className="pcx-input"
                   type="datetime-local"
                   value={form.start_at ?? ""}
                   onChange={(e) => setField("start_at", e.target.value || null)}
@@ -375,184 +480,244 @@ const PollCreate: React.FC = () => {
               </div>
 
               <div>
-                <div className="pc-mini">End</div>
+                <div className="pcx-label">End</div>
                 <input
-                  className="pc-input"
+                  className="pcx-input"
                   type="datetime-local"
                   value={form.end_at ?? ""}
                   onChange={(e) => setField("end_at", e.target.value || null)}
                 />
               </div>
             </div>
+
+            <div className="pcx-row">
+              <div className="pcx-kv">
+                <div className="pcx-k">Start</div>
+                <div className="pcx-v">{form.start_at ? dayjs(form.start_at).format("DD MMM YYYY HH:mm") : "-"}</div>
+              </div>
+              <div className="pcx-kv">
+                <div className="pcx-k">End</div>
+                <div className="pcx-v">{form.end_at ? dayjs(form.end_at).format("DD MMM YYYY HH:mm") : "-"}</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="pc-panel pc-panel-soft">
-          <div className="pc-panel-title">Category IDs (optional)</div>
-          <div className="pc-panel-sub">If you haven't implemented category selection UI yet, you can leave these empty.</div>
+        {/* Categories */}
+        <details className="pcx-details" open>
+          <summary className="pcx-summary">
+            <div>
+              <div className="pcx-summaryTitle">Categories (optional)</div>
+              <div className="pcx-summaryHint">เลือกหมวดหมู่เพื่อให้คนหาโพลเจอง่ายขึ้น</div>
+            </div>
+            <span className="pcx-miniPill">{catLoading ? "Loading..." : "Ready"}</span>
+          </summary>
 
-          <div className="pc-grid3">
-            <input
-              className="pc-input"
-              type="number"
-              placeholder="main_category_id"
-              value={form.main_category_id ?? ""}
-              onChange={(e) => setField("main_category_id", e.target.value ? Number(e.target.value) : null)}
-            />
-            <input
-              className="pc-input"
-              type="number"
-              placeholder="sub_category_l1_id"
-              value={form.sub_category_l1_id ?? ""}
-              onChange={(e) => setField("sub_category_l1_id", e.target.value ? Number(e.target.value) : null)}
-            />
-            <input
-              className="pc-input"
-              type="number"
-              placeholder="sub_category_l2_id"
-              value={form.sub_category_l2_id ?? ""}
-              onChange={(e) => setField("sub_category_l2_id", e.target.value ? Number(e.target.value) : null)}
-            />
-          </div>
-        </div>
-
-        <div className="pc-options-head">
-          <div className="pc-options-title">Options</div>
-          <button type="button" className="pc-btn pc-btn-primary" onClick={addOption}>
-            ➕ Add Option
-          </button>
-        </div>
-
-        <div className="pc-options">
-          {form.options.map((opt, idx) => (
-            <div className="pc-opt" key={idx}>
-              <div className="pc-opt-top">
-                <div className="pc-opt-title">Option #{idx + 1}</div>
-
-                <div className="pc-opt-actions">
-                  <button
-                    type="button"
-                    className="pc-mini-btn"
-                    onClick={() => moveOption(idx, idx - 1)}
-                    disabled={idx === 0}
-                    title="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="pc-mini-btn"
-                    onClick={() => moveOption(idx, idx + 1)}
-                    disabled={idx === form.options.length - 1}
-                    title="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="pc-mini-btn pc-mini-btn-danger"
-                    onClick={() => removeOption(idx)}
-                    disabled={form.options.length <= 2}
-                    title="Remove"
-                  >
-                    🗑
-                  </button>
-                </div>
-              </div>
-
-              <div className="pc-subsection">
-                <div className="pc-mini">Label</div>
-                <input
-                  className="pc-input"
-                  value={opt.label}
-                  onChange={(e) => setOption(idx, { label: e.target.value })}
-                  placeholder="Option text..."
-                />
-              </div>
-
-              <div className="pc-checkrow">
-                <input
-                  type="checkbox"
-                  checked={opt.hasImage}
+          <div className="pcx-panel pcx-panelSoft" style={{ borderRadius: 0, border: "none" }}>
+            <div className="pcx-grid3">
+              <div>
+                <div className="pcx-label">Main</div>
+                <select
+                  className="pcx-input"
+                  value={form.main_category_id ?? ""}
                   onChange={(e) => {
-                    const v = e.target.checked;
-                    setOption(idx, { hasImage: v, img_url: v ? opt.img_url : "" });
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("main_category_id", v);
+                    // reset children
+                    setField("sub_category_l1_id", null);
+                    setField("sub_category_l2_id", null);
                   }}
-                />
-                <span className="pc-checktext">Include image (optional)</span>
+                >
+                  <option value="">— เลือก Main —</option>
+                  {mainCats.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* ✅ เปลี่ยนตรงนี้: ให้เลือกไฟล์ได้เลย + preview (ไม่ต้องกรอก URL เอง) */}
-              {opt.hasImage && (
-                <div className="pc-subsection">
-                  <div className="pc-mini">Image</div>
+              <div>
+                <div className="pcx-label">Sub 1</div>
+                <select
+                  className="pcx-input"
+                  value={form.sub_category_l1_id ?? ""}
+                  disabled={!form.main_category_id}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("sub_category_l1_id", v);
+                    setField("sub_category_l2_id", null);
+                  }}
+                >
+                  <option value="">{form.main_category_id ? "— เลือก Sub 1 —" : "เลือก Main ก่อน"}</option>
+                  {sub1Cats.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <div>
+                <div className="pcx-label">Sub 2</div>
+                <select
+                  className="pcx-input"
+                  value={form.sub_category_l2_id ?? ""}
+                  disabled={!form.sub_category_l1_id}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("sub_category_l2_id", v);
+                  }}
+                >
+                  <option value="">{form.sub_category_l1_id ? "— เลือก Sub 2 —" : "เลือก Sub 1 ก่อน"}</option>
+                  {sub2Cats.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="pcx-mono">
+              Selected IDs:{" "}
+              <span>
+                main={form.main_category_id ?? "-"} sub1={form.sub_category_l1_id ?? "-"} sub2={form.sub_category_l2_id ?? "-"}
+              </span>
+            </div>
+          </div>
+        </details>
+
+        {/* Options header */}
+        <div className="pcx-section">
+          <div className="pcx-sectionHead pcx-sectionHeadRow">
+            <div>
+              <div className="pcx-sectionTitle">Options</div>
+              <div className="pcx-sectionHint">อย่างน้อย 2 ตัวเลือก • ลากจัดลำดับด้วยปุ่ม ↑ ↓</div>
+            </div>
+
+            <button type="button" className="pcx-btn pcx-btnPrimary" onClick={addOption}>
+              ➕ Add Option
+            </button>
+          </div>
+
+          <div className="pcx-optionsGrid">
+            {form.options.map((opt, idx) => (
+              <div className="pcx-optCard" key={idx}>
+                <div className="pcx-optHead">
+                  <div className="pcx-optTitle">Option #{idx + 1}</div>
+
+                  <div className="pcx-optActions">
+                    <button
+                      type="button"
+                      className="pcx-iconBtn"
+                      onClick={() => moveOption(idx, idx - 1)}
+                      disabled={idx === 0}
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="pcx-iconBtn"
+                      onClick={() => moveOption(idx, idx + 1)}
+                      disabled={idx === form.options.length - 1}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="pcx-iconBtn pcx-iconDanger"
+                      onClick={() => removeOption(idx)}
+                      disabled={form.options.length <= 2}
+                      title="Remove"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pcx-subsection">
+                  <div className="pcx-label">Label</div>
+                  <input
+                    className="pcx-input"
+                    value={opt.label}
+                    onChange={(e) => setOption(idx, { label: e.target.value })}
+                    placeholder="เช่น โหวตตัวเลือกนี้..."
+                  />
+                </div>
+
+                <div className="pcx-subsection">
+                  <label className="pcx-check">
                     <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-
-                        try {
-                          const res = await (pollAPI as any).uploadOptionImage(file);
-                          const url = (res as any)?.data?.url ?? (res as any)?.data?.data?.url ?? "";
-                          if (!url) throw new Error("upload url missing");
-
-                          setOption(idx, { img_url: url, hasImage: true });
-                        } catch (err) {
-                          console.error(err);
-                          alert("Upload image failed");
-                          setOption(idx, { img_url: "" });
-                        } finally {
-                          // reset input so selecting same file again triggers onChange
-                          e.currentTarget.value = "";
-                        }
+                      type="checkbox"
+                      checked={opt.hasImage}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setOption(idx, { hasImage: v, img_url: v ? opt.img_url : "" });
                       }}
                     />
+                    Include image (optional)
+                  </label>
 
-                    {opt.img_url ? (
-                      <>
-                        <img
-                          src={toFullUrl(opt.img_url)}
-                          alt={`option-${idx + 1}`}
-                          style={{
-                            width: 96,
-                            height: 96,
-                            objectFit: "cover",
-                            borderRadius: 12,
-                            border: "1px solid #eee",
-                            background: "#fff",
+                  {opt.hasImage && (
+                    <div className="pcx-uploadBox">
+                      <div className="pcx-uploadRow">
+                        <input
+                          className="pcx-file"
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            try {
+                              const res = await (pollAPI as any).uploadOptionImage(file);
+                              const url = (res as any)?.data?.url ?? (res as any)?.data?.data?.url ?? "";
+                              if (!url) throw new Error("upload url missing");
+                              setOption(idx, { img_url: url, hasImage: true });
+                            } catch (err) {
+                              console.error(err);
+                              alert("Upload image failed");
+                              setOption(idx, { img_url: "" });
+                            } finally {
+                              e.currentTarget.value = "";
+                            }
                           }}
                         />
 
-                        <button type="button" className="pc-btn pc-btn-outline" onClick={() => setOption(idx, { img_url: "" })}>
-                          ลบรูป
-                        </button>
-                      </>
-                    ) : (
-                      <div className="pc-hint">เลือกรูปเพื่ออัปโหลด (ระบบจะเก็บ url ให้อัตโนมัติ)</div>
-                    )}
-                  </div>
+                        {opt.img_url ? (
+                          <div className="pcx-previewRow">
+                            <img className="pcx-previewImg" src={toFullUrl(opt.img_url)} alt={`option-${idx + 1}`} />
+                            <button type="button" className="pcx-btn pcx-btnGhost" onClick={() => setOption(idx, { img_url: "" })}>
+                              ลบรูป
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="pcx-help">เลือกรูปเพื่ออัปโหลด (ระบบจะเก็บ url ให้อัตโนมัติ)</div>
+                        )}
 
-                  {opt.img_url && (
-                    <div className="pc-hint">
-                      Saved URL: <span className="mono">{opt.img_url}</span>
+                        {opt.img_url && (
+                          <div className="pcx-mono">
+                            Saved URL: <span>{opt.img_url}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
-              {/* ✅ จบส่วนเลือกรูป */}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="pc-messages">
+        {/* Messages */}
+        <div className="pcx-messages">
           {errors.length > 0 && (
-            <div className="pc-msg pc-msg-error">
-              <div className="pc-msg-title">Submit validation</div>
-              <ul className="pc-msg-list">
+            <div className="pcx-alert pcx-alertError">
+              <div className="pcx-alertTitle">Submit validation</div>
+              <ul className="pcx-alertList">
                 {errors.map((x, i) => (
                   <li key={i}>{x}</li>
                 ))}
@@ -561,9 +726,9 @@ const PollCreate: React.FC = () => {
           )}
 
           {draftWarnings.length > 0 && (
-            <div className="pc-msg pc-msg-warn">
-              <div className="pc-msg-title">Draft warnings</div>
-              <ul className="pc-msg-list">
+            <div className="pcx-alert pcx-alertWarn">
+              <div className="pcx-alertTitle">Draft warnings</div>
+              <ul className="pcx-alertList">
                 {draftWarnings.map((x, i) => (
                   <li key={i}>{x}</li>
                 ))}
@@ -572,12 +737,13 @@ const PollCreate: React.FC = () => {
           )}
         </div>
 
-        <div className="pc-actions">
-          <button type="button" className="pc-btn pc-btn-outline" onClick={handleSaveDraft} disabled={submitting}>
+        {/* Actions */}
+        <div className="pcx-actions">
+          <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
             💾 Save Draft
           </button>
 
-          <button type="button" className="pc-btn pc-btn-primary" onClick={handleSubmitForReview} disabled={submitting}>
+          <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
             📤 Submit for Review
           </button>
         </div>

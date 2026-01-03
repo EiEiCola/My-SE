@@ -34,6 +34,8 @@ type PollService interface {
 	Approve(adminID uint, pollID uint) (*dto.PollResponse, error)
 	Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error)
 	Close(adminID uint, pollID uint) (*dto.PollResponse, error)
+	GetByIDForAdmin(pollID uint) (*dto.PollResponse, error)
+	DeleteForAdmin(adminID uint, pollID uint) (*dto.PollResponse, error)
 }
 
 type pollService struct {
@@ -76,7 +78,7 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 	}
 
 	for i, opt := range req.Options {
-		sortOrder := i + 1 // ✅ เริ่มที่ 1
+		sortOrder := i + 1
 		if opt.SortOrder != nil {
 			sortOrder = *opt.SortOrder
 		}
@@ -115,7 +117,6 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 
 	oldStatusID := poll.PollStatusID
 
-	// 1) update poll fields (ไม่ยุ่ง options)
 	poll.Question = req.Question
 	poll.AllowMultiple = req.AllowMultiple
 	poll.MaxChoice = req.MaxChoice
@@ -134,7 +135,6 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 		return nil, err
 	}
 
-	// 2) replace options จริง ๆ
 	opts := make([]entity.PollOption, 0, len(req.Options))
 	for i, opt := range req.Options {
 		sortOrder := i + 1
@@ -159,7 +159,6 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 		ToStatusID:   &poll.PollStatusID,
 	})
 
-	// 3) re-fetch ให้ options ล่าสุดชัวร์
 	updated, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
@@ -183,14 +182,12 @@ func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResp
 		return nil, err
 	}
 
-	// clear reject reason (optional)
 	poll.LastRejectReason = ""
 	_ = s.pollRepo.UpdatePoll(poll)
 
 	oldStatusID := poll.PollStatusID
 	newStatusID := StatusPENDING_REVIEW
 
-	// ✅ อัปเดต status แบบเจาะจง
 	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
@@ -290,6 +287,9 @@ func (s *pollService) GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsRe
 			CreatedAt:        poll.CreatedAt,
 			StartAt:          poll.StartAt,
 			EndAt:            poll.EndAt,
+			MainCategoryID:   poll.MainCategoryID,
+			SubCategoryL1ID:  poll.SubCategoryL1ID,
+			SubCategoryL2ID:  poll.SubCategoryL2ID,
 		})
 	}
 	return result, nil
@@ -299,6 +299,10 @@ func (s *pollService) GetMyPollByID(memberID uint, pollID uint) (*dto.PollRespon
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
+	}
+	// ❌ owner ห้ามโหวตโพลตัวเอง
+	if poll.MemberID == memberID {
+    return nil, errors.New("owner_cannot_vote")
 	}
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
@@ -358,17 +362,35 @@ func (s *pollService) ListPublished(memberID uint) ([]dto.PollResponse, error) {
 		return nil, err
 	}
 
+	// ✅ NEW: ดึงจำนวน “คนโหวต” ต่อโพล แบบ bulk: poll_id -> total_voters
+	// ต้องมี method ใน repo: CountTotalVotersByPollIDs
+	votersByPoll, err := s.pollRepo.CountTotalVotersByPollIDs(pollIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	// map เป็น dto แล้วค่อยเติม fields เพิ่ม
 	res := mapPollsToResponse(polls)
 
 	for i := range res {
 		pid := res[i].ID
+
+		// has_voted + my_option_ids
 		if optIDs, ok := myVotes[pid]; ok && len(optIDs) > 0 {
 			res[i].HasVoted = true
 			res[i].MyOptionIDs = optIDs
 		} else {
 			res[i].HasVoted = false
 			res[i].MyOptionIDs = []uint{}
+		}
+
+		// ✅ total_voters
+		if tv, ok := votersByPoll[pid]; ok {
+			v := tv
+			res[i].TotalVoters = &v
+		} else {
+			zero := int64(0)
+			res[i].TotalVoters = &zero
 		}
 	}
 
@@ -381,13 +403,14 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 	if err != nil {
 		return nil, err
 	}
+	if poll.MemberID == memberID {
+        return nil, errors.New("owner_cannot_vote")
+    }
 
-	// ✅ เปิดโหวตเฉพาะ published
 	if poll.PollStatusID != StatusPUBLISHED {
 		return nil, errors.New("poll_not_open")
 	}
 
-	// ✅ ใช้ effectiveStart (max(start_at, published_at))
 	now := time.Now()
 
 	es := effectiveStart(poll)
@@ -407,7 +430,6 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, errors.New("already_voted")
 	}
 
-	// dedupe option_ids
 	seen := map[uint]bool{}
 	optionIDs := make([]uint, 0, len(req.OptionIDs))
 	for _, id := range req.OptionIDs {
@@ -450,10 +472,8 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, err
 	}
 
-	// ✅ Results แบบ B
 	results, err := s.Results(memberID, pollID)
 	if err != nil {
-		// vote success แล้ว แต่ results error — ส่ง vote success อย่างเดียวก็ได้
 		return &dto.VotePollResponse{
 			PollID:    pollID,
 			MemberID:  memberID,
@@ -477,7 +497,6 @@ func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsRespo
 		return nil, err
 	}
 
-	// ✅ RULE ใหม่: ดูผลตาม "เวลา" ได้ แม้ DB ยังไม่เปลี่ยนเป็น CLOSED
 	now := time.Now()
 	cs := computedStatus(poll, now)
 
@@ -486,7 +505,7 @@ func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsRespo
 	}
 
 	if cs == "CLOSED" || poll.PollStatusID == StatusCLOSED {
-		// ok: ดูผลได้แม้ไม่โหวต
+		// ok
 	} else if poll.PollStatusID == StatusPUBLISHED {
 		voted, err := s.pollRepo.HasVoted(pollID, memberID)
 		if err != nil {
@@ -504,7 +523,6 @@ func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsRespo
 		return nil, err
 	}
 
-	// ✅ total = จำนวนคนโหวต (voters)
 	totalVoters, err := s.pollRepo.CountTotalVoters(pollID)
 	if err != nil {
 		return nil, err
@@ -528,7 +546,7 @@ func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsRespo
 	return &dto.PollResultsResponse{
 		PollID:   poll.ID,
 		Question: poll.Question,
-		Total:    totalVoters, // json:"total_votes"
+		Total:    totalVoters,
 		Items:    items,
 	}, nil
 }
@@ -557,7 +575,6 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 	oldStatusID := poll.PollStatusID
 	newStatusID := StatusPUBLISHED
 
-	// ✅ set published_at ตอน approve/publish
 	now := time.Now()
 
 	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
@@ -645,6 +662,49 @@ func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error
 	return mapPollToResponse(updated), nil
 }
 
+func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
+	poll, err := s.pollRepo.GetPollByID(pollID)
+	if err != nil {
+		return nil, err
+	}
+	return mapPollToResponse(poll), nil
+}
+
+func (s *pollService) DeleteForAdmin(adminID uint, pollID uint) (*dto.PollResponse, error) {
+	poll, err := s.pollRepo.GetPollByID(pollID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	cs := computedStatus(poll, now)
+
+	canDelete :=
+		poll.PollStatusID == StatusDRAFT ||
+			poll.PollStatusID == StatusREJECTED ||
+			poll.PollStatusID == StatusCLOSED ||
+			(poll.PollStatusID == StatusPUBLISHED && cs == "CLOSED")
+
+	if !canDelete {
+		return nil, errors.New("can only delete poll in DRAFT / REJECTED / CLOSED status")
+	}
+
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
+		Action:       "DELETE_ADMIN",
+		PollID:       poll.ID,
+		AdminID:      &adminID,
+		FromStatusID: &poll.PollStatusID,
+	})
+
+	res := mapPollToResponse(poll)
+
+	if err := s.pollRepo.DeletePoll(pollID); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 /* =========================
 HELPERS + MAPPER
 ========================= */
@@ -687,7 +747,6 @@ func validatePollForSubmission(poll *entity.Poll) error {
 }
 
 func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
-	// ✅ status_name
 	statusName := ""
 	if poll.PollStatus != nil {
 		statusName = poll.PollStatus.Name
@@ -705,7 +764,6 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		}
 	}
 
-	// ✅ กัน options nil + sort ตาม sort_order
 	opts := poll.Options
 	if opts == nil {
 		opts = []entity.PollOption{}
@@ -714,7 +772,6 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		return opts[i].SortOrder < opts[j].SortOrder
 	})
 
-	// ✅ computed fields
 	now := time.Now()
 	es := effectiveStart(poll)
 	cs := computedStatus(poll, now)
@@ -726,16 +783,18 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		StatusID:   poll.PollStatusID,
 		StatusName: statusName,
 
-		MemberID: poll.MemberID,
-		AuthorName: authorName, 
-		
+		MemberID:   poll.MemberID,
+		AuthorName: authorName,
 
 		AllowMultiple: poll.AllowMultiple,
 		MaxChoice:     poll.MaxChoice,
 		StartAt:       poll.StartAt,
 		EndAt:         poll.EndAt,
 
-		// ✅ ใหม่
+		MainCategoryID:  poll.MainCategoryID,
+		SubCategoryL1ID: poll.SubCategoryL1ID,
+		SubCategoryL2ID: poll.SubCategoryL2ID,
+
 		PublishedAt:      poll.PublishedAt,
 		EffectiveStartAt: es,
 		ComputedStatus:   cs,
@@ -744,6 +803,17 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		CreatedAt:        poll.CreatedAt,
 
 		Options: make([]dto.PollOptionResponse, 0, len(opts)),
+	}
+
+	// category objects
+	if poll.MainCategoryID != nil && poll.MainCategory.ID != 0 {
+		res.MainCategory = &dto.CategoryBrief{ID: poll.MainCategory.ID, Title: poll.MainCategory.Title}
+	}
+	if poll.SubCategoryL1ID != nil && poll.SubCategoryL1.ID != 0 {
+		res.SubCategoryL1 = &dto.CategoryBrief{ID: poll.SubCategoryL1.ID, Title: poll.SubCategoryL1.Title}
+	}
+	if poll.SubCategoryL2ID != nil && poll.SubCategoryL2.ID != 0 {
+		res.SubCategoryL2 = &dto.CategoryBrief{ID: poll.SubCategoryL2.ID, Title: poll.SubCategoryL2.Title}
 	}
 
 	for _, opt := range opts {
@@ -766,7 +836,7 @@ func mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
 	return res
 }
 
-// ✅ effectiveStart = max(start_at, published_at)
+// effectiveStart = max(start_at, published_at)
 func effectiveStart(p *entity.Poll) *time.Time {
 	if p == nil {
 		return nil
@@ -797,6 +867,9 @@ func computedStatus(p *entity.Poll, now time.Time) string {
 	return "OPEN"
 }
 
+/* =========================
+PUBLIC DETAIL (✅ ปรับเพิ่ม total_voters)
+========================= */
 
 func (s *pollService) GetPublishedByID(memberID uint, pollID uint) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
@@ -804,7 +877,6 @@ func (s *pollService) GetPublishedByID(memberID uint, pollID uint) (*dto.PollRes
 		return nil, err
 	}
 
-	// ✅ อนุญาตให้ member ดูได้เฉพาะโพลที่ publish/closed (แล้วแต่กติกาหนู)
 	if poll.PollStatusID != StatusPUBLISHED && poll.PollStatusID != StatusCLOSED {
 		return nil, errors.New("poll_not_found")
 	}
@@ -824,11 +896,16 @@ func (s *pollService) GetPublishedByID(memberID uint, pollID uint) (*dto.PollRes
 		res.MyOptionIDs = []uint{}
 	}
 
+	// ✅ NEW: เติม total_voters
+	if tv, err := s.pollRepo.CountTotalVoters(pollID); err == nil {
+		v := tv
+		res.TotalVoters = &v
+	}
+
 	return res, nil
 }
 
 func (s *pollService) GetMyVote(memberID uint, pollID uint) (*dto.MyVoteResponse, error) {
-	// เช็ค poll มีจริง (กันยิงมั่ว)
 	_, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err

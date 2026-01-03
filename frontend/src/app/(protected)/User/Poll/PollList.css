@@ -582,13 +582,7 @@
   border-radius:12px;
 }
 
-.opt-thumbWrap{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-  border-radius:12px;
-}
+
 
 
 /* ===== results show thumbnail (bigger) ===== */
@@ -660,3 +654,65 @@
   border-color:#F7C6C6;
 }
 .badge{ box-shadow: 0 6px 16px rgba(0,0,0,.06); }
+
+
+/* =============================
+   Category badge (top-right)
+============================= */
+.pc-card{
+  position: relative; /* ✅ สำคัญ: ให้ badge วางแบบ absolute ได้ */
+}
+
+.pc-catBadge{
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  max-width: 62%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 950;
+
+  border: 1px solid rgba(255,122,24,0.22);
+  background: rgba(255,122,24,0.10);
+  color: rgba(31,35,40,.82);
+
+  box-shadow: 0 10px 22px rgba(255,122,24,.14);
+}
+
+/* ===== category pill at top-right ===== */
+.pc-head{ position: relative; }
+
+.pc-topRight{
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pc-catPill{
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 950;
+
+  border: 1px solid rgba(255,122,24,.22);
+  background: rgba(255,122,24,.10);
+  color: rgba(31,35,40,.78);
+
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
