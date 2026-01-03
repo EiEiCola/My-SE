@@ -7,6 +7,8 @@ import (
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/dto"
 	"github.com/sut68/team12/backend/internal/entity"
+
+	"gorm.io/gorm"
 )
 
 type FriendService struct {
@@ -38,10 +40,20 @@ func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
 	// 2. ค้นหาคำขอล่าสุดเพื่อเช็คประวัติ (Logic เดิมที่คุณมี)
 	existingReq, err := s.Repo.GetLatestRequest(data.SenderID, data.ReceiverID)
 
-	if err == nil && existingReq != nil {
+	if err != nil {
+		// ถ้า Error ไม่ใช่ "หาไม่เจอ" (แปลว่า DB มีปัญหาจริง) ให้ return error ออกไปเลย
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		// ถ้า Error คือ "หาไม่เจอ" (RecordNotFound) -> ปล่อยผ่านไปทำบรรทัดล่าง (สร้างใหม่)
+	}
+
+	// ถ้าเจอข้อมูลเดิม (err == nil)
+	if existingReq != nil {
 		if existingReq.RequesStatusID == 1 {
 			return errors.New("คุณมีคำขอที่รอดำเนินการอยู่แล้ว")
 		}
+
 		// กรณีเป็น Accepted (2) ไปแล้วแต่ในตาราง Relation อาจจะถูก Unfriend (Active: false)
 		// จะยอมให้ส่งคำขอใหม่ได้ โดยการสร้าง Row ใหม่ (เนื่องจากคุณต้องการให้จบที่สถานะ 2, 3, 4)
 
@@ -105,7 +117,8 @@ func (s *FriendService) CancelRequest(data dto.CancelRequestDTO) error {
 		return err
 	}
 
-	if req.SentMemID != data.MemberID {
+	// ⭐ 3. ใส่ int() เพื่อกัน Type Mismatch (uint vs int)
+	if int(req.SentMemID) != data.MemberID {
 		return errors.New("you are not authorized to cancel this request")
 	}
 	if req.RequesStatusID != 1 {
@@ -223,7 +236,6 @@ func (s *FriendService) GetPopularMembers(myID int) ([]entity.Member, error) {
 	return s.Repo.GetPopularMembers(myID)
 }
 
-// ⭐ เพิ่มฟังก์ชัน GetAllMembers
 func (s *FriendService) GetAllMembers(myID int) ([]entity.Member, error) {
 	return s.Repo.GetAllMembers(myID)
 }

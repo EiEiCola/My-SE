@@ -63,12 +63,11 @@ func SetupRoutes(
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
 
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
-		SetupRewardRoutes(api)
 	}
 
 	// ✅ member protected routes (อยู่ใต้ memberAPI)
 	{
-		SetupFriendRoutes(memberAPI, adminAPI)// ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
+		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
 		// SetupChatRoutes(memberAPI)
