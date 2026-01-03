@@ -1,60 +1,72 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/sut68/team12/backend/config"
-	"github.com/sut68/team12/backend/internal/app/controller/member"
-	"github.com/sut68/team12/backend/internal/app/repository"
-	"github.com/sut68/team12/backend/internal/app/services"
+    "github.com/gin-gonic/gin"
+    "github.com/sut68/team12/backend/config"
+    a "github.com/sut68/team12/backend/internal/app/controller/admin"
+    m "github.com/sut68/team12/backend/internal/app/controller/member"
+    "github.com/sut68/team12/backend/internal/app/repository"
+    "github.com/sut68/team12/backend/internal/app/services"
 )
 
-// SetupFriendRoutes จะทำการตั้งค่า routes สำหรับระบบจัดการเพื่อนทั้งหมด
-func SetupFriendRoutes(api *gin.RouterGroup) {
-	db := config.DB
-	repo := repository.NewFriendRepository(db)
-	friendService := services.NewFriendService(repo)
+// รับแค่ 2 groups พอครับ (เพราะไม่ต้องใช้ public แล้ว)
+func SetupFriendRoutes(memberGroup *gin.RouterGroup, adminGroup *gin.RouterGroup) {
+    db := config.DB
+    repo := repository.NewFriendRepository(db)
+    friendService := services.NewFriendService(repo)
 
-	friendReqCtl := controller.NewFriendRequestController(friendService)
-	friendshipCtl := controller.NewFriendshipController(friendService)
-	blockCtl := controller.NewBlockController(friendService)
-	followCtl := controller.NewFollowController(friendService)
-	// 3. จัดกลุ่มเส้นทางภายใต้ /api
+    // Init Controllers
+    adminFriendCtl := a.NewAdminFriendController(friendService)
+    friendReqCtl := m.NewFriendRequestController(friendService)
+    friendshipCtl := m.NewFriendshipController(friendService)
+    blockCtl := m.NewBlockController(friendService)
+    followCtl := m.NewFollowController(friendService)
 
-	// api.Use(middlewares.Authorizes()) // เปิดใช้งานหากมี middleware ตรวจสอบ token
-	// ------------------ Friend Requests (คำขอเป็นเพื่อน) ------------------
-	// ส่งคำขอ บันทึกเป็น Pending (status 1)
-	api.POST("/friend-requests", friendReqCtl.Send)
+    // ------------------------------------------------------------
+    // 1. Member Routes (ต้อง Login) -> URL: /api/member/...
+    // ------------------------------------------------------------
+    {
+        // ย้ายมาไว้ในนี้ครับ (คนนอกดูไม่ได้แล้ว)
+        memberGroup.GET("/all-members", friendshipCtl.GetAllMembers)       // ดูรายชื่อสมาชิกทั้งหมด
+        memberGroup.GET("/popular-members", friendshipCtl.GetPopularMembers) // ดูสมาชิกยอดนิยม
 
-	// ตอบรับ (Accepted: 2) หรือ ปฏิเสธ (Rejected: 3)
-	api.POST("/friend-requests/respond", friendReqCtl.Respond)
+        // Friend Requests
+        memberGroup.POST("/friend-requests", friendReqCtl.Send)
+        memberGroup.PUT("/friend-requests/:id/respond", friendReqCtl.Respond)
+        memberGroup.PUT("/friend-requests/:id/cancel", friendReqCtl.Cancel)
+        memberGroup.GET("/my/friend-requests/sent", friendReqCtl.GetSentRequests)
+        memberGroup.GET("/my/friend-requests/received", friendReqCtl.GetReceivedRequests)
+        
+        // Friendships
+        memberGroup.PUT("/friends/:target_id/unfriend", friendshipCtl.Unfriend)
+        memberGroup.GET("/my/friends", friendshipCtl.GetMyFriends)
 
-	// ยกเลิกคำขอ (Hard Delete เฉพาะกรณีที่ส่งผิดและยังไม่ได้รับการตอบรับ)
-	api.DELETE("/friend-requests/cancel", friendReqCtl.Cancel)
+        // Follows
+        memberGroup.POST("/follows", followCtl.Follow)
+        memberGroup.PUT("/follows/:target_id/unfollow", followCtl.Unfollow)
+        memberGroup.PUT("/follows/:target_id/mute", followCtl.Mute)
+        memberGroup.PUT("/follows/:target_id/unmute", followCtl.Unmute)
+        memberGroup.GET("/my/followers", friendshipCtl.GetMyFollowers)
+        memberGroup.GET("/my/following", friendshipCtl.GetMyFollowing)
+        
+        // Blocks
+        memberGroup.POST("/blocks", blockCtl.Block)
+        memberGroup.PUT("/blocks/:target_id/unblock", blockCtl.Unblock)
+        memberGroup.GET("/my/blocks", blockCtl.GetBlockedList)
+    }
 
-	// ------------------ Relations (ความสัมพันธ์/เพื่อน) ------------------
-	// เลิกเป็นเพื่อน (Update Active เป็น 0 เพื่อเก็บประวัติให้ Admin ดู)
-	api.DELETE("/friendships/unfriend", friendshipCtl.Unfriend)
+    // ------------------------------------------------------------
+    // 2. Admin Routes (Admin Only) -> URL: /api/admin/...
+    // ------------------------------------------------------------
+    {
+        // GET Data
+        adminGroup.GET("/friend-logs", adminFriendCtl.AdminGetAllLogs)      // ดู Relations
+        adminGroup.GET("/friend-requests", adminFriendCtl.AdminGetAllRequests) // ดู Requests
+        adminGroup.GET("/blocks", adminFriendCtl.AdminGetAllBlocks)           // ดู Blocks
 
-	// ------------------ Follow (ติดตาม/เลิกติดตาม) ------------------
-	api.POST("/follows", followCtl.Follow)
-	api.DELETE("/follows", followCtl.Unfollow)
-	api.POST("/follows/mute", followCtl.Mute)
-	api.DELETE("/follows/unmute", followCtl.Unmute)
-
-	// ------------------ Block (บล็อก/เลิกบล็อก) ------------------
-	// บล็อก (สร้างบันทึกใหม่ Active: 1 และตัดความสัมพันธ์เพื่อน)
-	api.POST("/blocks", blockCtl.Block)
-
-	// เลิกบล็อก (Update Active เป็น 0)
-	api.DELETE("/blocks", blockCtl.Unblock)
-
-	// ------------------ ค้นหา/เรียกดูข้อมูล (GET) ------------------
-	// มุมมอง User: เห็นเฉพาะข้อมูลที่ Active หรือ Pending
-	api.GET("/members", friendshipCtl.GetAllMembers)                          // ทั้งหมดในระบบ
-	api.GET("/my/friends", friendshipCtl.GetMyFriends)                        // เพื่อนปัจจุบัน (Active: 1)
-	api.GET("/my/followers", friendshipCtl.GetMyFollowers)                    // คนที่ติดตามเรา
-	api.GET("/my/following", friendshipCtl.GetMyFollowing)                    // คนที่เราติดตาม
-	api.GET("/my/blocks", blockCtl.GetMyBlockedList)                          // รายการที่เราบล็อก (Active: 1)
-	api.GET("/my/friend-requests/sent", friendReqCtl.GetSentRequests)         // คำขอที่เราส่ง
-	api.GET("/my/friend-requests/received", friendReqCtl.GetReceivedRequests) // คำขอที่มีคนส่งมา
+        // DELETE Actions
+        adminGroup.DELETE("/friend-requests/:id", adminFriendCtl.AdminDeleteRequest)
+        adminGroup.DELETE("/friendships", adminFriendCtl.AdminDeleteRelation)
+        adminGroup.DELETE("/blocks", adminFriendCtl.AdminDeleteBlock)
+    }
 }

@@ -1,4 +1,4 @@
-	package entity
+package entity
 
 import (
 	"time"
@@ -23,8 +23,8 @@ type Member struct {
 	StudentID  string `json:"student_id" gorm:"uniqueIndex;not null" valid:"required~StudentID is required"`
 
 	// ✅ 1:1 กับ Account
-	MemberAccountID uint `json:"member_account_id" gorm:"not null;uniqueIndex"`
-    MemberAccount   *MemberAccount `json:"-" gorm:"foreignKey:MemberAccountID;references:ID"`
+	MemberAccountID uint           `json:"member_account_id" gorm:"not null;uniqueIndex"`
+	MemberAccount   *MemberAccount `json:"-" gorm:"foreignKey:MemberAccountID;references:ID"`
 
 	GenderID uint   `json:"gender_id" valid:"required~GenderID is required"`
 	Gender   Gender `gorm:"foreignKey:GenderID;references:ID"`
@@ -32,25 +32,29 @@ type Member struct {
 	ActiveStatusID uint         `json:"active_status_id" valid:"required~ActiveStatusID is required"`
 	ActiveStatus   ActiveStatus `gorm:"foreignKey:ActiveStatusID;references:ID"`
 
-		SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
-		ReceivedRequests []RequesFriend `gorm:"foreignKey:ReciveMemID;references:ID"`
+	SentRequests     []RequesFriend `gorm:"foreignKey:SentMemID;references:ID"`
+	ReceivedRequests []RequesFriend `gorm:"foreignKey:ReceiveMemID;references:ID"`
 
-		RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID"`
-		RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID"`
+	RelationsAsUser1 []Relations `gorm:"foreignKey:member1_ID;references:ID"`
+	RelationsAsUser2 []Relations `gorm:"foreignKey:member2_ID;references:ID"`
 
-		BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
-		BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
+	BlocksAsBlocker []Block `gorm:"foreignKey:BlockerID;references:ID"`
+	BlocksAsBlocked []Block `gorm:"foreignKey:BlockedID;references:ID"`
 
 	Reviews     []Review     `gorm:"foreignKey:MemberID" json:"reviews"`
 	ReviewVotes []ReviewVote `gorm:"foreignKey:MemberID" json:"review_votes"`
 
 	Polls []Poll `gorm:"foreignKey:MemberID" json:"polls"`
 
-		PRSubmissions []PRSubmission `gorm:"foreignKey:MemberID" json:"pr_submissions"`
+	PRSubmissions []PRSubmission `gorm:"foreignKey:MemberID" json:"pr_submissions"`
 
-		Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
+	Reports []Report `gorm:"foreignKey:ReporterID" json:"my_reports"`
 
 	ReceivedReports []Report `gorm:"polymorphic:Target;" json:"received_reports"`
+
+	FriendCount    int64 `gorm:"-" json:"friend_count"`
+    FollowerCount  int64 `gorm:"-" json:"follower_count"`
+    FollowingCount int64 `gorm:"-" json:"following_count"`
 }
 
 func ValidateMember(m Member) (bool, error) {

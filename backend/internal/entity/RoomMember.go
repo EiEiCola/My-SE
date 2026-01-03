@@ -9,7 +9,7 @@ type RoomMember struct {
 	MemberID  	uint   	`gorm:"primaryKey" json:"member_id"` // FK -> Member.ID
 	Role  		string    	`json:"rm_role"`        // "admin", "member"
 	JoinedAt  	time.Time 	`json:"joined_at"`
-	CleareddAt  time.Time 	`json:"cleareded_at"`  // เวลากดลบแชทสำหรับคนนี้ (อาจเป็น nil ได้)
+	ClearedAt  time.Time 	`json:"cleared_at"`  // เวลากดลบแชทสำหรับคนนี้ (อาจเป็น nil ได้)
 
 	// ความสัมพันธ์ (optional แต่ช่วยให้ preload ง่าย)
     Room   RoomChat `gorm:"foreignKey:RoomID;references:ID" json:"room,omitempty"`
