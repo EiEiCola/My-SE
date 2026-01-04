@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/sut68/team12/backend/config/dataseed"
+	s "github.com/sut68/team12/backend/config/dataseed"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/driver/postgres"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Config func to get env value
@@ -36,13 +38,26 @@ func Connect() *gorm.DB {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Note: .env file not found. Using system environment variables instead.")
 	}
+
+	// สร้าง Logger ตัวใหม่ (ปรับแต่งความเงียบ)
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             time.Second, // ⭐ ต้องช้าเกิน 1 วินาที ถึงจะบ่น (เดิม 200ms)
+			LogLevel:                  logger.Warn, // ระดับการแจ้งเตือน
+			IgnoreRecordNotFoundError: false,       // ⭐ ปิด error "record not found" (รก Log)
+			Colorful:                  true,        // สีสันสดใส
+		},
+	)
+
 	//============================== ตอน Dev เท่านั้น
 	//s.ResetDatabaseByDROP(db) //ถ้าอยากล้าง ตารางทั้งหมดเลย
 	//s.ResetDatabase(db) //ลบข้อมูลในตารางทั้งหมดแล้วค่อย seed
-	//dataseed.ResetDatabaseByDROP(db)
+	//s.ResetDatabaseByDROP(db)
 
 	dsn := DBURL()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger:                                   newLogger, // <--- ใส่ตรงนี้
 		DisableForeignKeyConstraintWhenMigrating: true,
 		PrepareStmt:                              false,
 	})
@@ -51,7 +66,7 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Connected to database")
 
-	//dataseed.ResetDatabaseByDROP(db) // Reset here
+	//s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
 
@@ -96,7 +111,6 @@ func Connect() *gorm.DB {
 
 		// --- 7. ตารางลูกที่ซับซ้อน/อ้างอิงเนื้อหาหลัก (Complex Children) ---
 		&entity.Comment{},
-		&entity.PostLike{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
@@ -153,28 +167,15 @@ func Connect() *gorm.DB {
 		}
 	}
 
-	if err := dataseed.SeedInitialPointsSafe(db, 300); err != nil {
+	if err := s.SeedInitialPointsSafe(db, 300); err != nil {
 		log.Println("SeedInitialPointsSafe error:", err)
 	}
 
 	// Data seeding
-	// s.SeedRole(db)
-	// s.SeedFaculty(db)
-	// s.SeedLogin(db)
-	// s.SeedUser(db)
-	// s.SeedAdmin(db)
+	s.SeedStatusData(db)
+	// s.SeedPRSystem(db)
 
-	//s.SeedClubAdmin(db)
-	// s.SeedClubRequestStatus(db)
-	// s.SeedClubMemberStatus(db)
-	// s.SeedClubType(db)
-	// s.SeedPosition(db)
-	// s.SeedClubAdministrator(db)
-	// s.SeedClub(db)
-	// s.SeedClubRequest(db)
-	// s.SeedClubMember(db)
-	// s.SeedEvent(db)
-	// dataseed.SeedPRSystem(db)
-	dataseed.SeedReviewSystem(db)
+	log.Println("Master data seeding completed.")
+
 	return db
 }

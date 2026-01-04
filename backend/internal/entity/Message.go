@@ -5,18 +5,21 @@ import (
 )
 
 type Message struct {
-	ID       uint `gorm:"primaryKey;autoIncrement" json:"message_id"`
-	RoomID   uint `gorm:"index" json:"room_id"`   // FK -> RoomChat.ID
-	SenderID uint `gorm:"index" json:"sender_id"` // FK -> Member.ID
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"message_id"`
+	RoomID    uint      `gorm:"index" json:"room_id"`
+	SenderID  uint      `gorm:"index" json:"sender_id"`
 
-	Content string    `json:"content"`
-	Type    string    `json:"typeMessage"` //text, image, file, sticker
-	SentAt  time.Time `json:"sentMessage_at"`
+	Content   string    `json:"content"`
+	Type      string    `json:"type_message"` // text, image, file, sticker
+	
+	// ✅✅✅ ต้องเพิ่มบรรทัดนี้ครับ ไม่งั้น Service จะแดง ✅✅✅
+	StickerID *uint     `json:"sticker_id"`   
 
-	// ความสัมพันธ์
-	AttachmentsChat []AttachmentChat `gorm:"foreignKey:MessageID;references:ID" json:"attachment_chat,omitempty"`
-	Statuses        []MessageStatus  `gorm:"foreignKey:MessageID;references:ID" json:"message_status,omitempty"`
+	SentAt    time.Time `json:"sent_at"`
+	IsDeleted bool      `json:"is_deleted"`
 
-	Room   RoomChat `gorm:"foreignKey:RoomID;references:ID" json:"room,omitempty"`
-	Sender Member   `gorm:"foreignKey:SenderID;references:ID" json:"sender,omitempty"`
+	// Relations
+	AttachmentsChat []AttachmentChat `gorm:"foreignKey:MessageID;references:ID" json:"attachments,omitempty"`
+	Room            RoomChat         `gorm:"foreignKey:RoomID;references:ID" json:"room,omitempty"`
+	Sender          Member           `gorm:"foreignKey:SenderID;references:ID" json:"sender,omitempty"`
 }
