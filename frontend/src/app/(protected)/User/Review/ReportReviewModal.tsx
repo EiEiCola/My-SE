@@ -99,14 +99,7 @@ const ReportReviewModal: React.FC<ReportReviewModalProps> = ({
             </div>
           )}
 
-          <div className="rrm-warn">
-            <span className="rrm-warnIcon" aria-hidden="true">
-              ⚠️
-            </span>
-            <p className="rrm-warnText">
-              หมายเหตุ: การรายงานเท็จอาจนำไปสู่การระงับบัญชีผู้ใช้
-            </p>
-          </div>
+          
         </div>
 
         {/* Footer */}

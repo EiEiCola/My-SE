@@ -15,6 +15,7 @@ type Poll struct {
 	EndAt            *time.Time `json:"end_at"`             // เวลาสิ้นสุดโหวต
 	PublishedAt *time.Time `json:"published_at"`            // เวลา admin approve/publish  เพิ่ม
 	LastRejectReason string     `json:"last_reject_reason"` // เหตุผลที่ล่าสุดถูก reject (ถ้ามี)
+	IsAnonymous bool `json:"is_anonymous" gorm:"default:false"`
 
 	// FK ไปยังคนสร้างโพล (สมาชิก)
 	MemberID uint    `json:"member_id"`

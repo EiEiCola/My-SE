@@ -23,7 +23,7 @@ type CreatePollRequest struct {
 	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
 	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
 
-	
+	IsAnonymous bool `json:"is_anonymous"`
 
 	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
 }
@@ -39,6 +39,7 @@ type UpdatePollRequest struct {
 	MainCategoryID  *uint `json:"main_category_id"`
 	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
 	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+	IsAnonymous bool `json:"is_anonymous"`
 
 	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
 }
@@ -99,7 +100,8 @@ type PollResponse struct {
  	MyOptionIDs []uint `json:"my_option_ids"`
 
 	TotalVoters *int64 `json:"total_voters,omitempty"` // ✅ จำนวน "คน" ที่โหวต (COUNT poll_votes)
-	
+	IsAnonymous bool `json:"is_anonymous"`
+
 
 	
 }

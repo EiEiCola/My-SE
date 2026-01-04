@@ -54,8 +54,7 @@ func SetupRoutes(
 
 		// ✅ public reward list
 		SetupRewardRoutes(api)
-		//revirew
-		SetupReviewRoutes(api)
+		
 	}
 
 	// =========================
@@ -80,7 +79,8 @@ func SetupRoutes(
 		SetupMemberRewardRoutes(memberAPI)
 		SetupMemberPostRoutes(memberAPI)
 
-		 SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
+		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
+		SetupReviewRoutes(memberAPI)
 		
 	}
 

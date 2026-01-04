@@ -15,6 +15,8 @@ type ReviewRepository interface {
 	ListReviewsByCategory(mainCategoryID *uint) ([]entity.Review, error)
 	DeleteReviewByID(reviewID uint, memberID uint) error
 
+	ListMyReviews(memberID uint, mainCategoryID *uint) ([]entity.Review, error)
+
 	// ✅ owner check
 	CheckReviewOwner(reviewID uint, memberID uint) error
 
@@ -66,7 +68,10 @@ func (r *reviewRepository) ListReviewsByCategory(mainCategoryID *uint) ([]entity
 	q := r.db.
 		Preload("Member").
 		Preload("Tags").
-		Preload("ReviewImages")
+		Preload("ReviewImages").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2")
 
 	if mainCategoryID != nil {
 		q = q.Where("main_category_id = ?", *mainCategoryID)
@@ -236,4 +241,24 @@ func (r *reviewRepository) ToggleReviewVote(
 		return 0, 0, nil, "", err
 	}
 	return helpful, notHelpful, myVote, action, nil
+}
+
+func (r *reviewRepository) ListMyReviews(memberID uint, mainCategoryID *uint) ([]entity.Review, error) {
+	var reviews []entity.Review
+
+	q := r.db.
+		Preload("Member").
+		Preload("Tags").
+		Preload("ReviewImages").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Where("member_id = ?", memberID)
+
+	if mainCategoryID != nil {
+		q = q.Where("main_category_id = ?", *mainCategoryID)
+	}
+
+	err := q.Order("created_at DESC").Find(&reviews).Error
+	return reviews, err
 }

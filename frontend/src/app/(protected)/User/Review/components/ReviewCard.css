@@ -73,8 +73,7 @@
   width: 48px;
   height: 48px;
   border-radius: 999px;
-  padding: 2px;
-  background: linear-gradient(135deg, #f9a825, #ffe082);
+
 }
 .rc-letter{
   width: 100%;
@@ -87,27 +86,17 @@
   font-weight: 900;
   font-size: 18px;
 }
-.rc-online{
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #34d399;
-  border: 2px solid #fff;
-}
 
 .rc-user{ min-width: 0; }
 .rc-name{
-  font-weight: 900;
+  font-weight: 750;
   color: #1f2937;
   font-size: 14px;
 }
 .rc-date{
   margin-top: 2px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: #9ca3af;
 }
 
@@ -125,7 +114,7 @@
 
 .rc-score{
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   color: #111827;
   background: #f3f4f6;
   padding: 3px 8px;
@@ -137,7 +126,7 @@
   margin: 6px 0 8px;
   color: #c65b1a;
   font-size: 18px;
-  font-weight: 1000;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: .2px;
 }
@@ -367,4 +356,137 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
+}
+
+
+.rc-avatarImg{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+  display: block;
+}
+
+/* ปุ่มรีเซ็ตปกติ (จะเขียวหรืออะไรก็ได้ตามที่ชอบ) */
+.rl-tab.rl-resetTab{
+  background: #fff;
+  border: 1px solid rgba(255,255,255,.14);
+  color: #9ca3af;
+}
+
+/* ✅ ตอน “กด” ให้เป็นส้มเหมือนแท็บอื่น */
+.rl-tab.rl-resetTab:active{
+  background: rgba(255,122,24,.18);
+  border-color: rgba(255,122,24,.45);
+  color: #fb923c;
+}
+
+
+
+
+/* ===== รูปแบบแกลเลอรี่แบบเลื่อนข้างๆ (Gallery Scroll) ===== */
+/* ✅ แถบรูปแบบเลื่อนข้างๆ (เห็นประมาณ 3 รูป) */
+.rc-images.rc-imagesScroll{
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+}
+
+/* ✅ ให้ tile กว้าง = 1/3 ของพื้นที่ (เห็น 3 รูปพอดี) */
+.rc-imgTile.rc-imgTile3{
+  flex: 0 0 calc((100% - 16px) / 3);
+  scroll-snap-align: start;
+  border-radius: 14px;
+}
+
+/* ซ่อน scrollbar แบบเบาๆ (ถ้าอยากให้ดูคลีน) */
+.rc-images.rc-imagesScroll::-webkit-scrollbar{ height: 6px; }
+.rc-images.rc-imagesScroll::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.12); border-radius: 99px; }
+.rc-images.rc-imagesScroll::-webkit-scrollbar-track{ background: transparent; }
+
+/* มือถือ: เห็น 2 รูปจะสบายตากว่า */
+@media (max-width: 640px){
+  .rc-imgTile.rc-imgTile3{
+    flex-basis: calc((100% - 8px) / 2);
+  }
+}
+
+/* ===== Images: 3 per view + arrow nav ===== */
+.rc-imgWrap{
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.rc-images3{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.rc-imgArrow{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(229,231,235,.85);
+  background: rgba(255,255,255,.92);
+  color: #111827;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 900;
+  box-shadow: 0 12px 30px -22px rgba(0,0,0,.35);
+  z-index: 2;
+}
+
+.rc-imgArrow:hover{
+  background: #fff;
+}
+
+.rc-imgArrow.rc-left{ left: -10px; }
+.rc-imgArrow.rc-right{ right: -10px; }
+
+.rc-imgArrow.is-disabled{
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.rc-imgCount{
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #6b7280;
+}
+
+/* มือถือ: เหลือ 2 รูปต่อหน้า */
+@media (max-width: 640px){
+  .rc-images3{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* ✅ FIX: ให้กรอบ avatar มีขนาด + ตัดรูปไม่ให้ล้น */
+.rc-ring{
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  overflow: hidden;      /* สำคัญ */
+  background: #fff;
+}
+
+/* ✅ FIX: บังคับรูปให้มีขนาดจริง ไม่พึ่ง parent */
+.rc-avatarImg{
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 999px;
+  display: block;
 }

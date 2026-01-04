@@ -73,8 +73,11 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 		MainCategoryID:  req.MainCategoryID,
 		SubCategoryL1ID: req.SubCategoryL1ID,
 		SubCategoryL2ID: req.SubCategoryL2ID,
+		IsAnonymous: req.IsAnonymous,
 		MemberID:        memberID,
 		PollStatusID:    StatusDRAFT,
+		
+
 	}
 
 	for i, opt := range req.Options {
@@ -125,6 +128,7 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 	poll.MainCategoryID = req.MainCategoryID
 	poll.SubCategoryL1ID = req.SubCategoryL1ID
 	poll.SubCategoryL2ID = req.SubCategoryL2ID
+	poll.IsAnonymous = req.IsAnonymous
 
 	if oldStatusID == StatusREJECTED {
 		poll.PollStatusID = StatusDRAFT
@@ -300,14 +304,10 @@ func (s *pollService) GetMyPollByID(memberID uint, pollID uint) (*dto.PollRespon
 	if err != nil {
 		return nil, err
 	}
-	// ❌ owner ห้ามโหวตโพลตัวเอง
-	if poll.MemberID == memberID {
-    return nil, errors.New("owner_cannot_vote")
-	}
 	if poll.MemberID != memberID {
-		return nil, errors.New("you are not the owner of this poll")
-	}
-	return mapPollToResponse(poll), nil
+  return nil, errors.New("you are not the owner of this poll")
+}
+return mapPollToResponse(poll), nil
 }
 
 /* =========================
@@ -323,6 +323,7 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 		EndAt:         req.EndAt,
 		MemberID:      memberID,
 		PollStatusID:  StatusPENDING_REVIEW,
+		IsAnonymous: req.IsAnonymous,
 	}
 
 	for i, opt := range req.Options {
@@ -763,6 +764,9 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 			authorName = poll.Member.Username
 		}
 	}
+	if poll.IsAnonymous {
+    authorName = "ไม่ระบุตัวตน"
+  }
 
 	opts := poll.Options
 	if opts == nil {

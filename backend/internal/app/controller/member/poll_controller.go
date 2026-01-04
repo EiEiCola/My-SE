@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	//"github.com/sut68/team12/backend/config"
+    //"github.com/sut68/team12/backend/internal/entity"
+    
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
@@ -35,7 +37,7 @@ func (ctl *PollController) SaveDraft(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -64,7 +66,7 @@ func (ctl *PollController) UpdateDraft(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -87,7 +89,7 @@ func (ctl *PollController) SubmitForReview(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -110,7 +112,7 @@ func (ctl *PollController) CancelRequest(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -133,7 +135,7 @@ func (ctl *PollController) DeletePoll(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -154,7 +156,8 @@ func (ctl *PollController) DeletePoll(c *gin.Context) {
 
 // GetMyPolls: ดูโพลของตัวเอง
 func (ctl *PollController) GetMyPolls(c *gin.Context) {
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
+
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -193,21 +196,34 @@ func (ctl *PollController) GetMyPollByID(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
+
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	res, err := ctl.pollService.GetMyPollByID(memberID, pollID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+if err != nil {
+    if err.Error() == "you are not the owner of this poll" {
+        c.JSON(http.StatusForbidden, gin.H{
+            "error": err.Error(),
+            "member_id_from_token": memberID,
+            "poll_id": pollID,
+        })
+        return
+    }
 
-	c.JSON(http.StatusOK, res)
+    c.JSON(http.StatusBadRequest, gin.H{
+        "error": err.Error(),
+        "member_id_from_token": memberID,
+        "poll_id": pollID,
+    })
+    return
 }
 
+c.JSON(http.StatusOK, res)
+}
 /* =========================
    PUBLIC (EXISTING)
 ========================= */
@@ -219,7 +235,8 @@ func (ctl *PollController) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
+
 if !ok {
   c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
   return
@@ -235,7 +252,7 @@ if !ok {
 }
 
 func (ctl *PollController) ListPublished(c *gin.Context) {
-  memberID, ok := getMemberID(c)
+  memberID, ok := getMemberIDForPoll(c)
   if !ok {
     c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
     return
@@ -257,7 +274,8 @@ func (ctl *PollController) GetPublishedByID(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
+
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -278,8 +296,9 @@ func (ctl *PollController) GetMyVote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
 		return
 	}
+  
+   memberID, ok := getMemberIDForPoll(c)
 
-	memberID, ok := getMemberID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -312,7 +331,7 @@ func (ctl *PollController) Vote(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 if !ok {
   c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
   return
@@ -325,7 +344,6 @@ if !ok {
 		
     c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
@@ -342,7 +360,7 @@ func (ctl *PollController) Results(c *gin.Context) {
 	}
 	pollID := uint(pollID64)
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := getMemberIDForPoll(c)
 if !ok {
   c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
   return
@@ -402,4 +420,25 @@ func (ctl *PollController) UploadOptionImage(c *gin.Context) {
 		"message": "image uploaded",
 		"url":     publicURL,
 	})
+}
+//heple
+
+func getMemberIDForPoll(c *gin.Context) (uint, bool) {
+  uidAny, ok := c.Get("user_id")
+  if !ok {
+    return 0, false
+  }
+
+  switch v := uidAny.(type) {
+  case uint:
+    return v, v > 0
+  case int:
+    if v <= 0 { return 0, false }
+    return uint(v), true
+  case float64:
+    if v <= 0 { return 0, false }
+    return uint(v), true
+  default:
+    return 0, false
+  }
 }
