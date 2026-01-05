@@ -41,13 +41,20 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  
-// --- Configuration ---
-  const API_BASE = "http://localhost:8888/api/member/chat"; // ✅ Port 8888
-  const WS_URL = "ws://localhost:8888/api/member/chat/ws";  // ✅ Port 8888
-  
+
+  // --- Configuration ---
+  // ✅ Dynamic API & WebSocket Configuration (Prod aware)
+  const isSecure = window.location.protocol === "https:";
+  const wsProtocol = isSecure ? "wss:" : "ws:";
+  const wsHost = isSecure ? window.location.host : "localhost:8080"; // Or import.meta.env.VITE_API_HOST
+
+  // ใน production ใช้ relative path ผ่าน nginx proxy
+  const API_BASE = "/api/member/chat";
+  // ใน production ใช้ wss://sutcommu.online/api...
+  const WS_URL = `${wsProtocol}//${window.location.host}/api/member/chat/ws`;
+
   // ⚠️ ใส่ Token ของคุณที่นี่ (หรือดึงจาก LocalStorage)
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJyb2xlIjoibWVtYmVyIiwiZXhwIjoxNzY2NjM5NDE1LCJpYXQiOjE3NjY1NTMwMTV9.moCM2_oyq0Wnt2pYri75uframkWkzw_BybC1Pk-K6dw"; 
+  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJyb2xlIjoibWVtYmVyIiwiZXhwIjoxNzY2NjM5NDE1LCJpYXQiOjE3NjY1NTMwMTV9.moCM2_oyq0Wnt2pYri75uframkWkzw_BybC1Pk-K6dw";
   const myUserID = 4; // ⚠️ ใส่ User ID ของตัวเองให้ตรงกับ Token
 
   // Refs
@@ -61,11 +68,11 @@ const ChatPage: React.FC = () => {
     fetch('http://localhost:8080/api/member/chat/rooms', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.data) setRooms(data.data);
-    })
-    .catch(err => console.error("Load rooms failed:", err));
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) setRooms(data.data);
+      })
+      .catch(err => console.error("Load rooms failed:", err));
   }, []);
 
   // 3.2 WebSocket Connection (Real-time)
@@ -78,10 +85,10 @@ const ChatPage: React.FC = () => {
     ws.current = new WebSocket(socketUrl);
 
     ws.current.onopen = () => console.log("WS Connected");
-    
+
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       // กรณีมีข้อความใหม่เข้ามา
       if (data.type === 'message') {
         const newMsg = data.payload as Message;
@@ -91,13 +98,13 @@ const ChatPage: React.FC = () => {
         }
         // TODO: อัปเดต last_message ใน list rooms ด้านซ้ายด้วย
       }
-      
+
       // กรณี Unsend (message_update)
       if (data.type === 'message_update') {
-         const updatedMsg = data.payload as Message;
-         setMessages(prev => prev.map(m => 
-            m.message_id === updatedMsg.message_id ? updatedMsg : m
-         ));
+        const updatedMsg = data.payload as Message;
+        setMessages(prev => prev.map(m =>
+          m.message_id === updatedMsg.message_id ? updatedMsg : m
+        ));
       }
     };
 
@@ -109,14 +116,14 @@ const ChatPage: React.FC = () => {
   // 3.3 Load Chat History เมื่อเลือกห้อง
   useEffect(() => {
     if (!currentRoom) return;
-    
+
     fetch(`${API_BASE}/rooms/${currentRoom.room_id}/messages`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.data) setMessages(data.data); // data.data คือ array ของ messages
-    });
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) setMessages(data.data); // data.data คือ array ของ messages
+      });
   }, [currentRoom]);
 
   // 3.4 Scroll to bottom
@@ -130,7 +137,7 @@ const ChatPage: React.FC = () => {
 
     try {
       // ยิง REST API ตามที่คุยกัน (Backend จะ Broadcast ผ่าน WS ให้เอง)
-     const res = await fetch(`${API_BASE}/rooms/${currentRoom.room_id}/messages`, {
+      const res = await fetch(`${API_BASE}/rooms/${currentRoom.room_id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,9 +160,9 @@ const ChatPage: React.FC = () => {
 
   // 3.6 Unsend Message
   const handleUnsend = async (msgId: number) => {
-      // เรียก API Unsend ที่ทำไว้
-      // fetch(...)
-      console.log("Unsend message:", msgId);
+    // เรียก API Unsend ที่ทำไว้
+    // fetch(...)
+    console.log("Unsend message:", msgId);
   }
 
   // --- 4. Render UI (ตาม Screenshot) ---
@@ -174,7 +181,7 @@ const ChatPage: React.FC = () => {
               <MoreVertical className="w-5 h-5" />
             </button>
           </div>
-          
+
           {/* Search Box */}
           <div className="relative">
             <input
@@ -194,26 +201,25 @@ const ChatPage: React.FC = () => {
             <div
               key={room.room_id}
               onClick={() => setCurrentRoom(room)}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all ${
-                currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-r-4 border-orange-400' : ''
-              }`}
+              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all ${currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-r-4 border-orange-400' : ''
+                }`}
             >
               <div className="relative">
                 <div className="w-12 h-12 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-                   {/* Avatar */}
-                   {room.avatar_url ? <img src={room.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gray-300"/>}
+                  {/* Avatar */}
+                  {room.avatar_url ? <img src={room.avatar_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-300" />}
                 </div>
                 {/* Online Status (สมมติ) */}
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
               </div>
-              
+
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-semibold text-gray-900 truncate">{room.name}</h3>
                   <span className="text-xs text-gray-400">18:00 น.</span>
                 </div>
                 <p className="text-sm text-gray-500 truncate mt-0.5">
-                   {room.last_message || "ส่งข้อความ ..."}
+                  {room.last_message || "ส่งข้อความ ..."}
                 </p>
               </div>
             </div>
@@ -234,36 +240,36 @@ const ChatPage: React.FC = () => {
                   <p className="text-xs text-gray-500">Active now</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                 {/* ปุ่มตาม UI Screenshot */}
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    สวัสดี สมชาย ใจดี
-                 </button>
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    ทำอะไรอยู่
-                 </button>
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    โอเค
-                 </button>
-                 <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                 <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
-                    <Trash2 className="w-5 h-5" />
-                 </button>
-                 <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
-                    <MoreVertical className="w-5 h-5" />
-                 </button>
+                {/* ปุ่มตาม UI Screenshot */}
+                <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
+                  สวัสดี สมชาย ใจดี
+                </button>
+                <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
+                  ทำอะไรอยู่
+                </button>
+                <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
+                  โอเค
+                </button>
+                <div className="h-6 w-px bg-gray-300 mx-2"></div>
+                <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+                  <MoreVertical className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
             {/* Messages Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 bg-white">
-              
+
               {/* Profile Summary (Top of chat) */}
               <div className="flex flex-col items-center justify-center py-10 opacity-60">
-                 <div className="w-24 h-24 bg-gray-200 rounded-full mb-3"></div>
-                 <h3 className="text-xl font-bold text-gray-800">{currentRoom.name}</h3>
-                 <p className="text-sm text-gray-500">SUT Community Member</p>
+                <div className="w-24 h-24 bg-gray-200 rounded-full mb-3"></div>
+                <h3 className="text-xl font-bold text-gray-800">{currentRoom.name}</h3>
+                <p className="text-sm text-gray-500">SUT Community Member</p>
               </div>
 
               {/* Message List */}
@@ -272,41 +278,40 @@ const ChatPage: React.FC = () => {
                   const isMe = msg.sender_id === myUserID;
                   return (
                     <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                       {/* Avatar เพื่อน */}
-                       {!isMe && (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 self-end mb-1"></div>
-                       )}
+                      {/* Avatar เพื่อน */}
+                      {!isMe && (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 self-end mb-1"></div>
+                      )}
 
                       <div className="flex flex-col max-w-[70%]">
                         {/* Bubble */}
-                        <div className={`px-4 py-2 break-words text-sm shadow-sm ${
-                          isMe 
-                            ? 'bg-[#0084FF] text-white rounded-2xl rounded-br-sm' 
+                        <div className={`px-4 py-2 break-words text-sm shadow-sm ${isMe
+                            ? 'bg-[#0084FF] text-white rounded-2xl rounded-br-sm'
                             : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-sm'
-                        }`}>
+                          }`}>
                           {/* จัดการ Type ต่างๆ */}
                           {msg.is_deleted ? (
-                             <span className="italic opacity-70 text-xs">ข้อความถูกยกเลิก</span>
+                            <span className="italic opacity-70 text-xs">ข้อความถูกยกเลิก</span>
                           ) : msg.type_message === 'text' ? (
-                             msg.content
+                            msg.content
                           ) : msg.type_message === 'file' ? (
-                             <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4"/>
-                                <span className="underline cursor-pointer">{msg.content}</span>
-                             </div>
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              <span className="underline cursor-pointer">{msg.content}</span>
+                            </div>
                           ) : (
-                             msg.content
+                            msg.content
                           )}
                         </div>
-                        
+
                         {/* Time & Status */}
                         <div className={`text-[10px] text-gray-400 mt-1 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                           {/* Unsend Button (Show on hover) */}
-                           {isMe && !msg.is_deleted && (
-                              <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 mr-2">Unsend</button>
-                           )}
-                           {new Date(msg.sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                           {isMe && <span>· ส่งแล้ว</span>}
+                          {/* Unsend Button (Show on hover) */}
+                          {isMe && !msg.is_deleted && (
+                            <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 mr-2">Unsend</button>
+                          )}
+                          {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isMe && <span>· ส่งแล้ว</span>}
                         </div>
                       </div>
                     </div>
@@ -318,35 +323,35 @@ const ChatPage: React.FC = () => {
 
             {/* Input Area */}
             <div className="p-4 bg-white border-t border-gray-100">
-               {/* ส่วน File Upload (ถ้า user ลากไฟล์มาวาง) สามารถทำ Overlay ได้ */}
-               
-               <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <Paperclip className="w-5 h-5" />
+              {/* ส่วน File Upload (ถ้า user ลากไฟล์มาวาง) สามารถทำ Overlay ได้ */}
+
+              <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
+                <button className="text-gray-400 hover:text-gray-600 transition">
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                <button className="text-gray-400 hover:text-gray-600 transition">
+                  <ImageIcon className="w-5 h-5" />
+                </button>
+
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Aa"
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 placeholder-gray-400"
+                />
+
+                <button className="text-gray-400 hover:text-gray-600 transition">
+                  <Smile className="w-5 h-5" />
+                </button>
+
+                {inputText.trim() && (
+                  <button onClick={handleSendMessage} className="text-blue-500 hover:text-blue-600 transition">
+                    <Send className="w-5 h-5" />
                   </button>
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <ImageIcon className="w-5 h-5" />
-                  </button>
-                  
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Aa"
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 placeholder-gray-400"
-                  />
-                  
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <Smile className="w-5 h-5" />
-                  </button>
-                  
-                  {inputText.trim() && (
-                    <button onClick={handleSendMessage} className="text-blue-500 hover:text-blue-600 transition">
-                       <Send className="w-5 h-5" />
-                    </button>
-                  )}
-               </div>
+                )}
+              </div>
             </div>
 
           </>
