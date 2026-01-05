@@ -634,8 +634,8 @@ const MyPolls: React.FC = () => {
       {/* HERO */}
       <div className="my-hero">
         <div>
-          <div className="my-title">My Polls</div>
-          <div className="my-sub">Manage your polls in one place (orange theme).</div>
+          <div className="my-title">แบบสำรวจความสนใจของฉัน</div>
+        
         </div>
 
         <div className="my-toolbar">
@@ -644,7 +644,7 @@ const MyPolls: React.FC = () => {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by poll  question..."
+              placeholder="ค้นหา โดย คำถาม, หมวดหมู่..."
             />
           </div>
 

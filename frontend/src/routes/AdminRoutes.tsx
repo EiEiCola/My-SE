@@ -12,7 +12,9 @@ import PostManage from "../app/(protected)/Admin/PostManage";
 import ReviewManage from "../app/(protected)/Admin/ReviewManage";
 import VotingManage from "../app/(protected)/Admin/VotingManage";
 import AnnouncementManage from "../app/(protected)/Admin/AnnouncementManage";
+import AnnouncementsList from "../app/(protected)/Admin/AnnouncementManage/AnnouncementsList";
 import AnnouncementRequestDetail from "../app/(protected)/Admin/AnnouncementManage/AnnouncementRequestDetail";
+import AdminAnnouncementCreate from "../app/(protected)/Admin/AnnouncementManage/AdminAnnouncementCreate";
 import ReportManage from "../app/(protected)/Admin/ReportManage";
 import AdminPollList from "../app/(protected)/Admin/Poll/AdminPollList";
 
@@ -38,6 +40,8 @@ function AdminRoutes() {
         <Route path="VotingManage" element={<VotingManage />} />
         <Route path="PollManage" element={<AdminPollList />} />
         <Route path="AnnouncementManage" element={<AnnouncementManage />} />
+        <Route path="AnnouncementManage/create" element={<AdminAnnouncementCreate />} />
+        <Route path="AnnouncementManage/Announcements" element={<AnnouncementsList />} />
         <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
         <Route path="ReportManage" element={<ReportManage />} />
       </Route>

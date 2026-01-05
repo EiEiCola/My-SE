@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./ReviewCard.css";
 
 interface ReviewCardProps {
   review: {
     id: number;
+    memberId?: number;
     username: string;
     title: string;
     content: string;
@@ -19,7 +21,8 @@ interface ReviewCardProps {
     isAnonymous?: boolean;
     avatarUrl?: string;
   };
-
+  currentMemberId?: number; //กด profile
+  isMine?: boolean;   //กดโปรไฟล์ตัวเอง
   onReport: () => void;
 
   canDelete?: boolean;
@@ -38,19 +41,39 @@ interface ReviewCardProps {
  *
  * หรือ 2) วางใน public แล้วใช้ "/anon.png"
  */
-const ANON_AVATAR = "/avatars/anon.png"; 
+const ANON_AVATAR = "/avatars/anon.png";
 
 const ReviewCard: React.FC<ReviewCardProps> = ({
   review,
   onReport,
+  currentMemberId,
+  isMine = false, 
   canDelete = false,
   onDelete,
   canReport = true,
   onVote,
 }) => {
+  const navigate = useNavigate();
+
   // ===== Gallery modal (รูปใหญ่) =====
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // ===== Handle username click (navigate to profile) =====
+  const handleUsernameClick = () => {
+    if (review.isAnonymous) return;
+
+    // ✅ ถ้าเป็นของตัวเอง ให้ไป /User/Profile เสมอ
+    if (isMine) {
+      navigate("/User/Profile");
+      return;
+    }
+
+    // ✅ ของคนอื่น -> /User/Profile/:memberId
+    const authorId = Number(review.memberId);
+    if (authorId) navigate(`/User/Profile/${authorId}`);
+  };
+
 
   const openGalleryModal = (index: number) => {
     if (!review.images || review.images.length === 0) return;
@@ -133,9 +156,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 
           <button
             type="button"
-            className={`rcm-nav rcm-left ${
-              isFirstImage ? "is-disabled" : ""
-            }`}
+            className={`rcm-nav rcm-left ${isFirstImage ? "is-disabled" : ""
+              }`}
             onClick={prevImage}
             disabled={isFirstImage}
             aria-label="prev"
@@ -145,9 +167,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 
           <button
             type="button"
-            className={`rcm-nav rcm-right ${
-              isLastImage ? "is-disabled" : ""
-            }`}
+            className={`rcm-nav rcm-right ${isLastImage ? "is-disabled" : ""
+              }`}
             onClick={nextImage}
             disabled={isLastImage}
             aria-label="next"
@@ -203,29 +224,46 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         </div>
 
         {/* Header */}
-      <div className="rc-head">
-  <div className="rc-avatar">
-    <div className="rc-ring">
-      {review.isAnonymous ||
-      review.username === "ไม่เปิดเผยชื่อ" ||
-      review.username === "ไม่ระบุตัวตน" ? (
-        <img className="rc-avatarImg" src={ANON_AVATAR} alt="anonymous" />
-      ) : review.avatarUrl ? (
-        <img className="rc-avatarImg" src={review.avatarUrl} alt="avatar" />
-      ) : (
-        <div className="rc-letter">
-          {(review.username || "U").charAt(0).toUpperCase()}
-        </div>
-      )}
-    </div>
+        <div className="rc-head">
+          <div className="rc-avatar">
+            <div className="rc-ring">
+              {review.isAnonymous ||
+                review.username === "ไม่เปิดเผยชื่อ" ||
+                review.username === "ไม่ระบุตัวตน" ? (
+                <img className="rc-avatarImg" src={ANON_AVATAR} alt="anonymous" />
+              ) : review.avatarUrl ? (
+                <img className="rc-avatarImg" src={review.avatarUrl} alt="avatar" />
+              ) : (
+                <div className="rc-letter">
+                  {(review.username || "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
 
-    {/* ถ้าคุณ “ไม่อยากมีจุดเขียว” แล้ว ให้ลบบรรทัดนี้ทิ้งได้ */}
-    <span className="rc-online" />
-  </div>
+            {/* ถ้าคุณ “ไม่อยากมีจุดเขียว” แล้ว ให้ลบบรรทัดนี้ทิ้งได้ */}
+            <span className="rc-online" />
+          </div>
 
 
           <div className="rc-user">
-            <div className="rc-name">{review.username}</div>
+            {!review.isAnonymous && review.memberId ? (
+              <div
+                className="rc-name clickable"
+                onClick={handleUsernameClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleUsernameClick();
+                  }
+                }}
+              >
+                {review.username}
+              </div>
+            ) : (
+              <div className="rc-name">{review.username}</div>
+            )}
             <div className="rc-date">โพสต์เมื่อ {review.date}</div>
           </div>
         </div>
@@ -263,9 +301,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
             {totalImgs > VISIBLE && (
               <button
                 type="button"
-                className={`rc-imgArrow rc-left ${
-                  !canPrev ? "is-disabled" : ""
-                }`}
+                className={`rc-imgArrow rc-left ${!canPrev ? "is-disabled" : ""
+                  }`}
                 onClick={() => canPrev && setImgStart((s) => s - 1)}
                 disabled={!canPrev}
                 aria-label="prev-images"
@@ -305,9 +342,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
             {totalImgs > VISIBLE && (
               <button
                 type="button"
-                className={`rc-imgArrow rc-right ${
-                  !canNext ? "is-disabled" : ""
-                }`}
+                className={`rc-imgArrow rc-right ${!canNext ? "is-disabled" : ""
+                  }`}
                 onClick={() => canNext && setImgStart((s) => s + 1)}
                 disabled={!canNext}
                 aria-label="next-images"
@@ -330,9 +366,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
           <div className="rc-actions">
             <button
               type="button"
-              className={`rc-action ${
-                review.myVoteType === "helpful" ? "is-active" : ""
-              }`}
+              className={`rc-action ${review.myVoteType === "helpful" ? "is-active" : ""
+                }`}
               onClick={() => onVote?.("helpful")}
             >
               <span className="rc-actionIcon">👍</span>
@@ -341,9 +376,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
 
             <button
               type="button"
-              className={`rc-action rc-bad ${
-                review.myVoteType === "not_helpful" ? "is-active" : ""
-              }`}
+              className={`rc-action rc-bad ${review.myVoteType === "not_helpful" ? "is-active" : ""
+                }`}
               onClick={() => onVote?.("not_helpful")}
             >
               <span className="rc-actionIcon">👎</span>

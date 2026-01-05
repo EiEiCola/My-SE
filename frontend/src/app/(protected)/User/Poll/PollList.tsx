@@ -801,7 +801,7 @@ useEffect(() => {
 
       {/* Floating create */}
       <button className="pf-fab" type="button" title="Create Poll" onClick={() => (window.location.href = "/User/Polls/create")}>
-        ➕
+        ➕ สร้างโพล
       </button>
     </div>
   );

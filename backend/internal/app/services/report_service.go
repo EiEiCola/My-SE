@@ -73,3 +73,61 @@ func (s *ReportService) AdminListReports(page, pageSize int, statusID *int, targ
 func (s *ReportService) UpdateStatus(reportID int, statusID int, adminID uint) error {
 	return s.ReportRepo.UpdateStatus(reportID, statusID, adminID)
 }
+
+func (s *ReportService) UpdateReport(id int, memberID uint, in *CreateReportInput) (*entity.Report, error) {
+	// Check exists
+	curr, err := s.ReportRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// Check owner
+	if curr.ReporterID != memberID {
+		return nil, gorm.ErrRecordNotFound // Or forbidden
+	}
+	// Check status (only pending can be edited)
+	if curr.StatusID != 1 {
+		return nil, &CustomError{Message: "cannot edit processed report"}
+	}
+
+	curr.TargetType = in.TargetType
+	curr.Title = in.Title
+	curr.Description = in.Description
+	curr.UpdatedAt = time.Now()
+
+	var media []entity.ReportMedia
+	for _, m := range in.Medias {
+		media = append(media, entity.ReportMedia{
+			URL:          m.URL,
+			Type:         m.Type,
+			IsAttachment: m.IsAttachment,
+		})
+	}
+
+	if err := s.ReportRepo.Update(curr, media); err != nil {
+		return nil, err
+	}
+	return s.ReportRepo.GetByID(curr.ID)
+}
+
+func (s *ReportService) DeleteReport(id int, memberID uint) error {
+	curr, err := s.ReportRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if curr.ReporterID != memberID {
+		return gorm.ErrRecordNotFound
+	}
+	// Check status
+	if curr.StatusID != 1 {
+		return &CustomError{Message: "cannot delete processed report"}
+	}
+	return s.ReportRepo.Delete(id)
+}
+
+type CustomError struct {
+	Message string
+}
+
+func (e *CustomError) Error() string {
+	return e.Message
+}

@@ -138,7 +138,12 @@ useEffect(() => {
 
       const mapToItems = (apiData: any[]) =>
         (apiData || []).map((r: any) => {
-          const memberId = r.member_id ?? r.MemberID;
+          const memberId =
+  r.member_id ??
+  r.MemberID ??
+  r.memberId ??
+  r.Member?.id ??
+  r.Member?.ID;
 
           const rawImgs = r.ReviewImages ?? r.review_images ?? r.images ?? [];
           const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
@@ -435,6 +440,8 @@ const handleResetFilters = () => {
         <ReviewCard
           key={review.id}
           review={review}
+          currentMemberId={myId ?? undefined}
+          isMine={isMine} 
           canDelete={isMine}
           canReport={!isMine}   // ✅ ของตัวเองไม่ให้แจ้งปัญหา
 

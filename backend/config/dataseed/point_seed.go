@@ -8,9 +8,7 @@ import (
 	"github.com/sut68/team12/backend/internal/entity"
 )
 
-//
 // ---------- ensure seed point rule (used only for seed txn) ----------
-//
 func ensureSeedPointRule(db *gorm.DB, initial int) (uint, error) {
 	const activityType = "SEED_INIT"
 
@@ -19,7 +17,7 @@ func ensureSeedPointRule(db *gorm.DB, initial int) (uint, error) {
 	if err == nil {
 		return rule.ID, nil
 	}
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != gorm.ErrRecordNotFound {
 		return 0, err
 	}
 
@@ -41,9 +39,7 @@ func ensureSeedPointRule(db *gorm.DB, initial int) (uint, error) {
 	return rule.ID, nil
 }
 
-//
 // ---------- SAFE seed: create balance ONLY if not exists ----------
-//
 func SeedInitialPointsSafe(db *gorm.DB, initial int) error {
 	seedRuleID, err := ensureSeedPointRule(db, initial)
 	if err != nil {
@@ -69,7 +65,7 @@ func SeedInitialPointsSafe(db *gorm.DB, initial int) error {
 				return nil
 			}
 
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != gorm.ErrRecordNotFound {
 				return err
 			}
 

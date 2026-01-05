@@ -18,16 +18,18 @@
     "@mui/styled-engine-sc": "^7.3.5",
     "antd": "^5.28.1",
     "axios": "^1.13.2",
+    "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
+    "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
-    "styled-components": "^6.1.19"
+    "styled-components": "^6.1.19",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
