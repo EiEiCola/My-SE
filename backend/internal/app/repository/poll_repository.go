@@ -115,6 +115,10 @@ func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]ent
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
+		Preload("Member").        // ✅ เพิ่ม
+    Preload("MainCategory").  // ✅ เพิ่ม
+    Preload("SubCategoryL1"). // ✅ เพิ่ม
+    Preload("SubCategoryL2").
 		Model(&entity.Poll{}).
 		Where("member_id = ?", memberID)
 
@@ -147,6 +151,10 @@ func (r *pollRepository) ListPollsPendingByName(search *string) ([]entity.Poll, 
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
+		 Preload("Member").        // ✅ เพิ่ม
+    Preload("MainCategory").  // ✅ เพิ่ม (ถ้าต้องโชว์หมวด)
+    Preload("SubCategoryL1").
+    Preload("SubCategoryL2").
 		Model(&entity.Poll{})
 
 	// robust: filter ด้วยชื่อ

@@ -562,7 +562,7 @@ func (s *pollService) ListForAdmin(statusID *uint) ([]dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mapPollsToResponse(polls), nil
+	return mapPollsToAdminResponse(polls), nil
 }
 
 func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, error) {
@@ -598,7 +598,7 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToResponse(updated), nil
+	return mapPollToAdminResponse(updated), nil
 }
 
 func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
@@ -630,7 +630,7 @@ func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.Pol
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToResponse(updated), nil
+	return mapPollToAdminResponse(updated), nil
 }
 
 func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error) {
@@ -661,7 +661,7 @@ func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToResponse(updated), nil
+	return mapPollToAdminResponse(updated), nil
 }
 
 func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
@@ -669,7 +669,7 @@ func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToResponse(poll), nil
+	return mapPollToAdminResponse(poll), nil
 }
 
 func (s *pollService) DeleteForAdmin(adminID uint, pollID uint) (*dto.PollResponse, error) {
@@ -698,7 +698,8 @@ func (s *pollService) DeleteForAdmin(adminID uint, pollID uint) (*dto.PollRespon
 		FromStatusID: &poll.PollStatusID,
 	})
 
-	res := mapPollToResponse(poll)
+	// ✅ สำคัญ: ตอนตอบกลับ admin ให้ใช้ mapper แบบไม่ mask
+	res := mapPollToAdminResponse(poll)
 
 	if err := s.pollRepo.DeletePoll(pollID); err != nil {
 		return nil, err
@@ -749,24 +750,58 @@ func validatePollForSubmission(poll *entity.Poll) error {
 }
 
 func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
+	// ✅ public/member: mask ตาม IsAnonymous
+	return mapPollToResponseWithMask(poll, true)
+}
+
+func mapPollToAdminResponse(poll *entity.Poll) *dto.PollResponse {
+	// ✅ admin: ไม่ mask (แต่ยังส่ง is_anonymous ให้ FE ไปทำป้าย “ไม่เปิดเผยชื่อ” ได้)
+	return mapPollToResponseWithMask(poll, false)
+}
+
+func mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
+	res := make([]dto.PollResponse, 0, len(polls))
+	for i := range polls {
+		res = append(res, *mapPollToResponse(&polls[i]))
+	}
+	return res
+}
+
+func mapPollsToAdminResponse(polls []entity.Poll) []dto.PollResponse {
+	res := make([]dto.PollResponse, 0, len(polls))
+	for i := range polls {
+		res = append(res, *mapPollToAdminResponse(&polls[i]))
+	}
+	return res
+}
+
+func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollResponse {
 	statusName := ""
 	if poll.PollStatus != nil {
 		statusName = poll.PollStatus.Name
 	}
 
-	authorName := "Community Poll"
+	// ✅ ดึง username จาก member (repo ของหนู Preload("Member") แล้ว)
+	username := ""
 	if poll.Member != nil {
-		fn := strings.TrimSpace(poll.Member.FirstName)
-		ln := strings.TrimSpace(poll.Member.LastName)
-
-		if fn != "" || ln != "" {
-			authorName = strings.TrimSpace(fn + " " + ln)
-		} else if poll.Member.Username != "" {
-			authorName = poll.Member.Username
-		}
+		username = strings.TrimSpace(poll.Member.Username)
 	}
-	if poll.IsAnonymous {
-		authorName = "ไม่ระบุตัวตน"
+
+	authorName := ""
+	authorUsername := ""
+
+	if maskAnonymous && poll.IsAnonymous {
+		authorName = "ไม่เปิดเผยชื่อ"
+		authorUsername = "" // จะส่ง/ไม่ส่งก็ได้ (omitempty)
+	} else {
+		// ✅ admin หรือ public ที่เปิดเผยชื่อ: ให้เห็น username
+		if username != "" {
+			authorName = username
+			authorUsername = username
+		} else {
+			authorName = "ผู้ใช้"
+			authorUsername = ""
+		}
 	}
 
 	opts := poll.Options
@@ -788,8 +823,10 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		StatusID:   poll.PollStatusID,
 		StatusName: statusName,
 
-		MemberID:   poll.MemberID,
-		AuthorName: authorName,
+		MemberID:        poll.MemberID,
+		AuthorName:      authorName,
+		AuthorUsername:  authorUsername,
+		IsAnonymous:     poll.IsAnonymous,
 
 		AllowMultiple: poll.AllowMultiple,
 		MaxChoice:     poll.MaxChoice,
@@ -833,13 +870,6 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 	return res
 }
 
-func mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
-	res := make([]dto.PollResponse, 0, len(polls))
-	for i := range polls {
-		res = append(res, *mapPollToResponse(&polls[i]))
-	}
-	return res
-}
 
 // effectiveStart = max(start_at, published_at)
 func effectiveStart(p *entity.Poll) *time.Time {

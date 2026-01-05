@@ -145,6 +145,15 @@ const MyPolls: React.FC = () => {
     opt?.label ??
     "-";
 
+    const getIsAnonymous = (p: Poll) =>
+  Boolean(
+    (p as any)?.is_anonymous ??
+      (p as any)?.IsAnonymous ??
+      (p as any)?.isAnonymous ??
+      false
+  );
+
+
   const getBaseStatus = (p: Poll): StatusName => {
     const name =
       ((p as any)?.status_name as StatusName | undefined) ??
@@ -882,6 +891,12 @@ const MyPolls: React.FC = () => {
                           : "-"}
                       </div>
                     </div>
+                    <div className="detail-block">
+  <div className="detail-label">Identity</div>
+  <div className="detail-value">
+    {getIsAnonymous(selectedPoll) ? "ไม่เปิดเผยชื่อ" : "เปิดเผยชื่อ"}
+  </div>
+</div>
 
                     {/* ✅ วางตรงนี้เลย */}
                     <div className="detail-block">

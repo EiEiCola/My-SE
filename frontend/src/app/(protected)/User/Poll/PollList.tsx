@@ -802,7 +802,7 @@ useEffect(() => {
                 optionLabel={optionLabel}
                 optionVotes={optionVotes}
                 getCategoryTitle={getCategoryTitle}
-                getAuthorName={getAuthorName}
+                getAuthorName={(p: any) => String(p?.author_name ?? "").trim() || "ไม่เปิดเผยชื่อ"}
                 mainNameById={mainNameById}
                 onOpenDetail={(id) => (window.location.href = `/User/Polls/${id}`)}
                 // ✅ selection + vote

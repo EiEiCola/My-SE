@@ -101,6 +101,9 @@ type PollResponse struct {
 
 	TotalVoters *int64 `json:"total_voters,omitempty"` // ✅ จำนวน "คน" ที่โหวต (COUNT poll_votes)
 	IsAnonymous bool `json:"is_anonymous"`
+	AuthorUsername string `json:"author_username,omitempty"`
+		
+
 
 
 	

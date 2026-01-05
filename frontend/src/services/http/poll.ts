@@ -31,6 +31,7 @@ export interface Poll {
   start_at?: string;
   end_at?: string;
 
+
   options?: PollOption[];
   member_id: number;
 
@@ -48,7 +49,8 @@ export interface Poll {
   sub_category_l2_id?: number;
 
   created_at?: string;
-
+  author_name?: string;
+  is_anonymous?: boolean; 
   has_voted?: boolean;
   my_option_ids?: number[];
 }
@@ -75,6 +77,7 @@ export interface CreatePollRequest {
   main_category_id?: number | null;
   sub_category_l1_id?: number | null;
   sub_category_l2_id?: number | null;
+  is_anonymous?: boolean;
 }
 
 export interface UpdatePollRequest {
@@ -88,6 +91,7 @@ export interface UpdatePollRequest {
   main_category_id?: number | null;
   sub_category_l1_id?: number | null;
   sub_category_l2_id?: number | null;
+  is_anonymous?: boolean;
 }
 
 export interface PollResultItem {

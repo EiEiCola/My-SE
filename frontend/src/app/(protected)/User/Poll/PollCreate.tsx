@@ -20,7 +20,7 @@ type PollForm = {
   main_category_id: number | null;
   sub_category_l1_id: number | null;
   sub_category_l2_id: number | null;
-
+  is_anonymous: boolean;
   options: OptionForm[];
 };
 
@@ -36,6 +36,7 @@ const emptyForm: PollForm = {
   main_category_id: null,
   sub_category_l1_id: null,
   sub_category_l2_id: null,
+  is_anonymous: false,
 
   options: [
     { label: "", hasImage: false, img_url: "" },
@@ -180,7 +181,8 @@ const PollCreate: React.FC = () => {
       main_category_id: form.main_category_id || null,
       sub_category_l1_id: form.sub_category_l1_id || null,
       sub_category_l2_id: form.sub_category_l2_id || null,
-
+      
+      is_anonymous: form.is_anonymous, // ✅ เพิ่มตรงนี้
       options: form.options.map((o, i) => ({
         label: o.label,
         img_url: o.hasImage ? (o.img_url || "") : "",
@@ -328,7 +330,7 @@ const PollCreate: React.FC = () => {
         const main_category_id = data?.main_category_id ?? null;
         const sub_category_l1_id = data?.sub_category_l1_id ?? null;
         const sub_category_l2_id = data?.sub_category_l2_id ?? null;
-
+        const is_anonymous = !!(data?.is_anonymous ?? false);
         const rawOptions = (data?.options ?? data?.poll_options ?? data?.PollOptions ?? []) as any[];
 
         const opts = rawOptions.map((o: any) => {
@@ -360,6 +362,7 @@ const PollCreate: React.FC = () => {
           main_category_id: main_category_id === null ? null : Number(main_category_id),
           sub_category_l1_id: sub_category_l1_id === null ? null : Number(sub_category_l1_id),
           sub_category_l2_id: sub_category_l2_id === null ? null : Number(sub_category_l2_id),
+          is_anonymous, // ✅ เพิ่มตรงนี้
           options: opts.length ? opts : emptyForm.options,
         });
       } catch (err) {
@@ -411,6 +414,34 @@ const PollCreate: React.FC = () => {
             placeholder="เช่น อยากให้โรงอาหารเพิ่มเมนูอะไร?"
           />
         </div>
+
+        <label className="pcx-check">
+  <input
+    type="checkbox"
+    checked={form.is_anonymous}
+    onChange={(e) => setField("is_anonymous", e.target.checked)}
+  />
+  ไม่เปิดเผยชื่อ (แสดงเป็น “ไม่เปิดเผยชื่อ”)
+</label>
+
+
+        <div className="pcx-row pcx-rowBetween" style={{ marginTop: 10 }}>
+  <div>
+    <div className="pcx-sectionTitle" style={{ fontSize: 14 }}>โพสต์แบบไม่เปิดเผยชื่อ</div>
+    <div className="pcx-sectionHint">ถ้าเปิด คนอื่นจะเห็นชื่อเป็น “ไม่ระบุตัวตน”</div>
+  </div>
+
+  <label className="pcx-switch">
+    <input
+      type="checkbox"
+      checked={form.is_anonymous}
+      onChange={(e) => setField("is_anonymous", e.target.checked)}
+    />
+    <span className="pcx-slider" />
+    <span className="pcx-check">{form.is_anonymous ? "เปิด" : "ปิด"}</span>
+  </label>
+</div>
+
 
         {/* Panels row */}
         <div className="pcx-grid2">

@@ -47,17 +47,8 @@ const getMyIdFromToken = () => {
   }
 };
 
-
 const getAuthorName = (p: Poll | null) =>
-  clampStr(
-    (p as any)?.author_name ??
-      (p as any)?.authorName ??
-      (p as any)?.member?.display_name ??
-      (p as any)?.member?.username ??
-      (p as any)?.creator?.display_name ??
-      (p as any)?.creator?.name ??
-      ""
-  );
+  clampStr((p as any)?.author_name) || "ไม่เปิดเผยชื่อ";
 
 const computeStatusFromDetail = (p: Poll | null): UiStatus => {
   if (!p) return "OPEN";

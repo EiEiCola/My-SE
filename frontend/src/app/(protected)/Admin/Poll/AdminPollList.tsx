@@ -78,44 +78,69 @@ const AdminPollList: React.FC = () => {
     fetchPolls(filterStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus]);
+const fetchPolls = async (statusID: number) => {
+  setLoading(true);
+  try {
+    // ✅ Closed ต้องดึง 2 ก้อน:
+    // 1) status_id=5 (DB CLOSED: แอดมินปิดเอง)
+    // 2) status_id=3 (PUBLISHED แต่ computed_status=CLOSED: ปิดตามเวลา)
+    if (statusID === 5) {
+      const [resClosed, resPublished] = await Promise.all([
+        adminPollAPI.list(5),
+        adminPollAPI.list(3),
+      ]);
 
-  const fetchPolls = async (statusID: number) => {
-    setLoading(true);
-    try {
-      // ✅ ถ้าเลือก Closed (5) แต่ DB ยังไม่ set เป็น CLOSED
-      // ให้ดึง PUBLISHED (3) มาก่อน แล้วค่อย filter ด้วย computed_status ใน FE
-      const requestStatus = statusID === 5 ? 3 : statusID;
+      const rowsClosed = (resClosed as any)?.data?.data ?? (resClosed as any)?.data ?? [];
+      const rowsPub = (resPublished as any)?.data?.data ?? (resPublished as any)?.data ?? [];
 
-      const res = await adminPollAPI.list(requestStatus);
-      const rows = (res as any)?.data?.data ?? (res as any)?.data ?? [];
-      const list = Array.isArray(rows) ? rows : [];
+      const listClosed = Array.isArray(rowsClosed) ? rowsClosed : [];
+      const listPub = Array.isArray(rowsPub) ? rowsPub : [];
 
-      if (statusID === 5) {
-        // filter เฉพาะ computed CLOSED หรือ DB CLOSED
-        const closedOnly = list.filter((p: Poll) => {
-          const ds = getDisplayStatus(p);
-          return ds === "CLOSED";
-        });
-        setPolls(closedOnly);
-      } else if (statusID === 3) {
-        // ✅ FIX: Published (ตามที่หนูเลือกแบบ 1) = OPEN + UPCOMING + (fallback PUBLISHED) เท่านั้น
-        // ไม่เอา CLOSED ปนเข้ามา
-        const publishedLike = list.filter((p: Poll) => {
-          const ds = getDisplayStatus(p);
-          return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
-        });
-        setPolls(publishedLike);
-      } else {
-        setPolls(list);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to load polls");
-      setPolls([]);
-    } finally {
-      setLoading(false);
+      // รวม 2 list + กันซ้ำด้วย id
+      const merged: Poll[] = [];
+      const seen = new Set<number>();
+
+      const pushUnique = (p: Poll) => {
+        const id = getId(p);
+        if (!id) return;
+        if (seen.has(id)) return;
+        seen.add(id);
+        merged.push(p);
+      };
+
+      listClosed.forEach(pushUnique);
+      listPub.forEach(pushUnique);
+
+      // filter ให้เหลือ CLOSED จริง ๆ (ทั้ง DB CLOSED และ computed CLOSED)
+      const closedOnly = merged.filter((p) => getDisplayStatus(p) === "CLOSED");
+      setPolls(closedOnly);
+      return;
     }
-  };
+
+    // ✅ status อื่น ๆ ดึงตามปกติ
+    const res = await adminPollAPI.list(statusID);
+    const rows = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+    const list = Array.isArray(rows) ? rows : [];
+
+    if (statusID === 3) {
+      // ✅ Published = OPEN + UPCOMING + (fallback PUBLISHED) เท่านั้น (ไม่เอา CLOSED ปน)
+      const publishedLike = list.filter((p: Poll) => {
+        const ds = getDisplayStatus(p);
+        return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
+      });
+      setPolls(publishedLike);
+    } else {
+      setPolls(list);
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Failed to load polls");
+    setPolls([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // helpers
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
@@ -187,6 +212,46 @@ const AdminPollList: React.FC = () => {
   const getStartAt = (p: Poll) => (p as any)?.start_at ?? (p as any)?.StartAt ?? null;
   const getEndAt = (p: Poll) => (p as any)?.end_at ?? (p as any)?.EndAt ?? null;
 
+  const asBool = (v: any) => {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0 || v == null) return false;
+
+  const s = String(v).trim().toLowerCase();
+  if (s === "true" || s === "1" || s === "yes") return true;
+  if (s === "false" || s === "0" || s === "no" || s === "") return false;
+
+  return Boolean(v);
+};
+
+  // ✅ anonymous flag
+ const getIsAnonymous = (p: Poll) =>
+  asBool(
+    (p as any)?.is_anonymous ??
+      (p as any)?.IsAnonymous ??
+      (p as any)?.isAnonymous ??
+      false
+  );
+
+
+  // ✅ member object / ชื่อจริง / username
+  const getMemberObj = (p: Poll) => (p as any)?.member ?? (p as any)?.Member ?? null;
+
+  const getAuthorName = (p: Poll) => {
+    const m = getMemberObj(p);
+    return (
+      m?.name ??
+      m?.full_name ??
+      m?.fullName ??
+      (p as any)?.author_name ??
+      ""
+    );
+  };
+
+  const getAuthorUsername = (p: Poll) => {
+    const m = getMemberObj(p);
+    return m?.username ?? m?.user_name ?? m?.userName ?? "";
+  };
+
   // categories (รองรับทั้ง title / name / และ fallback เป็น *_id)
   const getMainCategory = (p: Poll) =>
     (p as any)?.main_category?.title ??
@@ -215,10 +280,6 @@ const AdminPollList: React.FC = () => {
     (p as any)?.SubCategoryL2Title ??
     "";
 
-  // optional: backend อาจส่งชื่อมา
-  const getAuthorName = (p: Poll) =>
-    (p as any).member?.name || (p as any).member?.username || (p as any).author_name || "";
-
   const getRejectReason = (p: Poll) =>
     (p as any)?.last_reject_reason ??
     (p as any)?.LastRejectReason ??
@@ -229,9 +290,16 @@ const AdminPollList: React.FC = () => {
   const getOptions = (p: Poll) => (((p as any).poll_options || (p as any).options || []) as any[]);
 
   const optionLabel = (opt: any) =>
-    opt?.label ?? opt?.text ?? opt?.title ?? opt?.option_text ?? opt?.OptionText ?? opt?.name ?? "-";
+    opt?.label ??
+    opt?.text ??
+    opt?.title ??
+    opt?.option_text ??
+    opt?.OptionText ??
+    opt?.name ??
+    "-";
 
-  const optionImgRaw = (opt: any) => opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imgUrl ?? "";
+  const optionImgRaw = (opt: any) =>
+    opt?.img_url ?? opt?.ImgURL ?? opt?.image_url ?? opt?.imgUrl ?? "";
 
   const filtered = useMemo(() => {
     const keyword = q.trim().toLowerCase();
@@ -453,6 +521,8 @@ const AdminPollList: React.FC = () => {
                   const question = getQuestion(p);
                   const authorId = getAuthorId(p);
                   const authorName = getAuthorName(p);
+                  const authorUsername = getAuthorUsername(p);
+                  const anon = getIsAnonymous(p);
                   const created = getCreatedAt(p);
 
                   return (
@@ -467,7 +537,23 @@ const AdminPollList: React.FC = () => {
 
                       <td>
                         <div className="author">
-                          <div className="author-name">{authorName ? authorName : `Member #${authorId}`}</div>
+                          <div className="author-name">
+                            {authorName || authorUsername ? (
+                              <>
+                                {authorName || "-"}
+                                {authorUsername ? (
+                                  <span className="muted"> (@{authorUsername})</span>
+                                ) : null}
+                              </>
+                            ) : (
+                              `Member #${authorId}`
+                            )}
+
+                            <span className="chip" style={{ marginLeft: 8 }}>
+                              {anon ? "ไม่เปิดเผยชื่อ" : "เปิดเผยชื่อ"}
+                            </span>
+                          </div>
+
                           <div className="author-sub">ID: {authorId}</div>
                         </div>
                       </td>
@@ -553,11 +639,20 @@ const AdminPollList: React.FC = () => {
                   <div className="detail-label">Author</div>
                   <div className="detail-value">
                     <span className="chip">ID {getAuthorId(selectedPoll)}</span>
-                    {!!getAuthorName(selectedPoll) && (
-                      <span className="muted" style={{ marginLeft: 8 }}>
-                        {getAuthorName(selectedPoll)}
-                      </span>
-                    )}
+
+                    <span className="muted" style={{ marginLeft: 8 }}>
+                      {getAuthorName(selectedPoll) || "-"}
+                      {getAuthorUsername(selectedPoll) ? ` (@${getAuthorUsername(selectedPoll)})` : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="detail-block">
+                  <div className="detail-label">Identity</div>
+                  <div className="detail-value">
+                    <span className="chip">
+                      {getIsAnonymous(selectedPoll) ? "ไม่เปิดเผยชื่อ" : "เปิดเผยชื่อ"}
+                    </span>
                   </div>
                 </div>
 
