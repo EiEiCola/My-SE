@@ -1,9 +1,9 @@
 package repository
 
 import (
+	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
 	"time"
-	"github.com/sut68/team12/backend/internal/entity"
 )
 
 type PollRepository interface {
@@ -67,12 +67,11 @@ func (r *pollRepository) GetPollByID(id uint) (*entity.Poll, error) {
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
-		Preload("Member").              // ✅ เพิ่ม
-  		// Preload("Member.MemberAccount"). // ✅ ถ้ามีจริงค่อยเปิด
+		Preload("Member"). // ✅ เพิ่ม
+		// Preload("Member.MemberAccount"). // ✅ ถ้ามีจริงค่อยเปิด
 		Preload("MainCategory").
-  		Preload("SubCategoryL1").
- 		 Preload("SubCategoryL2").
-
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
 		First(&poll, id).Error
 
 	if err != nil {
@@ -89,11 +88,11 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
-		Preload("Member").              // ✅ เพิ่ม
-        // Preload("Member.MemberAccount"). // ✅ ถ้ามี
-		 Preload("MainCategory").
- 		 Preload("SubCategoryL1").
- 		 Preload("SubCategoryL2").
+		Preload("Member"). // ✅ เพิ่ม
+		// Preload("Member.MemberAccount"). // ✅ ถ้ามี
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
 		Model(&entity.Poll{})
 
 	if statusID != nil {
@@ -289,7 +288,6 @@ func (r *pollRepository) CountTotalVotersByPollIDs(pollIDs []uint) (map[uint]int
 	return out, nil
 }
 
-
 /* =========================
    HISTORY
 ========================= */
@@ -315,7 +313,6 @@ func (r *pollRepository) UpdatePollStatus(pollID uint, statusID uint) error {
 	return nil
 }
 
-
 func (r *pollRepository) RejectPoll(pollID uint, statusID uint, reason string) error {
 	tx := r.db.Model(&entity.Poll{}).
 		Where("id = ?", pollID).
@@ -332,7 +329,6 @@ func (r *pollRepository) RejectPoll(pollID uint, statusID uint, reason string) e
 	}
 	return nil
 }
-
 
 /* =========================
    REPLACE OPTIONS
@@ -369,9 +365,8 @@ func (r *pollRepository) ReplacePollOptions(pollID uint, options []entity.PollOp
 	})
 }
 
-
 type myVoteRow struct {
-	PollID     uint `gorm:"column:poll_id"`
+	PollID       uint `gorm:"column:poll_id"`
 	PollOptionID uint `gorm:"column:poll_option_id"`
 }
 
@@ -400,11 +395,15 @@ func (r *pollRepository) GetMyVotesForPolls(pollIDs []uint, memberID uint) (map[
 }
 
 func (r *pollRepository) UpdatePublishedAt(pollID uint, publishedAt time.Time) error {
-  tx := r.db.Model(&entity.Poll{}).
-    Where("id = ?", pollID).
-    Update("published_at", publishedAt)
+	tx := r.db.Model(&entity.Poll{}).
+		Where("id = ?", pollID).
+		Update("published_at", publishedAt)
 
-  if tx.Error != nil { return tx.Error }
-  if tx.RowsAffected == 0 { return gorm.ErrRecordNotFound }
-  return nil
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

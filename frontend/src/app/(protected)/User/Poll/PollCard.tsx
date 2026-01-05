@@ -108,6 +108,8 @@ export const PollCard: React.FC<Props> = (props) => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  
+
   // ✅ lock scroll when modal opens
   useEffect(() => {
     if (!previewUrl) return;
@@ -146,10 +148,17 @@ export const PollCard: React.FC<Props> = (props) => {
     setSelected(derivedMyOptionIds);
   }, [id, derivedHasVoted, derivedMyOptionIds]);
 
+  
+
   const [localSubmitting, setLocalSubmitting] = useState(false);
   const submitting = Boolean(props.submitting) || localSubmitting;
 
-  const visibleOptions = useMemo(() => (expanded ? options : options.slice(0, 4)), [expanded, options]);
+  const DEFAULT_VISIBLE = 5;
+const visibleOptions = useMemo(
+  () => (expanded ? options : options.slice(0, DEFAULT_VISIBLE)),
+  [expanded, options]
+);
+
 
   const totalVotes = useMemo(() => {
     let sum = 0;
@@ -180,22 +189,47 @@ export const PollCard: React.FC<Props> = (props) => {
   const badgeText = status === "OPEN" ? "เปิดอยู่" : status === "UPCOMING" ? "กำลังจะมา" : "ปิดแล้ว";
 
   // ✅ NEW: ตรวจว่าเป็นเจ้าของโพลไหม (กันกดโหวตตั้งแต่ UI)
-  const ownerId =
-    Number(
+// ✅ NEW: ตรวจว่าเป็นเจ้าของโพลไหม (กันกดโหวตตั้งแต่ UI)
+const ownerId =
+  Number(
+    // แนะนำให้ “ย้าย member_id ไปท้ายสุด” เผื่อ backend ใช้ member_id อย่างอื่น
+    p?.created_by_id ??
+      p?.CreatedByID ??
+      p?.created_by ??
+      p?.creator_id ??
+      p?.creatorId ??
+      p?.author_id ??
+      p?.owner_id ??
       p?.member_id ??
-        p?.MemberID ??
-        p?.created_by ??
-        p?.createdBy ??
-        p?.creator_id ??
-        p?.creatorId ??
-        p?.CreatedByID ??
-        0
-    ) || 0;
+      p?.MemberID ??
+      p?.member?.id ??
+      p?.Member?.ID ??
+      0
+  ) || 0;
 
-  const isOwner = Boolean(ownerId && props.currentMemberId && ownerId === props.currentMemberId);
+const myId = Number(props.currentMemberId ?? 0) || 0;
 
-  // ✅ เพิ่มเงื่อนไข: owner ห้ามโหวต
-  const canVote = status === "OPEN" && !hasVoted && !isOwner;
+const isOwner = ownerId > 0 && myId > 0 && ownerId === myId;
+
+// ✅ ล็อกเฉพาะเจ้าของจริง ๆ เท่านั้น
+const ownerLocked = isOwner;
+
+// ✅ ให้โหวตได้เฉพาะ: OPEN + ยังไม่โหวต + ไม่ใช่เจ้าของ + ต้องมี myId
+const canVote = status === "OPEN" && !hasVoted && !isOwner && myId > 0;
+
+// ✅ ใส่ตรงนี้เลย (ก่อน return)
+useEffect(() => {
+  console.log("[PollCard debug]", {
+    pollId: id,
+    ownerId,
+    myId,
+    isOwner,
+    raw: { member_id: p?.member_id, created_by: p?.created_by, created_by_id: p?.created_by_id },
+  });
+}, [id, ownerId, myId, isOwner, p]);
+
+
+
 
   const selectedNow = canVote ? props.selectedOptionIds : selected;
 
@@ -224,6 +258,7 @@ export const PollCard: React.FC<Props> = (props) => {
   };
 
   const toggle = (optId: number) => {
+    if (ownerLocked) return;    
     if (!canVote || submitting) return;
     props.onToggleOption(optId);
   };
@@ -238,6 +273,11 @@ export const PollCard: React.FC<Props> = (props) => {
     const names = selected.map((id) => map.get(id) || String(id)).filter(Boolean);
     return names.join(", ");
   }, [hasVoted, options, selected, props]);
+
+  useEffect(() => {
+  console.log("[PollCard debug]", { pollId: id, ownerId, myId, raw: { member_id: p?.member_id, created_by: p?.created_by } });
+}, [id, ownerId, myId]);
+
 
   return (
     <div className="pc-card" onClick={() => props.onOpenDetail(id)}>
@@ -276,131 +316,150 @@ export const PollCard: React.FC<Props> = (props) => {
       {desc ? <div className="pc-desc">{desc}</div> : null}
 
       {/* vote / summary (NO RESULTS BARS IN FEED) */}
-      <div className="pc-vote" onClick={(e) => e.stopPropagation()}>
-        {status === "UPCOMING" ? (
-          <div className="pc-actions">
-            <button className="btn btn-primary" type="button" onClick={() => props.onOpenDetail(id)}>
-              ดูรายละเอียด
-            </button>
-          </div>
-        ) : canVote ? (
-          <>
-            <div className="pc-vote-title">
-              {allowMultiple ? (
-                <span>เลือกได้หลายข้อ{maxChoice ? ` (สูงสุด ${maxChoice})` : ""}:</span>
-              ) : (
-                <span>เลือก 1 ข้อ:</span>
-              )}
-              {submitting ? <span className="pc-loading">กำลังส่ง...</span> : null}
-            </div>
+    <div className="pc-vote" onClick={(e) => e.stopPropagation()}>
+  {/* ===== title line ===== */}
+  <div className="pc-vote-title">
+    {status === "UPCOMING" ? (
+      <span>ตัวเลือก (โพลยังไม่เริ่ม):</span>
+    ) : status === "CLOSED" ? (
+      <span>ตัวเลือก (โพลปิดแล้ว):</span>
+    ) : canVote ? (
+      allowMultiple ? (
+        <span>เลือกได้หลายข้อ{maxChoice ? ` (สูงสุด ${maxChoice})` : ""}:</span>
+      ) : (
+        <span>เลือก 1 ข้อ:</span>
+      )
+    ) : isOwner ? (
+      <span>ตัวเลือก (เจ้าของโพลโหวตไม่ได้):</span>
+    ) : hasVoted ? (
+      <span>ตัวเลือก (คุณโหวตแล้ว):</span>
+    ) : (
+      <span>ตัวเลือก:</span>
+    )}
 
-            <div className="pc-options">
-              {visibleOptions.map((o) => {
-                const oid = props.optionId(o);
-                const label = props.optionLabel(o);
-                const isSel = selectedNow.includes(oid);
-                const img = optionImg(o);
+    {submitting ? <span className="pc-loading">กำลังส่ง...</span> : null}
+  </div>
 
-                return (
-                  <button
-                    key={oid}
-                    type="button"
-                    className={isSel ? "opt opt-selected" : "opt"}
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      if (target?.closest?.(".opt-thumb-click")) return;
-                      toggle(oid);
-                    }}
-                    disabled={submitting}
-                    title={label}
-                  >
-                    <span className="opt-dot">{isSel ? "✓" : ""}</span>
+  {/* ===== options list (ALWAYS show in feed) ===== */}
+  <div className={isOwner ? "pc-options pc-options-ownerLocked" : "pc-options"}>
+    {visibleOptions.map((o) => {
+      const oid = props.optionId(o);
+      const label = props.optionLabel(o);
+      const isSel = selectedNow.includes(oid);
+      const img = optionImg(o);
 
-                    {img ? (
-                      <img
-                        className="opt-thumb opt-thumb-click"
-                        src={img}
-                        alt={label}
-                        draggable={false}
-                        loading="lazy"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setPreviewUrl(img);
-                        }}
-                      />
-                    ) : null}
+      return (
+      <button
+  key={oid}
+  type="button"
+  className={[
+    isSel ? "opt opt-selected" : "opt",
+    ownerLocked ? "opt-ownerLocked" : "",
+    !canVote ? "opt-disabled" : "",
+  ].join(" ")}
+  disabled={submitting || ownerLocked}   // ✅ owner กดไม่ได้เลย
+  onClick={(e) => {
+    // ถ้า owner => ไม่ทำอะไร
+    if (ownerLocked) return;
+    const target = e.target as HTMLElement;
+    if (target?.closest?.(".opt-thumb-click")) return;
 
-                    <span className="opt-text">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
+    if (!canVote || submitting) return;
+    toggle(oid);
+  }}
+  title={label}
+>
+  <span className="opt-dot">{isSel ? "✓" : ""}</span>
 
-            {options.length > 4 ? (
-              <button className="link-btn" type="button" onClick={() => setExpanded((v) => !v)}>
-                {expanded ? "ย่อรายการ" : `ดูตัวเลือกทั้งหมด (${options.length})`}
-              </button>
-            ) : null}
+  {img ? (
+    <img
+      className="opt-thumb opt-thumb-click"
+      src={img}
+      alt={label}
+      draggable={false}
+      loading="lazy"
+      onClick={(e) => {
+        // ✅ owner ห้ามกดรูปด้วย
+        if (ownerLocked) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setPreviewUrl(img);
+      }}
+    />
+  ) : null}
 
-            <div className="pc-actions">
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={() => props.onClearSelection?.()}
-                disabled={submitting || props.selectedOptionIds.length === 0}
-              >
-                ล้างที่เลือก
-              </button>
+  <span className="opt-text">{label}</span>
+</button>
 
-              <button
-                className="btn btn-primary"
-                type="button"
-                onClick={submit}
-                disabled={!canVote || submitting || !props.canConfirm}
-                title={!canVote ? "โหวตได้ครั้งเดียว" : ""}
-              >
-                ✅ ยืนยันโหวต
-              </button>
-            </div>
-          </>
-        ) : (
-          // ✅ CLOSED หรือ OPEN ที่โหวตแล้ว หรือ OWNER: โชว์สรุปสั้นๆ + ปุ่มไปหน้า detail/results
-          <div className="pc-actions" style={{ justifyContent: "space-between" }}>
-            <div className="pc-hint" style={{ fontWeight: 900, color: "rgba(31,35,40,.70)" }}>
-              {status === "CLOSED"
-                ? "โพลปิดแล้ว • ดูผลในรายละเอียด"
-                : isOwner
-                ? "คุณเป็นเจ้าของโพลนี้ • โหวตไม่ได้"
-                : myChoiceText
-                ? `คุณโหวต: ${myChoiceText}`
-                : "คุณโหวตแล้ว • ดูผลในรายละเอียด"}
-            </div>
+      );
+    })}
+  </div>
 
-            <button className="btn btn-primary" type="button" onClick={() => props.onOpenDetail(id)}>
-              📊 ดูรายละเอียด
-            </button>
-          </div>
-        )}
+  {/* ===== expand / collapse (if more than 5) ===== */}
+  {options.length > 5 ? (
+    <button className="link-btn" type="button" onClick={() => setExpanded((v) => !v)}>
+      {expanded ? "ย่อรายการ" : `ดูตัวเลือกเพิ่มเติม (${options.length})`}
+    </button>
+  ) : null}
 
-        {/* ✅ NEW: Toast message (แสดงใน UI จริง ไม่ใช่ alert) */}
-        {props.toastMessage ? (
-          <div
-            className="pc-toast"
-            style={{
-              marginTop: 10,
-              padding: "10px 12px",
-              borderRadius: 14,
-              border: "1px solid rgba(255,122,24,.25)",
-              background: "rgba(255,122,24,.10)",
-              fontWeight: 800,
-              color: "rgba(31,35,40,.85)",
-            }}
-          >
-            {props.toastMessage}
-          </div>
-        ) : null}
-      </div>
+  {/* ===== actions ===== */}
+  {canVote ? (
+    <div className="pc-actions">
+      <button
+        className="btn btn-outline"
+        type="button"
+        onClick={() => props.onClearSelection?.()}
+        disabled={submitting || props.selectedOptionIds.length === 0}
+      >
+        ล้างที่เลือก
+      </button>
+
+      <button
+        className="btn btn-primary"
+        type="button"
+        onClick={submit}
+        disabled={!canVote || submitting || !props.canConfirm}
+      >
+        ✅ ยืนยันโหวต
+      </button>
+    </div>
+  ) : (
+    <div className="pc-actions" style={{ justifyContent: "flex-end" }}>
+      <button className="btn btn-primary" type="button" onClick={() => props.onOpenDetail(id)}>
+        {status === "UPCOMING" ? "ดูรายละเอียด" : "📊 ดูรายละเอียด"}
+      </button>
+    </div>
+  )}
+
+  {/* ===== bottom summary (small) ===== */}
+{ownerLocked ? (
+  <div className="pc-voteSummary pc-voteSummary-owner">
+    เจ้าของโพลไม่สามารถโหวตโพลของตนเองได้
+  </div>
+) : hasVoted && myChoiceText ? (
+  <div className="pc-voteSummary">คุณโหวต: {myChoiceText}</div>
+) : null}
+
+
+  {/* ✅ Toast message (เดิมของเธอ) */}
+  {props.toastMessage ? (
+    <div
+      className="pc-toast"
+      style={{
+        marginTop: 10,
+        padding: "10px 12px",
+        borderRadius: 14,
+        border: "1px solid rgba(255,122,24,.25)",
+        background: "rgba(255,122,24,.10)",
+        fontWeight: 800,
+        color: "rgba(31,35,40,.85)",
+      }}
+    >
+      {props.toastMessage}
+    </div>
+  ) : null}
+</div>
+
 
       {/* ✅ Image Preview Modal */}
       {previewUrl

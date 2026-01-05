@@ -367,14 +367,17 @@ if !ok {
 }
 
 	res, err := ctl.pollService.Results(memberID, pollID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, res)
+if err != nil {
+  switch err.Error() {
+  case "must_vote_to_see_results", "results_not_available":
+    c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+  default:
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+  }
+  return
 }
-	
+c.JSON(http.StatusOK, res)}
+
 // ✅ POST /api/member/polls/options/upload (multipart/form-data)
 // form key: file
 func (ctl *PollController) UploadOptionImage(c *gin.Context) {

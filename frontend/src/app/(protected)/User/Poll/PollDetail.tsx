@@ -20,6 +20,34 @@ type UiStatus = "UPCOMING" | "OPEN" | "CLOSED";
 
 const clampStr = (s: any) => String(s ?? "").trim();
 
+const base64UrlJson = (part: string) => {
+  let b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  return JSON.parse(atob(b64));
+};
+
+const getMyIdFromToken = () => {
+  const token = localStorage.getItem("token") || "";
+  if (!token.includes(".")) return 0;
+
+  try {
+    const payload = base64UrlJson(token.split(".")[1]);
+    const id = Number(
+      payload?.member_id ??
+        payload?.memberId ??
+        payload?.user_id ??
+        payload?.userId ??
+        payload?.id ??
+        payload?.sub ??
+        0
+    );
+    return Number.isFinite(id) ? id : 0;
+  } catch {
+    return 0;
+  }
+};
+
+
 const getAuthorName = (p: Poll | null) =>
   clampStr(
     (p as any)?.author_name ??
@@ -83,23 +111,31 @@ const PollDetail: React.FC = () => {
   // ===========================
   // ✅ NEW: prevent owner voting
   // ===========================
-  const myMemberId = useMemo(() => {
-    const raw = localStorage.getItem("id");
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
-  }, []);
+const myMemberId = getMyIdFromToken();
 
-  const ownerId = useMemo(() => {
-    const v = Number((poll as any)?.member_id ?? (poll as any)?.MemberID ?? 0);
-    return Number.isFinite(v) ? v : 0;
-  }, [poll]);
 
-  const isOwner = useMemo(() => {
-    return myMemberId > 0 && ownerId > 0 && myMemberId === ownerId;
-  }, [myMemberId, ownerId]);
+const ownerId = useMemo(() => {
+  const v = Number(
+    (poll as any)?.created_by_id ??
+      (poll as any)?.CreatedByID ??
+      (poll as any)?.created_by ??
+      (poll as any)?.creator_id ??
+      (poll as any)?.creatorId ??
+      (poll as any)?.owner_id ??
+      (poll as any)?.member_id ??
+      (poll as any)?.MemberID ??
+      (poll as any)?.member?.id ??
+      (poll as any)?.Member?.ID ??
+      0
+  );
+  return Number.isFinite(v) ? v : 0;
+}, [poll]);
 
-  // ✅ UPDATED: canVote now blocks owner
-  const canVote = useMemo(() => cs === "OPEN" && !voted && !isOwner, [cs, voted, isOwner]);
+
+const isOwner = useMemo(() => myMemberId > 0 && ownerId > 0 && myMemberId === ownerId, [myMemberId, ownerId]);
+
+const ownerLocked = isOwner; // ✅ เจ้าของกดเลือกไม่ได้
+const canVote = useMemo(() => cs === "OPEN" && !voted && !isOwner && myMemberId > 0, [cs, voted, isOwner, myMemberId]);
 
   const optionRows = useMemo(() => {
     const opts = (((poll as any)?.options ?? []) as any[]) || [];
@@ -161,19 +197,55 @@ const PollDetail: React.FC = () => {
 
       // 3) results (กติกา)
       // ⚠️ คำนวณจาก detail ทันที ไม่ใช้ state เพื่อกัน setPoll ยังไม่ทัน
-      const localCs = computeStatusFromDetail(detail);
-      const localVoted =
-        typeof (detail as any)?.has_voted === "boolean"
-          ? !!(detail as any).has_voted
-          : !!(mvLocal as any)?.has_voted;
+     // ... หลัง syncSelectedFromVote(mvLocal, detail);
 
-      if (localCs === "CLOSED" || (localCs === "OPEN" && localVoted)) {
-        const rsRes = await pollAPI.getResults(pollID);
-        const rs = (rsRes as any).data as PollResultsResponse;
-        setResults(rs);
-      } else {
-        setResults(null);
-      }
+// 3) results (กติกา)
+const localCs = computeStatusFromDetail(detail);
+const localVoted =
+  typeof (detail as any)?.has_voted === "boolean"
+    ? !!(detail as any).has_voted
+    : !!(mvLocal as any)?.has_voted;
+
+const localOwnerId =
+  Number(
+    (detail as any)?.created_by_id ??
+      (detail as any)?.CreatedByID ??
+      (detail as any)?.created_by ??
+      (detail as any)?.creator_id ??
+      (detail as any)?.owner_id ??
+      (detail as any)?.member_id ??
+      (detail as any)?.MemberID ??
+      0
+  ) || 0;
+
+const localMyId = getMyIdFromToken();
+const localIsOwner = localOwnerId > 0 && localMyId > 0 && localOwnerId === localMyId;
+
+const shouldFetchResults = localCs === "CLOSED" || (localCs === "OPEN" && (localVoted || localIsOwner));
+
+if (shouldFetchResults) {
+  try {
+    const rsRes = await pollAPI.getResults(pollID);
+    const rs = (rsRes as any).data as PollResultsResponse;
+    setResults(rs);
+  } catch (e: any) {
+    console.warn("[PollDetail] getResults failed:", e?.response?.status, e?.response?.data || e?.message);
+
+    // ✅ สำคัญ: ห้ามทำให้ทั้งหน้า fail
+    setResults(null);
+
+    // เธออยากให้เจ้าของดูได้ → ถ้า fail ให้โชว์ข้อความเตือนนิดหน่อย
+    if (localIsOwner) {
+      setToast("ดูผลโหวตไม่ได้ (API /results ตอบ error) — ต้องแก้ฝั่ง backend");
+      clearToastLater();
+    }
+  }
+} else {
+  setResults(null);
+}
+
+
+
     } catch (e: any) {
       setErr(e?.message || "โหลดรายละเอียดโพลไม่สำเร็จ");
       setPoll(null);
@@ -308,10 +380,10 @@ const PollDetail: React.FC = () => {
     return Number.isFinite(n) ? n : 0;
   }, [results]);
 
-  // ✅ โหมดแสดงผลโหวตใต้ option (เมื่อโหวตแล้ว หรือปิดโพล)
-  const resultsMode = useMemo(() => {
-    return cs === "CLOSED" || (cs === "OPEN" && voted);
-  }, [cs, voted]);
+const resultsMode = useMemo(() => {
+  return cs === "CLOSED" || (cs === "OPEN" && (voted || isOwner));
+}, [cs, voted, isOwner]);
+
 
   // ✅ map result per option_id
   const rsMap = useMemo(() => {
@@ -343,7 +415,7 @@ const PollDetail: React.FC = () => {
 
   const summaryLabel = useMemo(() => {
     if (!poll) return "ผลสรุป";
-    return (poll as any)?.allow_multiple ? "ตัวเลือกยอดนิยม" : "ผู้ชนะ";
+    return (poll as any)?.allow_multiple ? "ตัวเลือกยอดนิยม" : "โหวตมากที่สุด";
   }, [poll]);
 
   return (
@@ -426,8 +498,12 @@ const PollDetail: React.FC = () => {
               return (
                 <button
                   key={String(o.id ?? o.ID)}
-                  className={`opt ${sel ? "opt-selected" : ""} ${!canVote ? "opt-readonly" : ""}`}
-                  onClick={() => togglePick(id)}
+                  className={`opt ${sel ? "opt-selected" : ""} ${(!canVote || ownerLocked) ? "opt-readonly" : ""} ${ownerLocked ? "opt-ownerLocked" : ""}`}
+
+                 onClick={() => {
+  if (ownerLocked) return;
+  togglePick(id);
+}}
                   type="button"
                   aria-disabled={!canVote}
                 >
@@ -504,9 +580,10 @@ const PollDetail: React.FC = () => {
 
           {cs === "UPCOMING" ? (
             <div className="pd-muted">ยังไม่เปิดให้ดูผลโหวต</div>
-          ) : cs === "OPEN" && !voted ? (
-            <div className="pd-muted">ต้องโหวตก่อนถึงจะดูผลได้</div>
-          ) : loading && resultsMode && !results ? (
+          ) : cs === "OPEN" && !voted && !isOwner ? (
+  <div className="pd-muted">ต้องโหวตก่อนถึงจะดูผลได้</div>
+)
+          : loading && resultsMode && !results ? (
             <div className="pd-muted">กำลังโหลดผลโหวต...</div>
           ) : results ? (
             <>

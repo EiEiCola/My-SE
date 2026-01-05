@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
-import "./PollList.css";
+//import React, { useEffect, useMemo, useState } from "react";
+//import dayjs from "dayjs";
+//import "./PollList.css";
 
-import { type Poll, pollAPI } from "../../../../services/http/poll";
-import { PollCard } from "./PollCard";
-import { PollCategoryDropdown, type CategoryOption } from "./PollCategoryDropdown";
+//import { type Poll, pollAPI } from "../../../../services/http/poll";
+//import { PollCard } from "./PollCard";
+//import { PollCategoryDropdown, type CategoryOption } from "./PollCategoryDropdown";
 
-const clampStr = (s: any) => String(s ?? "").trim();
-type SortMode = "LATEST" | "POPULAR";
 
+/*
 const PollArchive: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
@@ -192,7 +191,7 @@ const PollArchive: React.FC = () => {
               optionLabel={optionLabel}
               optionVotes={optionVotes}
               getCategoryTitle={getCategoryTitle}
-              onVoted={handleVoted}
+              //onVoted={handleVoted}
               onOpenDetail={(pid) => (window.location.href = `/User/Polls/${pid}`)}
               forceResults
             />
@@ -203,4 +202,4 @@ const PollArchive: React.FC = () => {
   );
 };
 
-export default PollArchive;
+export default PollArchive;*/

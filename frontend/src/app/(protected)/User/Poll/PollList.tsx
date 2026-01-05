@@ -14,18 +14,41 @@ type StatusFilter = "ALL" | "OPEN" | "UPCOMING" | "CLOSED";
 type SortMode = "LATEST" | "POPULAR" | "CLOSING_SOON";
 
 const clampStr = (s: any) => String(s ?? "").trim();
+const base64UrlToJson = (part: string) => {
+  // base64url -> base64
+  let b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+  // padding
+  while (b64.length % 4) b64 += "=";
+  // decode
+  const json = atob(b64);
+  return JSON.parse(json);
+};
 
 const getCurrentMemberId = () => {
-  const raw =
-    localStorage.getItem("id") || // ✅ ของโปรเจกต์หนูมีจริง
-    localStorage.getItem("member_id") ||
-    localStorage.getItem("memberId") ||
-    localStorage.getItem("user_id") ||
-    "";
+  const token = localStorage.getItem("token") || "";
+  if (!token.includes(".")) return 0;
 
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : 0;
+  try {
+    const payload = base64UrlToJson(token.split(".")[1]);
+
+    // ✅ สำคัญ: ของเธอน่าจะใช้ user_id (ดูจากรูป)
+    const id = Number(
+      payload?.member_id ??
+        payload?.memberId ??
+        payload?.user_id ??        // ✅ เพิ่มตัวนี้
+        payload?.userId ??
+        payload?.id ??
+        payload?.sub ??
+        0
+    );
+
+    return Number.isFinite(id) ? id : 0;
+  } catch {
+    return 0;
+  }
 };
+
+
 
 const extractApiError = (e: any) => {
   const err =
@@ -51,7 +74,7 @@ const PollList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
 
-  const currentMemberId = useMemo(() => getCurrentMemberId(), []);
+  const currentMemberId = getCurrentMemberId();
 
   // filters
   const [q, setQ] = useState("");
@@ -801,7 +824,7 @@ useEffect(() => {
 
       {/* Floating create */}
       <button className="pf-fab" type="button" title="Create Poll" onClick={() => (window.location.href = "/User/Polls/create")}>
-        ➕ สร้างโพล
+        ➕
       </button>
     </div>
   );

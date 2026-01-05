@@ -73,11 +73,9 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 		MainCategoryID:  req.MainCategoryID,
 		SubCategoryL1ID: req.SubCategoryL1ID,
 		SubCategoryL2ID: req.SubCategoryL2ID,
-		IsAnonymous: req.IsAnonymous,
+		IsAnonymous:     req.IsAnonymous,
 		MemberID:        memberID,
 		PollStatusID:    StatusDRAFT,
-		
-
 	}
 
 	for i, opt := range req.Options {
@@ -305,9 +303,9 @@ func (s *pollService) GetMyPollByID(memberID uint, pollID uint) (*dto.PollRespon
 		return nil, err
 	}
 	if poll.MemberID != memberID {
-  return nil, errors.New("you are not the owner of this poll")
-}
-return mapPollToResponse(poll), nil
+		return nil, errors.New("you are not the owner of this poll")
+	}
+	return mapPollToResponse(poll), nil
 }
 
 /* =========================
@@ -323,7 +321,7 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 		EndAt:         req.EndAt,
 		MemberID:      memberID,
 		PollStatusID:  StatusPENDING_REVIEW,
-		IsAnonymous: req.IsAnonymous,
+		IsAnonymous:   req.IsAnonymous,
 	}
 
 	for i, opt := range req.Options {
@@ -405,8 +403,8 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, err
 	}
 	if poll.MemberID == memberID {
-        return nil, errors.New("owner_cannot_vote")
-    }
+		return nil, errors.New("owner_cannot_vote")
+	}
 
 	if poll.PollStatusID != StatusPUBLISHED {
 		return nil, errors.New("poll_not_open")
@@ -508,12 +506,15 @@ func (s *pollService) Results(memberID uint, pollID uint) (*dto.PollResultsRespo
 	if cs == "CLOSED" || poll.PollStatusID == StatusCLOSED {
 		// ok
 	} else if poll.PollStatusID == StatusPUBLISHED {
-		voted, err := s.pollRepo.HasVoted(pollID, memberID)
-		if err != nil {
-			return nil, err
-		}
-		if !voted {
-			return nil, errors.New("must_vote_to_see_results")
+		// ✅ owner ดูผลได้แม้โหวตไม่ได้
+		if poll.MemberID != memberID {
+			voted, err := s.pollRepo.HasVoted(pollID, memberID)
+			if err != nil {
+				return nil, err
+			}
+			if !voted {
+				return nil, errors.New("must_vote_to_see_results")
+			}
 		}
 	} else {
 		return nil, errors.New("results_not_available")
@@ -765,8 +766,8 @@ func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 		}
 	}
 	if poll.IsAnonymous {
-    authorName = "ไม่ระบุตัวตน"
-  }
+		authorName = "ไม่ระบุตัวตน"
+	}
 
 	opts := poll.Options
 	if opts == nil {

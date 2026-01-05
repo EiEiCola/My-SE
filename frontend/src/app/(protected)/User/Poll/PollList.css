@@ -181,14 +181,10 @@
 .pc-loading{ font-size:12px; color:rgba(31,35,40,.55); }
 
 .pc-options{
-  display:grid;
-  grid-template-columns:1fr 1fr;
+  display:flex;
+  flex-direction:column;
   gap:10px;
 }
-@media (max-width: 720px){
-  .pc-options{ grid-template-columns:1fr; }
-}
-
 /* =============================
    OPTION (single style for all)
 ============================= */
@@ -715,4 +711,95 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* locked option style (not clickable selection, but still visible) */
+.opt-disabled{
+  opacity: .70;
+  cursor: not-allowed;
+}
+
+.opt-disabled:hover{
+  background:#fff;                 /* ไม่ไฮไลต์ส้มเวลา hover */
+  border-color: rgba(15,23,42,0.10);
+}
+
+/* owner sees more faded */
+.pc-options-ownerLocked .opt{
+  opacity: .55;
+}
+
+/* small summary at bottom */
+.pc-voteSummary{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(31,35,40,.70);
+}
+
+.pc-voteSummary-owner{
+  color: rgba(220,38,38,.85);
+}
+
+
+.opt-ownerLocked{
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.opt-ownerLocked:hover{
+  background:#fff;
+  border-color: rgba(15,23,42,0.10);
+}
+
+/* owner: ห้ามคลิกทุกอย่างในปุ่ม option + รูป */
+.pc-options-ownerLocked .opt,
+.pc-options-ownerLocked .opt *{
+  pointer-events: none;
+}
+
+/* ให้ดูจางทั้งบล็อค */
+.pc-options-ownerLocked .opt{
+  opacity: .55;
+}
+
+/* กัน hover ส้ม */
+.pc-options-ownerLocked .opt:hover{
+  background:#fff;
+  border-color: rgba(15,23,42,0.10);
+}
+
+/* ✅ owner: ตัดโอกาสคลิกทุกอย่างใน option */
+.pc-options-ownerLocked{
+  pointer-events: none;
+  opacity: .60;
+}
+
+/* กัน hover ส้ม */
+.pc-options-ownerLocked .opt:hover{
+  background:#fff;
+  border-color: rgba(15,23,42,0.10);
+}
+
+.pc-voteSummary{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(31,35,40,.70);
+}
+
+.pc-voteSummary-owner{
+  color: rgba(220,38,38,.90);
+}
+
+
+/* owner locked: ดูกดไม่ได้จริง */
+.opt-ownerLocked{
+  cursor: not-allowed;
+  opacity: .70;
+}
+
+.opt-ownerLocked:hover{
+  background:#fff;
+  border-color: rgba(15,23,42,0.10);
 }

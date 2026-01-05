@@ -37,7 +37,7 @@ import PollList from "../app/(protected)/User/Poll/PollList";
 import MyPolls from "../app/(protected)/User/Poll/MyPolls";
 import PollCreate from "../app/(protected)/User/Poll/PollCreate";
 import PollDetail from "../app/(protected)/User/Poll/PollDetail";
-import PollArchive from "../app/(protected)/User/Poll/PollArchive";
+//import PollArchive from "../app/(protected)/User/Poll/PollArchive";
 
 
 function UserRoutes() {
@@ -88,7 +88,7 @@ function UserRoutes() {
         <Route path="/User/Polls/create" element={<PollCreate />} />
         <Route path="/User/Polls/edit/:id" element={<PollCreate />} />
         <Route path="/User/Polls/:id" element={<PollDetail />} />
-        <Route path="/User/Polls/archive" element={<PollArchive />} />
+      
 
 
         <Route path="/User/Announcement" element={<Announcement />} />
