@@ -35,7 +35,11 @@ func (r *AnnouncementRepository) Update(a *entity.Announcement) error {
 func (r *AnnouncementRepository) Delete(id int) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
 		// Remove media rows first to avoid FK/constraint issues
-		if err := tx.Where("\"ann_ID\" = ?", id).Delete(&entity.AnnouncementMedia{}).Error; err != nil {
+		if err := tx.Where(&entity.AnnouncementMedia{AnnouncementID: id}).Delete(&entity.AnnouncementMedia{}).Error; err != nil {
+			return err
+		}
+		// Also remove read status to avoid FK issues
+		if err := tx.Where(&entity.AnnouncementRead{AnnouncementID: id}).Delete(&entity.AnnouncementRead{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&entity.Announcement{}, id).Error; err != nil {
@@ -74,7 +78,7 @@ func (r *AnnouncementRepository) ListAll(page, pageSize int, prID *int) ([]entit
 
 	db := r.DB.Model(&entity.Announcement{})
 	if prID != nil {
-		db = db.Where("pr_id = ?", *prID)
+		db = db.Where(&entity.Announcement{PRSubmissionID: prID})
 	}
 	db.Count(&total)
 	if page < 1 {
