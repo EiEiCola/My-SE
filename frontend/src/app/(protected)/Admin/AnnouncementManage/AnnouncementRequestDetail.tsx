@@ -38,8 +38,8 @@ const AnnouncementRequestDetail: React.FC = () => {
         setTitle(json.title);
         setContent(json.content);
         // Assuming backend sends RFC3339, slice to YYYY-MM-DD for input type=date
-        if (json.req_start_at) setDate(json.req_start_at.slice(0, 10));
-        if (json.req_end_at) setEndDate(json.req_end_at.slice(0, 10));
+        if (json.req_start_at) setDate(new Date(json.req_start_at).toISOString().split('T')[0]);
+        if (json.req_end_at) setEndDate(new Date(json.req_end_at).toISOString().split('T')[0]);
 
         // Map status ID to string for UI
         if (json.status_id === 1) setStatus('pending'); // Fixed: 1 is Pending
