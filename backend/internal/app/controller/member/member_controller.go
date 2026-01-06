@@ -45,17 +45,18 @@ type updateProfileRequest struct {
 }
 
 // ------------------------------
-// ✅ GET /api/member/me (ใช้ JWT: user_id = member_id หลังจากแก้ไข)
+// ✅ GET /api/member/me
+// ✅ IMPORTANT: JWT user_id = member_account_id (จาก Login: SignToken(acc.ID, role))
 // ------------------------------
 func (ctl *MemberController) GetMe(c *gin.Context) {
-	memberID := c.GetUint("user_id")
-	if memberID == 0 {
+	accountID := c.GetUint("user_id")
+	if accountID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing/invalid user_id"})
 		return
 	}
 
-	// ✅ FIX: ใช้ GetProfileByID แทน GetProfileByAccountID เพราะ token เก็บ member_id แล้ว
-	m, err := ctl.memberService.GetProfileByID(memberID)
+	// ✅ FIX: ต้องดึง member ด้วย member_account_id
+	m, err := ctl.memberService.GetProfileByAccountID(accountID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -81,11 +82,12 @@ func (ctl *MemberController) GetMe(c *gin.Context) {
 }
 
 // ------------------------------
-// ✅ PUT /api/member/me (ใช้ JWT: user_id = member_id หลังจากแก้ไข)
+// ✅ PUT /api/member/me
+// ✅ IMPORTANT: JWT user_id = member_account_id
 // ------------------------------
 func (ctl *MemberController) UpdateMe(c *gin.Context) {
-	memberID := c.GetUint("user_id")
-	if memberID == 0 {
+	accountID := c.GetUint("user_id")
+	if accountID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing/invalid user_id"})
 		return
 	}
@@ -106,8 +108,9 @@ func (ctl *MemberController) UpdateMe(c *gin.Context) {
 		MemberPicture: req.MemberPicture,
 	}
 
-	// ✅ FIX: ใช้ UpdateProfileByID แทน UpdateProfile เพราะ token เก็บ member_id แล้ว
-	m, err := ctl.memberService.UpdateProfileByID(memberID, input)
+	// ✅ FIX: update โดย account id (member_account_id)
+	// หมายเหตุ: service.UpdateProfile(...) ในโปรเจกต์นี้ถูกใช้กับ accountId อยู่แล้ว (ดูจาก UpdateProfileByAccountID ด้านล่าง)
+	m, err := ctl.memberService.UpdateProfile(accountID, input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

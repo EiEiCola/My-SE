@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Input, Button, Typography, Space } from "antd";
+import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import axios from "axios";
 
 const { Title, Text } = Typography;
@@ -20,11 +21,13 @@ function Login() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/api/auth/login", {
-        identifier, // ✅ ส่งตัวเดียวพอ (gmail หรือ student id)
+        identifier,
         password,
       });
 
@@ -36,7 +39,6 @@ function Login() {
 
       localStorage.setItem("token", token);
 
-      // ✅ decode role จาก token ที่เพิ่งได้ทันที
       const payload = parseJwtPayload(token);
       console.log("JWT payload:", payload);
 
@@ -49,6 +51,14 @@ function Login() {
     } catch (err: any) {
       console.error("Login error:", err);
       alert(err?.response?.data?.message || "Invalid login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleLogin();
     }
   };
 
@@ -56,144 +66,280 @@ function Login() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#fff5ed",
+        background: "linear-gradient(135deg, #fff5e6 0%, #ffe6cc 50%, #ffd9b3 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* Decorative shapes */}
+      <div
+        style={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: "#d94a1f",
+          opacity: 0.08,
+          top: -150,
+          right: -150,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          width: 300,
+          height: 300,
+          borderRadius: "50%",
+          background: "#ff6b35",
+          opacity: 0.08,
+          bottom: -100,
+          left: -100,
+          pointerEvents: "none",
+        }}
+      />
+
       <Card
         style={{
-          width: 750,
+          width: "100%",
+          maxWidth: 480,
           borderRadius: 24,
           padding: "50px 45px",
-          boxShadow: "0px 8px 20px rgba(0,0,0,0.08)",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.1)",
+          border: "none",
+          animation: "slideUp 0.6s ease",
         }}
       >
-        <Title
-          level={2}
+        {/* Logo Section */}
+        <div
           style={{
             textAlign: "center",
-            color: "#C42E0A",
-            marginBottom: 8,
-            fontWeight: 700,
-          }}
-        >
-          Welcome to SUT Community!
-        </Title>
-
-        <Text
-          style={{
-            display: "block",
-            textAlign: "center",
-            color: "#6D6D6D",
             marginBottom: 40,
-            fontWeight: 600,
-            fontSize: 17,
           }}
         >
-          Login to your account
-        </Text>
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              background: "linear-gradient(135deg, #ff6b35 0%, #d94a1f 100%)",
+              borderRadius: 20,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+              boxShadow: "0 10px 25px rgba(217, 74, 31, 0.3)",
+              fontSize: 40,
+            }}
+          >
+            🎓
+          </div>
 
+          <Title
+            level={2}
+            style={{
+              color: "#d94a1f",
+              marginBottom: 8,
+              fontWeight: 700,
+              fontSize: 28,
+            }}
+          >
+            Welcome to SUT Community!
+          </Title>
+
+          <Text
+            style={{
+              display: "block",
+              color: "#666",
+              fontSize: 15,
+              fontWeight: 400,
+            }}
+          >
+            Login to your account
+          </Text>
+        </div>
+
+        {/* Email/Student ID Input */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 25 }}>
-          <Text style={{ fontWeight: 600, fontSize: 15 }}>
+          <Text style={{ fontWeight: 600, fontSize: 14, color: "#333" }}>
             Email or Student ID
           </Text>
           <Input
             size="large"
+            prefix={<UserOutlined style={{ color: "#999" }} />}
+            placeholder="Enter your email or student ID"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
+            onKeyPress={handleKeyPress}
             style={{
-              borderRadius: 10,
-              height: 46,
-              fontWeight: 600,
+              borderRadius: 12,
+              height: 50,
+              fontSize: 15,
+              border: "2px solid #e8e8e8",
+              background: "#fafafa",
+              transition: "all 0.3s ease",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#d94a1f";
+              e.target.style.background = "white";
+              e.target.style.boxShadow = "0 0 0 4px rgba(217, 74, 31, 0.1)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#e8e8e8";
+              e.target.style.background = "#fafafa";
+              e.target.style.boxShadow = "none";
             }}
           />
         </Space>
 
+        {/* Password Input */}
         <Space direction="vertical" style={{ width: "100%", marginBottom: 10 }}>
-          <Text style={{ fontWeight: 600, fontSize: 15 }}>Password</Text>
-
+          <Text style={{ fontWeight: 600, fontSize: 14, color: "#333" }}>
+            Password
+          </Text>
           <Input.Password
             size="large"
+            prefix={<LockOutlined style={{ color: "#999" }} />}
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyPress={handleKeyPress}
             style={{
-              borderRadius: 10,
-              height: 46,
-              fontWeight: 600,
+              borderRadius: 12,
+              height: 50,
+              fontSize: 15,
+              border: "2px solid #e8e8e8",
+              background: "#fafafa",
+              transition: "all 0.3s ease",
             }}
-            className="custom-password"
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "#d94a1f";
+              e.currentTarget.style.background = "white";
+              e.currentTarget.style.boxShadow = "0 0 0 4px rgba(217, 74, 31, 0.1)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "#e8e8e8";
+              e.currentTarget.style.background = "#fafafa";
+              e.currentTarget.style.boxShadow = "none";
+            }}
           />
         </Space>
 
+        {/* Forgot Password */}
         <div
           style={{
-            width: "100%",
             textAlign: "right",
-            marginBottom: 25,
+            marginTop: 10,
+            marginBottom: 30,
           }}
         >
           <span
             style={{
-              fontWeight: 500,
-              color: "#8E8E93",
+              color: "#d94a1f",
               cursor: "pointer",
-              transition: "0.2s",
+              fontSize: 14,
+              fontWeight: 500,
+              transition: "color 0.3s ease",
             }}
             onClick={() => navigate("/forgot-password")}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#C42E0A")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#8E8E93")}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#ff6b35")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#d94a1f")}
           >
-            Forgot password ?
+            Forgot password?
           </span>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Button
-            type="primary"
-            size="large"
-            onClick={handleLogin}
-            style={{
-              backgroundColor: "#C42E0A",
-              borderRadius: 10,
-              height: 40,
-              width: 110,
-              fontWeight: 800,
-              fontSize: 17,
-              marginBottom: 25,
-            }}
-          >
-            LOGIN
-          </Button>
-        </div>
+        {/* Login Button */}
+        <Button
+          type="primary"
+          size="large"
+          loading={loading}
+          onClick={handleLogin}
+          style={{
+            width: "100%",
+            height: 50,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, #d94a1f 0%, #b83b15 100%)",
+            border: "none",
+            fontSize: 16,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            boxShadow: "0 8px 20px rgba(217, 74, 31, 0.3)",
+            transition: "all 0.3s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 12px 30px rgba(217, 74, 31, 0.4)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 8px 20px rgba(217, 74, 31, 0.3)";
+          }}
+        >
+          Login
+        </Button>
 
-        <div style={{ textAlign: "center" }}>
-          <Text style={{ fontWeight: 600, color: "#8E8E93" }}>
-            Don’t have an account ?{" "}
+        {/* Register Link */}
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 30,
+            paddingTop: 25,
+            borderTop: "1px solid #f0f0f0",
+          }}
+        >
+          <Text style={{ color: "#666", fontSize: 14 }}>
+            Don't have an account?{" "}
             <span
               style={{
-                color: "#C42E0A",
+                color: "#d94a1f",
                 cursor: "pointer",
-                fontWeight: 500,
-                fontSize: 16,
-                transition: "0.2s",
+                fontWeight: 600,
+                transition: "color 0.3s ease",
               }}
               onClick={() => navigate("/register")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#ff6b35")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#d94a1f")}
             >
               Register
             </span>
           </Text>
         </div>
-
-        <style>
-          {`
-            .custom-password input { font-weight: 600 !important; }
-            .custom-password input::placeholder { font-weight: 600 !important; opacity: 0.8; }
-          `}
-        </style>
       </Card>
+
+      <style>
+        {`
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .ant-input-affix-wrapper:focus,
+          .ant-input-affix-wrapper-focused {
+            border-color: #d94a1f !important;
+            box-shadow: 0 0 0 4px rgba(217, 74, 31, 0.1) !important;
+          }
+
+          .ant-input-password-icon {
+            color: #999 !important;
+            transition: color 0.3s ease;
+          }
+
+          .ant-input-password-icon:hover {
+            color: #d94a1f !important;
+          }
+        `}
+      </style>
     </div>
   );
 }
