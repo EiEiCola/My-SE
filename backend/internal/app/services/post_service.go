@@ -461,11 +461,61 @@ func (s *PostService) GetComments(postID uint) ([]entity.Comment, error) {
 }
 
 // CreateComment creates a new comment on a post
-func (s *PostService) CreateComment(postID, userID uint, content string, isAnonymous bool) (*entity.Comment, error) {
+func (s *PostService) CreateComment(
+	postID, userID uint,
+	content string,
+	isAnonymous bool,
+	imageFiles []*multipart.FileHeader,
+	attachmentFiles []*multipart.FileHeader,
+) (*entity.Comment, error) {
 	// Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		return nil, ErrPostNotFound
+	}
+
+	// File validation constants
+	const maxImageSize = 5 * 1024 * 1024       // 5 MB
+	const maxAttachmentSize = 20 * 1024 * 1024 // 20 MB
+	const maxImages = 5
+	const maxAttachments = 2
+
+	// Validate image count
+	if len(imageFiles) > maxImages {
+		return nil, fmt.Errorf("จำนวนรูปภาพต้องไม่เกิน %d รูป", maxImages)
+	}
+
+	// Validate attachment count
+	if len(attachmentFiles) > maxAttachments {
+		return nil, fmt.Errorf("จำนวนไฟล์แนบต้องไม่เกิน %d ไฟล์", maxAttachments)
+	}
+
+	// Validate image files
+	allowedImageTypes := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".webp": true,
+	}
+	for _, f := range imageFiles {
+		if f.Size > maxImageSize {
+			return nil, fmt.Errorf("รูปภาพ %s มีขนาดเกิน 5 MB", f.Filename)
+		}
+		ext := strings.ToLower(filepath.Ext(f.Filename))
+		if !allowedImageTypes[ext] {
+			return nil, fmt.Errorf("รูปภาพ %s ไม่ใช่ไฟล์ที่รองรับ (JPG, PNG, WEBP)", f.Filename)
+		}
+	}
+
+	// Validate attachment files
+	allowedAttachmentTypes := map[string]bool{
+		".pdf": true, ".docx": true, ".xlsx": true, ".zip": true,
+	}
+	for _, f := range attachmentFiles {
+		if f.Size > maxAttachmentSize {
+			return nil, fmt.Errorf("ไฟล์ %s มีขนาดเกิน 20 MB", f.Filename)
+		}
+		ext := strings.ToLower(filepath.Ext(f.Filename))
+		if !allowedAttachmentTypes[ext] {
+			return nil, fmt.Errorf("ไฟล์ %s ไม่ใช่ไฟล์ที่รองรับ (PDF, DOCX, XLSX, ZIP)", f.Filename)
+		}
 	}
 
 	comment := &entity.Comment{
@@ -478,6 +528,60 @@ func (s *PostService) CreateComment(postID, userID uint, content string, isAnony
 
 	if err := s.CommentRepo.Create(comment); err != nil {
 		return nil, err
+	}
+
+	// Create upload directories if needed
+	if len(imageFiles) > 0 || len(attachmentFiles) > 0 {
+		imageDir := fmt.Sprintf("uploads/comments/%d/images", comment.ID)
+		attachmentDir := fmt.Sprintf("uploads/comments/%d/attachments", comment.ID)
+		os.MkdirAll(imageDir, 0755)
+		os.MkdirAll(attachmentDir, 0755)
+
+		// Save images
+		for idx, f := range imageFiles {
+			ext := strings.ToLower(filepath.Ext(f.Filename))
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(imageDir, newFilename)
+
+			if err := saveUploadedFile(f, filePath); err != nil {
+				return nil, fmt.Errorf("ไม่สามารถบันทึกรูปภาพ %s: %v", f.Filename, err)
+			}
+
+			img := &entity.CommentImage{
+				CommentID:  comment.ID,
+				URL:        "/" + filePath,
+				OrderIndex: idx,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			if err := s.DB.Create(img).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		// Save attachments
+		for idx, f := range attachmentFiles {
+			ext := strings.ToLower(filepath.Ext(f.Filename))
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(attachmentDir, newFilename)
+
+			if err := saveUploadedFile(f, filePath); err != nil {
+				return nil, fmt.Errorf("ไม่สามารถบันทึกไฟล์ %s: %v", f.Filename, err)
+			}
+
+			att := &entity.CommentAttachment{
+				CommentID:  comment.ID,
+				FileURL:    "/" + filePath,
+				FileName:   f.Filename,
+				FileSize:   f.Size,
+				OrderIndex: idx,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			if err := s.DB.Create(att).Error; err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Update post comment count

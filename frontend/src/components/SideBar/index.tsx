@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-    Home, 
+import {
+    Home,
     AccountCircle,
     CardGiftcard,
     Forum,
@@ -42,10 +42,10 @@ const UserItems: MenuItem[] = [
     { name: "สะสมแต้ม", path: "/User/Reward", icon: <CardGiftcard /> },
     { name: "ข้อความ", path: "/User/Message", icon: <Forum /> },
     // เมนูเพื่อน (Friends) มี Path หลัก และ SubItems
-    { 
-        name: "เพื่อน", 
-        path: "/User/Friends", 
-        icon: <Group />, 
+    {
+        name: "เพื่อน",
+        path: "/User/Friends",
+        icon: <Group />,
         subItems: [
             { name: "คำขอเป็นเพื่อน", path: "/User/Friends/Request" },
             { name: "เพื่อนแนะนำ", path: "/User/Friends/Popular" },
@@ -53,8 +53,8 @@ const UserItems: MenuItem[] = [
             { name: "วันเกิด", path: "/User/Friends/FriendBirthday" },
         ]
     },
-    { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal />},
-    { name: "กลุ่ม", path: "/User/Group", icon: <Groups /> },
+    { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal /> },
+    { name: "หมวดหมู่", path: "/User/Group", icon: <Groups /> },
     { name: "รีวิว", path: "/User/Review", icon: <Reviews /> },
     { name: "โพล", path: "/User/Voting", icon: <InsertChartOutlined /> },
     { name: "ประชาสัมพันธ์", path: "/User/Announcement", icon: <Campaign /> },
@@ -78,11 +78,11 @@ const AdminItems: MenuItem[] = [
 const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
     const menuItems = role === 'admin' ? AdminItems : UserItems;
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
-    const location = useLocation(); 
+    const location = useLocation();
 
     const toggleDropdown = (itemName: string) => {
-        setOpenDropdowns(prev => 
-            prev.includes(itemName) 
+        setOpenDropdowns(prev =>
+            prev.includes(itemName)
                 ? prev.filter(name => name !== itemName)
                 : [...prev, itemName]
         );
@@ -90,8 +90,8 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
 
     // ตรวจสอบว่าเมนูหลัก (Parent) ควร Active/Highlighted หรือไม่
     const isParentActive = (item: MenuItem): boolean => {
-        if (!item.path) return false; 
-        
+        if (!item.path) return false;
+
         // 1. เช็คว่า Path หลัก Active ไหม (end: true สำหรับ path หลัก)
         if (item.path === location.pathname) return true;
 
@@ -101,7 +101,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
         }
         return false;
     };
-    
+
     // ขยาย Dropdown อัตโนมัติ หาก URL ตรงกับเมนูย่อย เมื่อโหลดครั้งแรก
     useEffect(() => {
         menuItems.forEach(item => {
@@ -109,7 +109,7 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                 setOpenDropdowns(prev => [...prev, item.name]);
             }
         });
-    }, [location.pathname, role]); 
+    }, [location.pathname, role]);
 
     const isDropdownItem = (item: MenuItem) => !!item.subItems;
 
@@ -118,23 +118,23 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
         `relative flex items-center p-2 rounded-xl transition duration-150 ease-in-out cursor-pointer group
         ${isCollapsed ? "justify-center" : "space-x-3"} 
         ${isActive || isParent // ไฮไลท์ถ้าเป็น Active หรือเป็น Parent ของ Active Subitem
-            ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            ? "bg-amber-200 text-orange-800 shadow-md font-semibold"
+            : "text-white hover:bg-amber-100/80 hover:text-orange-800"
         }`;
 
 
     return (
         <div
-            className={`h-screen transition-all duration-300 ease-in-out bg-white/80
-            backdrop-blur-2xl border-b-0 border-l-0 border-r-1 border-t-0 border-slate-200/50 
+            className={`h-screen transition-all duration-300 ease-in-out bg-gradient-to-b from-orange-500 to-orange-600
+            border-b-0 border-l-0 border-r-1 border-t-0 border-orange-400/50 
             border-solid flex flex-col relative z-10 w-full`}
         >
             {/* LOGO */}
-            <div className="py-5 px-3 border-b-1 border-l-0 border-r-0 border-t-0 border-slate-200/50 border-solid">
+            <div className="py-5 px-3 border-b-1 border-l-0 border-r-0 border-t-0 border-white/20 border-solid">
                 <div className={`flex items-center gap-2 ${isCollapsed ? "justify-center" : ""}`}>
                     {!isCollapsed && (
                         <>
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 
+                            <div className="w-10 h-10 bg-white/20 
                                 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
                             >
                                 <span className="text-white text-xl">
@@ -143,21 +143,21 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                             </div>
 
                             <div className="flex flex-col flex-1">
-                                <h1 className="text-base font-bold text-slate-800 whitespace-nowrap">
+                                <h1 className="text-base font-bold text-white whitespace-nowrap">
                                     SUT Community
                                 </h1>
-                                <p className="text-xs text-slate-500 whitespace-nowrap">
+                                <p className="text-xs text-white/70 whitespace-nowrap">
                                     {role === "admin" ? "Admin Panel" : "User Panel"}
                                 </p>
                             </div>
                         </>
                     )}
-                    
-                    <button 
-                        className="rounded-lg hover:bg-slate-100 p-2 flex-shrink-0 transition-colors"
+
+                    <button
+                        className="rounded-lg hover:bg-amber-100/80 p-2 flex-shrink-0 transition-colors"
                         onClick={onToggle}
                     >
-                        <TableRows className="w-5 h-5 text-slate-600" />
+                        <TableRows className="w-5 h-5 text-white hover:text-orange-800" />
                     </button>
                 </div>
             </div>
@@ -166,27 +166,27 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
             <nav className="flex-1 p-2 overflow-y-auto">
                 {menuItems.map((item) => (
                     <div key={item.name}>
-                        
+
                         {isDropdownItem(item) && item.path ? (
                             // เมนู Dropdown ที่คลิกไปยัง Path หลักได้ (เช่น "เพื่อน")
                             <div className={`relative ${isCollapsed ? 'justify-center' : ''}`}>
                                 <NavLink
                                     to={item.path}
-                                    className={({ isActive }) => navLinkClass(isActive, isParentActive(item))} 
-                                    // end={true} ถูกนำออกเพื่อให้เมนูยัง Active อยู่เมื่ออยู่หน้าย่อยของมัน
-                                    // แต่ NavLink จะถูกไฮไลท์ด้วย isParentActive(item) แทน
+                                    className={({ isActive }) => navLinkClass(isActive, isParentActive(item))}
+                                // end={true} ถูกนำออกเพื่อให้เมนูยัง Active อยู่เมื่ออยู่หน้าย่อยของมัน
+                                // แต่ NavLink จะถูกไฮไลท์ด้วย isParentActive(item) แทน
                                 >
                                     <span className={`text-xl ${isCollapsed ? "mx-auto" : ""}`}>{item.icon}</span>
                                     {!isCollapsed && <span className="font-medium text-sm flex-1">{item.name}</span>}
-                                    
+
                                     {/* ปุ่มขยาย/ยุบ */}
                                     {!isCollapsed && (
                                         <button
                                             onClick={(e) => {
-                                                e.preventDefault(); 
+                                                e.preventDefault();
                                                 toggleDropdown(item.name);
                                             }}
-                                            className="p-1 -mr-1 rounded-md hover:bg-blue-700/50 transition-colors flex-shrink-0"
+                                            className="p-1 -mr-1 rounded-md hover:bg-amber-100/80 transition-colors flex-shrink-0"
                                             aria-label={`Toggle ${item.name}`}
                                         >
                                             {openDropdowns.includes(item.name) ? (
@@ -210,16 +210,16 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
 
                                 {/* Dropdown Submenu */}
                                 {!isCollapsed && openDropdowns.includes(item.name) && item.subItems && (
-                                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-slate-200 pl-2">
+                                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-white/30 pl-2">
                                         {item.subItems.map((subItem) => (
                                             <NavLink
                                                 key={subItem.path}
                                                 to={subItem.path}
-                                                className={({ isActive }) => 
+                                                className={({ isActive }) =>
                                                     `flex items-center space-x-2 p-2 rounded-lg transition duration-150 ease-in-out text-sm
                                                     ${isActive
-                                                        ? "bg-blue-100 text-blue-600 font-medium"
-                                                        : "text-slate-600 hover:bg-slate-50"
+                                                        ? "bg-amber-200 text-orange-800 font-medium"
+                                                        : "text-white/90 hover:bg-amber-100/80 hover:text-orange-800"
                                                     }`
                                                 }
                                             >
@@ -233,12 +233,12 @@ const SideBar: React.FC<SideBarProps> = ({ role, isCollapsed, onToggle }) => {
                         ) : (
                             // Regular NavLink (เมนูที่ไม่มีเมนูย่อย)
                             <NavLink
-                                to={item.path!} 
+                                to={item.path!}
                                 className={({ isActive }) => navLinkClass(isActive, false)}
                                 end={item.path === "/Admin" || item.path === "/User"}
                             >
                                 <span className={`text-xl ${isCollapsed ? "mx-auto" : ""}`}>{item.icon}</span>
-                                
+
                                 {!isCollapsed && <span className="font-medium text-sm flex-1">{item.name}</span>}
 
                                 {isCollapsed && (

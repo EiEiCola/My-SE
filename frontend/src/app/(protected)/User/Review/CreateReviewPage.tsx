@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "./CreateReviewPage.css";
 
 import { createReview, uploadReviewImages } from "../../../../services/http/reviewApi";
@@ -97,11 +97,38 @@ const ConfirmPostModal: React.FC<ConfirmModalProps> = ({
 
 const CreateReviewPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // ปรับการเก็บ State Category จาก string เป็น ID (เพื่อรองรับ 3 ระดับ)
   const [selectedMainId, setSelectedMainId] = useState<number | null>(null);
   const [selectedL1Id, setSelectedL1Id] = useState<number | null>(null);
   const [selectedL2Id, setSelectedL2Id] = useState<number | null>(null);
+
+  // Pre-select from URL query params
+  useEffect(() => {
+    const mainId = searchParams.get("mainCategoryId");
+    const sub1Id = searchParams.get("subCategory1Id");
+    const sub2Id = searchParams.get("subCategory2Id");
+
+    if (mainId) {
+      const id = parseInt(mainId, 10);
+      if (categories.some(c => c.id === id && c.parent_id === null)) {
+        setSelectedMainId(id);
+      }
+    }
+    if (sub1Id) {
+      const id = parseInt(sub1Id, 10);
+      if (categories.some(c => c.id === id)) {
+        setSelectedL1Id(id);
+      }
+    }
+    if (sub2Id) {
+      const id = parseInt(sub2Id, 10);
+      if (categories.some(c => c.id === id)) {
+        setSelectedL2Id(id);
+      }
+    }
+  }, [searchParams]);
 
   const [formData, setFormData] = useState({
     title: "",

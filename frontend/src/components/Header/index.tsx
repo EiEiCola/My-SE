@@ -13,11 +13,11 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
   const location = useLocation();
-  
+
   // แมพ path กับชื่อเมนู
   const getPageTitle = () => {
     const path = location.pathname;
-    
+
     if (role === "admin") {
       const adminTitles: { [key: string]: string } = {
         "/Admin": "หน้าหลัก",
@@ -41,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
         "/User/Message": "ข้อความ",
         "/User/Friends": "เพื่อน",
         "/User/Post": "ฟีด",
-        "/User/Group": "กลุ่ม",
+        "/User/Group": "หมวดหมู่",
         "/User/Review": "รีวิว",
         "/User/Voting": "โพล",
         "/User/Announcement": "ประชาสัมพันธ์",
@@ -59,17 +59,17 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
 
   return (
     <div
-      className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl 
-      border-b-1 border-l-0 border-r-0 border-t-0 border-slate-200/50 border-solid px-6 py-4"
+      className="bg-gradient-to-r from-orange-500 to-orange-600 
+      border-b-1 border-l-0 border-r-0 border-t-0 border-orange-400/50 border-solid px-6 py-4"
     >
       <div className="flex flex-1 items-center justify-between">
         {/* LEFT */}
         <div className="flex items-center space-x-4">
           <div className="hidden md:block">
-            <h1 className="text-xl font-bold text-slate-800">
+            <h1 className="text-xl font-bold text-white">
               {title}
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-white/70">
               {subtitle}
             </p>
           </div>
@@ -81,12 +81,12 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
             <input
               type="text"
               placeholder="Search anything..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800
-              border border-slate-200 dark:border-slate-700
-              rounded-full text-slate-800 dark:text-white
-              placeholder-slate-500 dark:placeholder-slate-400
+              className="w-full pl-10 pr-4 py-2.5 bg-white/20
+              border border-white/30
+              rounded-full text-white
+              placeholder-white/60
               focus:outline-none focus:ring-2
-              focus:ring-blue-500 focus:border-transparent transition-all"
+              focus:ring-white/50 focus:border-transparent transition-all"
             />
           </div>
         </div>
@@ -95,8 +95,8 @@ const Header: React.FC<HeaderProps> = ({ role, username = "eiei" }) => {
         <div className="flex items-center space-x-3">
           <button
             className="hidden lg:flex items-center space-x-2 py-2 px-4
-            bg-gradient-to-r from-blue-500 to-purple-600 text-white 
-            rounded-xl hover:shadow-lg transition-all text-sm font-medium"
+            bg-white text-orange-600 
+            rounded-xl hover:bg-white/90 hover:shadow-lg transition-all text-sm font-medium"
           >
             <span>New</span>
           </button>

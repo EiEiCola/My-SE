@@ -72,6 +72,24 @@ interface ApiResponse<T> {
     message?: string;
 }
 
+// Comment Image type
+export interface CommentImage {
+    ID: number;
+    comment_id: number;
+    url: string;
+    order_index: number;
+}
+
+// Comment Attachment type
+export interface CommentAttachment {
+    ID: number;
+    comment_id: number;
+    file_url: string;
+    file_name: string;
+    file_size: number;
+    order_index: number;
+}
+
 // Comment type
 export interface Comment {
     ID: number;
@@ -91,6 +109,9 @@ export interface Comment {
         last_name: string;
         member_picture: string;
     };
+    // Images and attachments
+    images?: CommentImage[];
+    attachments?: CommentAttachment[];
 }
 
 // Like/Status response type
@@ -163,11 +184,19 @@ export const postService = {
     getComments: (postId: number) =>
         api.get<ApiResponse<Comment[]>>(`/member/posts/${postId}/comments`),
 
-    // Create a new comment
+    // Create a new comment (JSON only, no files)
     createComment: (postId: number, content: string, isAnonymous: boolean) =>
         api.post<ApiResponse<Comment>>(`/member/posts/${postId}/comments`, {
             content,
             is_anonymous: isAnonymous,
+        }),
+
+    // Create a new comment with files (multipart/form-data)
+    createCommentWithFiles: (postId: number, formData: FormData) =>
+        api.post<ApiResponse<Comment>>(`/member/posts/${postId}/comments`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
         }),
 
     // Delete a comment

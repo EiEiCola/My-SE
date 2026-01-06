@@ -24,9 +24,11 @@ import {
   mainCategoryAPI,
   subCategoryL1API,
   subCategoryL2API,
+  categoryStatsAPI,
   type MainCategory,
   type SubCategoryL1,
   type SubCategoryL2,
+  type CategoryStatsResponse,
 } from "../../../../services/http/admin_category";
 
 const { Search, TextArea } = Input;
@@ -139,12 +141,27 @@ const aggregateStats = (node: CategoryNode): CategoryContent => {
   return { posts, reviews, polls };
 };
 
-// Transform API data to tree structure
+// Stats map type for quick lookup
+type StatsMap = Map<number, { posts: number; reviews: number; polls: number }>;
+
+// Transform API data to tree structure with real stats
 const buildCategoryTree = (
   mainCategories: MainCategory[],
   sub1Categories: SubCategoryL1[],
-  sub2Categories: SubCategoryL2[]
+  sub2Categories: SubCategoryL2[],
+  stats?: CategoryStatsResponse
 ): CategoryNode[] => {
+  // Build stats maps for quick lookup
+  const mainStatsMap: StatsMap = new Map();
+  const sub1StatsMap: StatsMap = new Map();
+  const sub2StatsMap: StatsMap = new Map();
+
+  if (stats) {
+    stats.main?.forEach((s) => mainStatsMap.set(s.category_id, { posts: s.post_count, reviews: s.review_count, polls: s.poll_count }));
+    stats.sub1?.forEach((s) => sub1StatsMap.set(s.category_id, { posts: s.post_count, reviews: s.review_count, polls: s.poll_count }));
+    stats.sub2?.forEach((s) => sub2StatsMap.set(s.category_id, { posts: s.post_count, reviews: s.review_count, polls: s.poll_count }));
+  }
+
   // Build L2 map by parent ID
   const sub2ByParent = new Map<number, SubCategoryL2[]>();
   sub2Categories.forEach((s2) => {
@@ -164,20 +181,25 @@ const buildCategoryTree = (
   // Build tree
   return mainCategories.map((main) => {
     const sub1List = sub1ByParent.get(main.ID) || [];
+    const mainContent = mainStatsMap.get(main.ID) || { posts: 0, reviews: 0, polls: 0 };
 
     const children: CategoryNode[] = sub1List.map((s1) => {
       const sub2List = sub2ByParent.get(s1.ID) || [];
+      const sub1Content = sub1StatsMap.get(s1.ID) || { posts: 0, reviews: 0, polls: 0 };
 
-      const l2Children: CategoryNode[] = sub2List.map((s2) => ({
-        key: `sub2-${s2.ID}`,
-        id: s2.ID,
-        name: s2.title,
-        slug: s2.title.toLowerCase().replace(/\s+/g, "-"),
-        description: s2.description,
-        level: 3 as const,
-        content: { posts: 0, reviews: 0, polls: 0 },
-        parentId: s2.sub_category_l1_id,
-      }));
+      const l2Children: CategoryNode[] = sub2List.map((s2) => {
+        const sub2Content = sub2StatsMap.get(s2.ID) || { posts: 0, reviews: 0, polls: 0 };
+        return {
+          key: `sub2-${s2.ID}`,
+          id: s2.ID,
+          name: s2.title,
+          slug: s2.title.toLowerCase().replace(/\s+/g, "-"),
+          description: s2.description,
+          level: 3 as const,
+          content: sub2Content,
+          parentId: s2.sub_category_l1_id,
+        };
+      });
 
       return {
         key: `sub1-${s1.ID}`,
@@ -186,7 +208,7 @@ const buildCategoryTree = (
         slug: s1.title.toLowerCase().replace(/\s+/g, "-"),
         description: s1.description,
         level: 2 as const,
-        content: { posts: 0, reviews: 0, polls: 0 },
+        content: sub1Content,
         children: l2Children.length > 0 ? l2Children : undefined,
         parentId: s1.main_category_id,
       };
@@ -200,7 +222,7 @@ const buildCategoryTree = (
       slug: main.title.toLowerCase().replace(/\s+/g, "-"),
       description: main.description,
       level: 1 as const,
-      content: { posts: 0, reviews: 0, polls: 0 },
+      content: mainContent,
       children: children.length > 0 ? children : undefined,
     };
   });
@@ -236,16 +258,18 @@ const GroupManage: React.FC = () => {
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
-      const [mainRes, sub1Res, sub2Res] = await Promise.all([
+      const [mainRes, sub1Res, sub2Res, statsRes] = await Promise.all([
         mainCategoryAPI.list(),
         subCategoryL1API.list(),
         subCategoryL2API.list(),
+        categoryStatsAPI.get(),
       ]);
 
       const tree = buildCategoryTree(
         mainRes.data.data || [],
         sub1Res.data.data || [],
-        sub2Res.data.data || []
+        sub2Res.data.data || [],
+        statsRes.data.data
       );
       setCategories(tree);
     } catch (error) {

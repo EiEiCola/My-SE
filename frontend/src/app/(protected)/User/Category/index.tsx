@@ -183,8 +183,12 @@ const Group: React.FC = () => {
           subSubKey: post.sub_category2_id ? String(post.sub_category2_id) : undefined,
           type: "post" as ContentType,
           title: post.title,
-          authorName: post.is_anonymous ? "ไม่เปิดเผยชื่อ" : `User #${post.author_id}`,
-          authorAvatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`,
+          authorName: post.is_anonymous
+            ? "ไม่เปิดเผยชื่อ"
+            : (post.author?.username || post.author?.first_name || `User #${post.author_id}`),
+          authorAvatar: post.is_anonymous
+            ? `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+            : (post.author?.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`),
           createdAt,
           likes: post.like_count,
           comments: post.comment_count,
@@ -506,8 +510,51 @@ const Group: React.FC = () => {
                   background: ACCENT_COLOR_HEX,
                   borderColor: ACCENT_COLOR_HEX,
                 }}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (selectedCategory) params.set("mainCategoryId", selectedCategory.key);
+                  if (selectedSubKey !== "all") params.set("subCategory1Id", selectedSubKey);
+                  if (selectedSubSubKey !== "all") params.set("subCategory2Id", selectedSubSubKey);
+                  navigate(`/User/Post/create_post?${params.toString()}`);
+                }}
               >
                 สร้างโพสต์ใหม่
+              </Button>
+
+              <Button
+                icon={<PlusCircleOutlined />}
+                style={{
+                  borderRadius: 12,
+                  borderColor: ACCENT_COLOR_HEX,
+                  color: ACCENT_COLOR_HEX,
+                }}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (selectedCategory) params.set("mainCategoryId", selectedCategory.key);
+                  if (selectedSubKey !== "all") params.set("subCategory1Id", selectedSubKey);
+                  if (selectedSubSubKey !== "all") params.set("subCategory2Id", selectedSubSubKey);
+                  navigate(`/User/Review/createreview?${params.toString()}`);
+                }}
+              >
+                สร้างรีวิว
+              </Button>
+
+              <Button
+                icon={<PlusCircleOutlined />}
+                style={{
+                  borderRadius: 12,
+                  borderColor: "#8b5cf6",
+                  color: "#8b5cf6",
+                }}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (selectedCategory) params.set("mainCategoryId", selectedCategory.key);
+                  if (selectedSubKey !== "all") params.set("subCategory1Id", selectedSubKey);
+                  if (selectedSubSubKey !== "all") params.set("subCategory2Id", selectedSubSubKey);
+                  navigate(`/User/Voting/create?${params.toString()}`);
+                }}
+              >
+                สร้างโพล
               </Button>
             </div>
 

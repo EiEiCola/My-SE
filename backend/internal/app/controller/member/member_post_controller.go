@@ -452,6 +452,7 @@ func (ctl *PostController) GetComments(c *gin.Context) {
 }
 
 // CreateComment - POST /api/member/posts/:id/comments
+// Supports both JSON and multipart/form-data
 func (ctl *PostController) CreateComment(c *gin.Context) {
 	postID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -465,17 +466,51 @@ func (ctl *PostController) CreateComment(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Content     string `json:"content" binding:"required,min=1"`
-		IsAnonymous bool   `json:"is_anonymous"`
+	var content string
+	var isAnonymous bool
+	var imageFiles []*multipart.FileHeader
+	var attachmentFiles []*multipart.FileHeader
+
+	contentType := c.ContentType()
+	isMultipart := contentType == "multipart/form-data" || (len(contentType) > 19 && contentType[:19] == "multipart/form-data")
+
+	if isMultipart {
+		// Manual parsing for multipart/form-data
+		content = c.PostForm("content")
+		isAnonymous = c.PostForm("is_anonymous") == "true"
+
+		// Validate content
+		if len(content) < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content is required"})
+			return
+		}
+
+		// Get files
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			if files, ok := form.File["images"]; ok {
+				imageFiles = files
+			}
+			if files, ok := form.File["attachments"]; ok {
+				attachmentFiles = files
+			}
+		}
+	} else {
+		// JSON binding
+		var req struct {
+			Content     string `json:"content" binding:"required,min=1"`
+			IsAnonymous bool   `json:"is_anonymous"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		content = req.Content
+		isAnonymous = req.IsAnonymous
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	comment, err := ctl.Service.CreateComment(postID, memberID, req.Content, req.IsAnonymous)
+	comment, err := ctl.Service.CreateComment(postID, memberID, content, isAnonymous, imageFiles, attachmentFiles)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

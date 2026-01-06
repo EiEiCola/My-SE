@@ -9,25 +9,25 @@ import (
 type Post struct {
 	gorm.Model
 	// FK
-	AuthorID uint   `json:"author_id"`
-	Author   Member `gorm:"foreignKey:AuthorID" json:"author"`
+	AuthorID uint   `valid:"required~AuthorID is required" json:"author_id"`
+	Author   Member `valid:"-" gorm:"foreignKey:AuthorID" json:"author"`
 
-	Title       string `json:"title"`
-	Content     string `json:"content"`
-	IsAnonymous bool   `json:"is_anonymous"`
+	Title       string `valid:"required~Title is required,stringlength(5|120)~Title must be between 5 and 120 characters" json:"title"`
+	Content     string `valid:"required~Content is required,stringlength(1|2000)~Content must be between 1 and 2000 characters" json:"content"`
+	IsAnonymous bool   `valid:"-" json:"is_anonymous"`
 
 	// Category (3 ระดับ)
-	MainCategoryID  *uint `json:"main_category_id"`
-	SubCategoryL1ID *uint `json:"sub_category1_id"`
-	SubCategoryL2ID *uint `json:"sub_category2_id"`
+	MainCategoryID  *uint `valid:"-" json:"main_category_id"`
+	SubCategoryL1ID *uint `valid:"-" json:"sub_category1_id"`
+	SubCategoryL2ID *uint `valid:"-" json:"sub_category2_id"`
 
 	// *** เพิ่มฟิลด์ Back-Reference ตรงนี้ ***
 	// (ใช้ชื่อฟิลด์เดียวกับ struct แม่)
-	MainCategory  MainCategory
-	SubCategoryL1 SubCategoryL1
-	SubCategoryL2 SubCategoryL2
+	MainCategory  MainCategory   `valid:"-" json:"-"`
+	SubCategoryL1 SubCategoryL1  `valid:"-" json:"-"`
+	SubCategoryL2 SubCategoryL2  `valid:"-" json:"-"`
 
-	Status       string `json:"status"`
+	Status       string `valid:"required~Status is required,in(active|reported|deleted)~Status is invalid" json:"status"`
 	ViewCount    uint   `json:"view_count"`
 	LikeCount    uint   `json:"like_count"`
 	CommentCount uint   `json:"comment_count"`

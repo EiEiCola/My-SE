@@ -10,13 +10,14 @@ import {
     Col,
     Input,
     Switch,
-    message,
     Spin,
     Tooltip,
-    notification,
     Image,
     Modal,
+    Upload,
+    App,
 } from "antd";
+import type { UploadFile } from "antd";
 import {
     ArrowLeftOutlined,
     LikeOutlined,
@@ -37,6 +38,8 @@ import {
     FileExcelOutlined,
     FileZipOutlined,
     PictureOutlined,
+    PaperClipOutlined,
+    CloseCircleOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import postService from "../../../../services/http/post_service";
@@ -86,12 +89,16 @@ interface CommentItem {
     isOwner: boolean;
     parentId?: number | null;
     replies?: CommentItem[];
+    images?: ImageItem[];
+    attachments?: AttachmentItem[];
 }
 
 // ---------------- Component ----------------
 const PostDetail: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const [modal, contextHolder] = Modal.useModal();
+    const { message } = App.useApp();
 
     const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<PostData | null>(null);
@@ -193,6 +200,18 @@ const PostDetail: React.FC = () => {
                         isOwner: currentUserId !== null && currentUserId === c.author_id,
                         parentId: null,
                         replies: [],
+                        images: (c.images || []).map((img: { ID: number; url: string; order_index: number }) => ({
+                            id: img.ID,
+                            url: img.url,
+                            orderIndex: img.order_index,
+                        })),
+                        attachments: (c.attachments || []).map((att: { ID: number; file_url: string; file_name: string; file_size: number; order_index: number }) => ({
+                            id: att.ID,
+                            fileUrl: att.file_url,
+                            fileName: att.file_name,
+                            fileSize: att.file_size,
+                            orderIndex: att.order_index,
+                        })),
                     };
                 });
 
@@ -222,6 +241,8 @@ const PostDetail: React.FC = () => {
     // input comment
     const [commentText, setCommentText] = useState("");
     const [commentAnonymous, setCommentAnonymous] = useState(false);
+    const [commentImages, setCommentImages] = useState<UploadFile[]>([]);
+    const [commentAttachments, setCommentAttachments] = useState<UploadFile[]>([]);
 
 
     // state: กำลังตอบกลับคอมเมนต์ไหน
@@ -255,22 +276,15 @@ const PostDetail: React.FC = () => {
         try {
             const response = await postService.toggleBookmark(post.id);
             setBookmarked(response.data.is_bookmarked);
-            notification.success({
-                message: response.data.is_bookmarked ? "✅ บันทึกโพสต์แล้ว" : "❌ ยกเลิกการบันทึกโพสต์",
-                description: response.data.is_bookmarked
-                    ? "โพสต์นี้ถูกเพิ่มใน My Fav แล้ว"
-                    : "โพสต์นี้ถูกลบออกจาก My Fav แล้ว",
-                placement: "top",
-                duration: 2,
-            });
+            if (response.data.is_bookmarked) {
+                message.success("บันทึกโพสต์ใน My Fav แล้ว");
+            } else {
+                message.success("ยกเลิกการบันทึกโพสต์แล้ว");
+            }
         } catch (error: any) {
             console.error("Failed to toggle bookmark:", error);
             const errorMsg = error?.response?.data?.error || "ไม่สามารถบันทึกโพสต์ได้";
-            notification.error({
-                message: "เกิดข้อผิดพลาด",
-                description: errorMsg,
-                placement: "top",
-            });
+            message.error(errorMsg);
         }
     };
 
@@ -296,16 +310,26 @@ const PostDetail: React.FC = () => {
         }
     };
 
-    const handleDeletePost = async () => {
+    const handleDeletePost = () => {
         if (!post) return;
-        try {
-            await postService.delete(post.id);
-            message.success("ลบโพสต์สำเร็จ");
-            navigate("/User/Post");
-        } catch (error) {
-            console.error("Failed to delete post:", error);
-            message.error("ไม่สามารถลบโพสต์ได้");
-        }
+        modal.confirm({
+            title: "ยืนยันการลบโพสต์",
+            content: "คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์นี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
+            okText: "ลบโพสต์",
+            okType: "danger",
+            cancelText: "ยกเลิก",
+            centered: true,
+            onOk: async () => {
+                try {
+                    await postService.delete(post.id);
+                    message.success("ลบโพสต์สำเร็จ");
+                    navigate("/User/Post");
+                } catch (error) {
+                    console.error("Failed to delete post:", error);
+                    message.error("ไม่สามารถลบโพสต์ได้");
+                }
+            },
+        });
     };
 
     const handleReportPost = () => {
@@ -322,7 +346,37 @@ const PostDetail: React.FC = () => {
         if (!post) return;
 
         try {
-            const response = await postService.createComment(post.id, commentText, commentAnonymous);
+            let response;
+
+            // Check if there are files to upload
+            const hasFiles = commentImages.length > 0 || commentAttachments.length > 0;
+
+            if (hasFiles) {
+                // Use FormData for multipart upload
+                const formData = new FormData();
+                formData.append("content", commentText);
+                formData.append("is_anonymous", commentAnonymous.toString());
+
+                // Add images
+                for (const file of commentImages) {
+                    if (file.originFileObj) {
+                        formData.append("images", file.originFileObj);
+                    }
+                }
+
+                // Add attachments
+                for (const file of commentAttachments) {
+                    if (file.originFileObj) {
+                        formData.append("attachments", file.originFileObj);
+                    }
+                }
+
+                response = await postService.createCommentWithFiles(post.id, formData);
+            } else {
+                // Use JSON for simple comment without files
+                response = await postService.createComment(post.id, commentText, commentAnonymous);
+            }
+
             const newComment = response.data.data;
 
             // Map API response to CommentItem format
@@ -339,6 +393,18 @@ const PostDetail: React.FC = () => {
                 isOwner: true,
                 parentId: replyTo ? replyTo.id : null,
                 replies: [],
+                images: (newComment.images || []).map((img: { ID: number; url: string; order_index: number }) => ({
+                    id: img.ID,
+                    url: img.url,
+                    orderIndex: img.order_index,
+                })),
+                attachments: (newComment.attachments || []).map((att: { ID: number; file_url: string; file_name: string; file_size: number; order_index: number }) => ({
+                    id: att.ID,
+                    fileUrl: att.file_url,
+                    fileName: att.file_name,
+                    fileSize: att.file_size,
+                    orderIndex: att.order_index,
+                })),
             };
 
             if (replyTo) {
@@ -369,6 +435,8 @@ const PostDetail: React.FC = () => {
             });
             setCommentText("");
             setCommentAnonymous(false);
+            setCommentImages([]);
+            setCommentAttachments([]);
             message.success("เพิ่มความคิดเห็นสำเร็จ");
         } catch (error) {
             console.error("Failed to create comment:", error);
@@ -458,6 +526,7 @@ const PostDetail: React.FC = () => {
 
     return (
         <main className="flex-1 overflow-y-auto bg-orange-100">
+            {contextHolder}
             <div className="max-w-5xl mx-auto px-4 py-6 md:py-8">
                 {/* Back */}
                 <Button
@@ -717,11 +786,13 @@ const PostDetail: React.FC = () => {
                                 </Space>
 
                                 {/* ปุ่ม report */}
-                                <Button
-                                    type="text"
-                                    icon={<WarningOutlined />}
-                                    onClick={handleReportPost}
-                                />
+                                <Tooltip title="รายงานโพสต์นี้">
+                                    <Button
+                                        type="text"
+                                        icon={<WarningOutlined />}
+                                        onClick={handleReportPost}
+                                    />
+                                </Tooltip>
                             </Space>
                         </Col>
                     </Row>
@@ -786,6 +857,119 @@ const PostDetail: React.FC = () => {
                                     bordered={false}
                                 />
                             </div>
+
+                            {/* Upload buttons row */}
+                            <Row style={{ marginBottom: 8 }} gutter={8}>
+                                <Col>
+                                    <Upload
+                                        accept="image/jpeg,image/png,image/webp"
+                                        multiple
+                                        maxCount={5}
+                                        fileList={commentImages}
+                                        onChange={({ fileList }) => setCommentImages(fileList)}
+                                        beforeUpload={() => false}
+                                        showUploadList={false}
+                                    >
+                                        <Button
+                                            type="text"
+                                            icon={<PictureOutlined />}
+                                            size="small"
+                                            style={{ color: "#666" }}
+                                        >
+                                            รูปภาพ
+                                        </Button>
+                                    </Upload>
+                                </Col>
+                                <Col>
+                                    <Upload
+                                        accept=".pdf,.docx,.xlsx,.zip"
+                                        multiple
+                                        maxCount={2}
+                                        fileList={commentAttachments}
+                                        onChange={({ fileList }) => setCommentAttachments(fileList)}
+                                        beforeUpload={() => false}
+                                        showUploadList={false}
+                                    >
+                                        <Button
+                                            type="text"
+                                            icon={<PaperClipOutlined />}
+                                            size="small"
+                                            style={{ color: "#666" }}
+                                        >
+                                            ไฟล์แนบ
+                                        </Button>
+                                    </Upload>
+                                </Col>
+                            </Row>
+
+                            {/* Preview selected files */}
+                            {(commentImages.length > 0 || commentAttachments.length > 0) && (
+                                <div style={{
+                                    marginBottom: 8,
+                                    padding: 8,
+                                    background: "#f5f5f5",
+                                    borderRadius: 8,
+                                }}>
+                                    {commentImages.length > 0 && (
+                                        <div style={{ marginBottom: 4 }}>
+                                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                                รูปภาพ ({commentImages.length}):
+                                            </Text>
+                                            <Space wrap style={{ marginTop: 4 }}>
+                                                {commentImages.map((file, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            background: "#fff",
+                                                            padding: "2px 8px",
+                                                            borderRadius: 4,
+                                                            fontSize: 12,
+                                                        }}
+                                                    >
+                                                        <PictureOutlined style={{ marginRight: 4, color: ORANGE }} />
+                                                        {file.name.length > 15 ? file.name.slice(0, 12) + "..." : file.name}
+                                                        <CloseCircleOutlined
+                                                            onClick={() => setCommentImages(prev => prev.filter((_, i) => i !== idx))}
+                                                            style={{ marginLeft: 4, cursor: "pointer", color: "#999" }}
+                                                        />
+                                                    </span>
+                                                ))}
+                                            </Space>
+                                        </div>
+                                    )}
+                                    {commentAttachments.length > 0 && (
+                                        <div>
+                                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                                ไฟล์แนบ ({commentAttachments.length}):
+                                            </Text>
+                                            <Space wrap style={{ marginTop: 4 }}>
+                                                {commentAttachments.map((file, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            background: "#fff",
+                                                            padding: "2px 8px",
+                                                            borderRadius: 4,
+                                                            fontSize: 12,
+                                                        }}
+                                                    >
+                                                        <FileOutlined style={{ marginRight: 4, color: "#2980b9" }} />
+                                                        {file.name.length > 15 ? file.name.slice(0, 12) + "..." : file.name}
+                                                        <CloseCircleOutlined
+                                                            onClick={() => setCommentAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                                            style={{ marginLeft: 4, cursor: "pointer", color: "#999" }}
+                                                        />
+                                                    </span>
+                                                ))}
+                                            </Space>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <Row justify="space-between" align="middle">
                                 <Col>
@@ -881,6 +1065,73 @@ const PostDetail: React.FC = () => {
                                     >
                                         {c.content}
                                     </Paragraph>
+
+                                    {/* Comment Images */}
+                                    {c.images && c.images.length > 0 && (
+                                        <div style={{ marginTop: 12 }}>
+                                            <Image.PreviewGroup>
+                                                <Space wrap>
+                                                    {c.images.sort((a, b) => a.orderIndex - b.orderIndex).map((img) => (
+                                                        <Image
+                                                            key={img.id}
+                                                            src={`http://localhost:8080${img.url}`}
+                                                            alt="comment image"
+                                                            style={{
+                                                                width: 80,
+                                                                height: 80,
+                                                                objectFit: "cover",
+                                                                borderRadius: 6,
+                                                                cursor: "pointer",
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </Space>
+                                            </Image.PreviewGroup>
+                                        </div>
+                                    )}
+
+                                    {/* Comment Attachments */}
+                                    {c.attachments && c.attachments.length > 0 && (
+                                        <div style={{ marginTop: 8 }}>
+                                            <Space wrap>
+                                                {c.attachments.sort((a, b) => a.orderIndex - b.orderIndex).map((file) => {
+                                                    const ext = file.fileName.split(".").pop()?.toLowerCase() || "";
+                                                    let icon = <FileOutlined />;
+                                                    let iconColor = "#666";
+                                                    if (ext === "pdf") { icon = <FilePdfOutlined />; iconColor = "#e74c3c"; }
+                                                    else if (ext === "docx" || ext === "doc") { icon = <FileWordOutlined />; iconColor = "#2980b9"; }
+                                                    else if (ext === "xlsx" || ext === "xls") { icon = <FileExcelOutlined />; iconColor = "#27ae60"; }
+                                                    else if (ext === "zip" || ext === "rar") { icon = <FileZipOutlined />; iconColor = "#f39c12"; }
+
+                                                    return (
+                                                        <a
+                                                            key={file.id}
+                                                            href={`http://localhost:8080${file.fileUrl}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            download={file.fileName}
+                                                            style={{
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                background: "#fff",
+                                                                padding: "4px 10px",
+                                                                borderRadius: 6,
+                                                                border: "1px solid #e8e8e8",
+                                                                textDecoration: "none",
+                                                                fontSize: 12,
+                                                            }}
+                                                        >
+                                                            <span style={{ color: iconColor, marginRight: 6 }}>{icon}</span>
+                                                            <span style={{ color: "#333" }}>
+                                                                {file.fileName.length > 20 ? file.fileName.slice(0, 17) + "..." : file.fileName}
+                                                            </span>
+                                                            <DownloadOutlined style={{ marginLeft: 6, color: ORANGE, fontSize: 12 }} />
+                                                        </a>
+                                                    );
+                                                })}
+                                            </Space>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <Row justify="space-between" align="middle">

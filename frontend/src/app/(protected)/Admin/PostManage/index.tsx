@@ -233,23 +233,42 @@ const PostManage: React.FC = () => {
         const apiPosts = response.data.data;
 
         // Map API response to PostItem format
-        const mappedPosts: PostItem[] = apiPosts.map((p) => ({
-          id: p.ID,
-          authorName: p.is_anonymous ? "ไม่เปิดเผยชื่อ" : `User #${p.author_id}`,
-          authorAvatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`,
-          title: p.title,
-          category: "ทั่วไป", // TODO: map category from backend
-          createdAt: new Date(p.created_at).toLocaleString("th-TH"),
-          status: (p.status?.toLowerCase() || "active") as PostStatus,
-          reportCount: p.reports?.length || 0,
-          content: p.content,
-          reports: p.reports?.map((r) => ({
-            id: r.ID,
-            reporter: r.reporter,
-            reason: r.reason,
-            createdAt: r.created_at,
-          })),
-        }));
+        const mappedPosts: PostItem[] = apiPosts.map((p) => {
+          // Get author name from backend
+          let authorName = "ไม่เปิดเผยชื่อ";
+          let authorAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
+          if (!p.is_anonymous && p.author) {
+            authorName = p.author.username || `${p.author.first_name} ${p.author.last_name}`;
+            authorAvatar = p.author.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`;
+          }
+
+          // Get category name from backend
+          let categoryName = "ไม่มีหมวดหมู่";
+          if (p.MainCategory?.title) {
+            categoryName = p.MainCategory.title;
+            if (p.SubCategoryL1?.title) {
+              categoryName += ` > ${p.SubCategoryL1.title}`;
+            }
+          }
+
+          return {
+            id: p.ID,
+            authorName,
+            authorAvatar,
+            title: p.title,
+            category: categoryName,
+            createdAt: new Date(p.created_at).toLocaleString("th-TH"),
+            status: (p.status?.toLowerCase() || "active") as PostStatus,
+            reportCount: p.reports?.length || 0,
+            content: p.content,
+            reports: p.reports?.map((r) => ({
+              id: r.ID,
+              reporter: r.reporter,
+              reason: r.reason,
+              createdAt: r.created_at,
+            })),
+          };
+        });
 
         setPosts(mappedPosts);
       } catch (error) {
