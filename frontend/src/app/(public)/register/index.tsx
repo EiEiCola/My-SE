@@ -45,8 +45,8 @@ function Register() {
       typeof data?.message === "string"
         ? data.message
         : typeof data?.error === "string"
-          ? data.error
-          : "";
+        ? data.error
+        : "";
 
     const msg = rawMsg.toLowerCase();
 
@@ -129,7 +129,7 @@ function Register() {
 
   const handleRegister = async (values: RegisterValues) => {
     try {
-      await axios.post("/api/auth/register", {
+      await axios.post("http://localhost:8080/api/auth/register", {
         email: values.email,
         password: values.password,
         first_name: values.firstName,
@@ -421,17 +421,17 @@ function Register() {
                 ]}
               >
                 <DatePicker
-                  id="dob"
-                  data-testid="dob-picker"
-                  popupClassName="dob-picker-popup"
-                  format="YYYY-MM-DD"
-                  size="large"
-                  style={{ width: "100%", height: 46, borderRadius: 10 }}
-                  disabledDate={(current) =>
-                    !!current && current.isAfter(dayjs().endOf("day"))
-                  }
-                  onChange={(d) => form.setFieldValue("dob", d as Dayjs)}
-                />
+  id="dob"
+  data-testid="dob-picker"
+  popupClassName="dob-picker-popup"
+  format="YYYY-MM-DD"
+  size="large"
+  style={{ width: "100%", height: 46, borderRadius: 10 }}
+  disabledDate={(current) =>
+    !!current && current.isAfter(dayjs().endOf("day"))
+  }
+  onChange={(d) => form.setFieldValue("dob", d as Dayjs)}
+/>
 
               </Form.Item>
             </Col>

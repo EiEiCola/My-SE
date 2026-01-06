@@ -54,31 +54,24 @@ const AnnouncementsList: React.FC = () => {
     fetchData();
   }, [page, pageSize]);
 
-  // Delete State
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
-  const [deleteProcessing, setDeleteProcessing] = useState(false);
-
   const handleDelete = (id: number) => {
-    setDeleteTargetId(id);
-    setDeleteModalVisible(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    setDeleteProcessing(true);
-    try {
-      await deleteAdminAnnouncement(deleteTargetId);
-      message.success("ลบประกาศสำเร็จ");
-      fetchData();
-      setDeleteModalVisible(false);
-      setDeleteTargetId(null);
-    } catch (e: any) {
-      console.error("Delete Announcement Error:", e);
-      message.error(e.message || "ลบไม่สำเร็จ");
-    } finally {
-      setDeleteProcessing(false);
-    }
+    confirm({
+      title: "ยืนยันการลบประกาศ?",
+      icon: <ExclamationCircleOutlined />,
+      content: "ประกาศนี้จะถูกลบออกจากระบบถาวร",
+      okText: "ลบ",
+      okType: "danger",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          await deleteAdminAnnouncement(id);
+          message.success("ลบประกาศสำเร็จ");
+          fetchData();
+        } catch (e: any) {
+          message.error(e.message || "ลบไม่สำเร็จ");
+        }
+      },
+    });
   };
 
   const handleRowClick = (record: any) => {
@@ -245,27 +238,6 @@ const AnnouncementsList: React.FC = () => {
           )}
         </Modal>
       </Card>
-      <Modal
-        title="ยืนยันการลบประกาศ?"
-        open={deleteModalVisible}
-        onOk={confirmDelete}
-        onCancel={() => {
-          if (!deleteProcessing) setDeleteModalVisible(false);
-        }}
-        okText="ลบ"
-        cancelText="ยกเลิก"
-        okButtonProps={{ danger: true, loading: deleteProcessing }}
-        cancelButtonProps={{ disabled: deleteProcessing }}
-        centered
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <ExclamationCircleOutlined style={{ fontSize: '24px', color: '#ff4d4f' }} />
-          <div>
-            <p>ประกาศนี้จะถูกลบออกจากระบบถาวร</p>
-            <p>คุณแน่ใจหรือไม่ที่จะดำเนินการต่อ?</p>
-          </div>
-        </div>
-      </Modal>
     </main>
   );
 };

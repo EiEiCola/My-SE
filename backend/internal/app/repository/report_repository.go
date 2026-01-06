@@ -47,7 +47,7 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 	var total int64
 
 	// Use quoted identifiers to match existing Postgres columns created with mixed-case tags
-	db := r.DB.Model(&entity.Report{}).Where(&entity.Report{ReporterID: reporterID})
+	db := r.DB.Model(&entity.Report{}).Where("\"reporter_ID\" = ?", reporterID)
 	if statusID != nil {
 		db = db.Where("status = ?", *statusID)
 	}
@@ -74,17 +74,15 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 	var total int64
 
 	db := r.DB.Model(&entity.Report{})
-	queryObj := entity.Report{}
 	if statusID != nil {
-		queryObj.StatusID = *statusID
+		db = db.Where("status = ?", *statusID)
 	}
 	if targetType != "" {
-		queryObj.TargetType = targetType
+		db = db.Where("target_type = ?", targetType)
 	}
 	if reporterID != nil {
-		queryObj.ReporterID = *reporterID
+		db = db.Where("\"reporter_ID\" = ?", *reporterID)
 	}
-	db = r.DB.Model(&entity.Report{}).Where(&queryObj)
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)
 		like := "%" + strings.ToLower(escaped) + "%"
@@ -101,7 +99,7 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 }
 
 func (r *ReportRepository) UpdateStatus(reportID int, statusID int, adminID uint) error {
-	return r.DB.Model(&entity.Report{}).Where(&entity.Report{ID: reportID}).Updates(map[string]interface{}{
+	return r.DB.Model(&entity.Report{}).Where("\"report_ID\" = ?", reportID).Updates(map[string]interface{}{
 		"status":   statusID,
 		"admin_ID": adminID,
 	}).Error
@@ -113,7 +111,7 @@ func (r *ReportRepository) Update(report *entity.Report, media []entity.ReportMe
 			return err
 		}
 		// Replace media - match mixed-case column name
-		if err := tx.Where(&entity.ReportMedia{ReportID: report.ID}).Delete(&entity.ReportMedia{}).Error; err != nil {
+		if err := tx.Where("\"report_ID\" = ?", report.ID).Delete(&entity.ReportMedia{}).Error; err != nil {
 			return err
 		}
 		if len(media) > 0 {
@@ -130,8 +128,7 @@ func (r *ReportRepository) Update(report *entity.Report, media []entity.ReportMe
 
 func (r *ReportRepository) Delete(id int) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
-		// Remove media first
-		if err := tx.Where(&entity.ReportMedia{ReportID: id}).Delete(&entity.ReportMedia{}).Error; err != nil {
+		if err := tx.Where("\"report_ID\" = ?", id).Delete(&entity.ReportMedia{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&entity.Report{}, id).Error; err != nil {

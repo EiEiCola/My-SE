@@ -20,7 +20,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Ban,
-  Check
+  Check 
 } from "lucide-react";
 
 // Config Dayjs
@@ -33,39 +33,39 @@ interface MemberItem {
   name: string;
   username: string;
   avatar: string;
-
+  
   // Stats
   friendCount: number;
   followerCount: number;
   followingCount: number;
-
+  
   // Profile
   bio: string;
   gender: string;
   dob: string;
 
   // Logic Status
-  status: 'none' | 'pending' | 'friend' | 'self' | 'incoming';
-  requestId?: number;
+  status: 'none' | 'pending' | 'friend' | 'self' | 'incoming'; 
+  requestId?: number; 
   isFollowing: boolean;
 }
 
 const FriendPopular: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const API_URL = "/api";
+  const API_URL = "http://localhost:8080/api";
   const token = localStorage.getItem("token");
 
   // --- State ---
-  const [displayList, setDisplayList] = useState<MemberItem[]>([]);
-  const [allMembers, setAllMembers] = useState<MemberItem[]>([]);
-  const [populars, setPopulars] = useState<MemberItem[]>([]);
+  const [displayList, setDisplayList] = useState<MemberItem[]>([]); 
+  const [allMembers, setAllMembers] = useState<MemberItem[]>([]);   
+  const [populars, setPopulars] = useState<MemberItem[]>([]);       
 
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState<MemberItem | null>(null);
   const [activeTab, setActiveTab] = useState("post");
-
+  
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const headers = {
@@ -77,7 +77,7 @@ const FriendPopular: React.FC = () => {
   const getImageUrl = (path: string | undefined | null) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("data:")) return path;
-    return `${API_URL.replace("/api", "")}${path.startsWith("/") ? "" : "/"}${path}`;
+    return `http://localhost:8080${path.startsWith("/") ? "" : "/"}${path}`;
   };
 
   useEffect(() => {
@@ -92,17 +92,17 @@ const FriendPopular: React.FC = () => {
   useEffect(() => {
     // เช็คว่ามี state ส่งมาไหม และข้อมูลโหลดเสร็จหรือยัง
     if (location.state?.selectedId && (displayList.length > 0 || allMembers.length > 0)) {
-      const targetId = location.state.selectedId;
+        const targetId = location.state.selectedId;
+        
+        const targetProfile = displayList.find(m => m.id === targetId);
+        const backupProfile = allMembers.find(m => m.id === targetId);
+      
+        const foundProfile = targetProfile || backupProfile;
 
-      const targetProfile = displayList.find(m => m.id === targetId);
-      const backupProfile = allMembers.find(m => m.id === targetId);
-
-      const foundProfile = targetProfile || backupProfile;
-
-      if (foundProfile) {
-        setSelectedProfile(foundProfile);
-        window.history.replaceState({}, document.title);
-      }
+        if (foundProfile) {
+            setSelectedProfile(foundProfile);
+            window.history.replaceState({}, document.title);
+        }
     }
   }, [displayList, allMembers, location.state]);
 
@@ -112,19 +112,19 @@ const FriendPopular: React.FC = () => {
     setLoading(true);
     try {
       const [meRes, sentRes, receivedRes, friendRes, popRes, allRes, followRes, blockRes] = await Promise.all([
-        fetch(`${API_URL}/member/me`, { headers }),
+        fetch(`${API_URL}/member/me`, { headers }),                     
         fetch(`${API_URL}/member/my/friend-requests/sent`, { headers }),
-        fetch(`${API_URL}/member/my/friend-requests/received`, { headers }),
-        fetch(`${API_URL}/member/my/friends`, { headers }),
-        fetch(`${API_URL}/member/members/popular`, { headers }),
-        fetch(`${API_URL}/member/members`, { headers }),
-        fetch(`${API_URL}/member/my/following`, { headers }),
-        fetch(`${API_URL}/member/my/blocks`, { headers })
+        fetch(`${API_URL}/member/my/friend-requests/received`, { headers }), 
+        fetch(`${API_URL}/member/my/friends`, { headers }),             
+        fetch(`${API_URL}/member/members/popular`, { headers }),        
+        fetch(`${API_URL}/member/members`, { headers }),                
+        fetch(`${API_URL}/member/my/following`, { headers }),           
+        fetch(`${API_URL}/member/my/blocks`, { headers })               
       ]);
 
       const meData = await meRes.json();
       const sentData = await sentRes.json();
-      const receivedData = await receivedRes.json();
+      const receivedData = await receivedRes.json(); 
       const friendData = await friendRes.json();
       const popData = await popRes.json();
       const allMembersData = await allRes.json();
@@ -132,20 +132,20 @@ const FriendPopular: React.FC = () => {
       const blockData = await blockRes.json();
 
       const currentUserId = Number(meData.data?.ID || meData.data?.id || meData.ID || meData.id || 0);
-
+      
       const sentMap = new Map<number, number>();
       if (sentData.data) {
         sentData.data.forEach((req: any) => {
-          const targetId = Number(req.receive_member_id || req.receive_mem_id);
-          if (targetId) sentMap.set(targetId, req.rf_id);
+           const targetId = Number(req.receive_member_id || req.receive_mem_id);
+           if (targetId) sentMap.set(targetId, req.rf_id);
         });
       }
 
       const receivedSet = new Set<number>();
       if (receivedData.data) {
         receivedData.data.forEach((req: any) => {
-          const senderId = Number(req.sent_member?.ID || req.sent_member?.id || req.sent_mem_id);
-          if (senderId) receivedSet.add(senderId);
+            const senderId = Number(req.sent_member?.ID || req.sent_member?.id || req.sent_mem_id);
+            if(senderId) receivedSet.add(senderId);
         });
       }
 
@@ -166,62 +166,62 @@ const FriendPopular: React.FC = () => {
 
       const processMembers = (list: any[]): MemberItem[] => {
         return list.map((m: any) => {
-          const mId = Number(m.ID || m.id);
+            const mId = Number(m.ID || m.id);
+            
+            let status: MemberItem['status'] = 'none';
+            let reqId: number | undefined = undefined;
 
-          let status: MemberItem['status'] = 'none';
-          let reqId: number | undefined = undefined;
+            if (mId === currentUserId) {
+                status = 'self';
+            } else if (friendSet.has(mId)) {
+                status = 'friend';
+            } else if (receivedSet.has(mId)) {
+                status = 'incoming';
+            } else if (sentMap.has(mId)) {
+                status = 'pending';
+                reqId = sentMap.get(mId);
+            }
 
-          if (mId === currentUserId) {
-            status = 'self';
-          } else if (friendSet.has(mId)) {
-            status = 'friend';
-          } else if (receivedSet.has(mId)) {
-            status = 'incoming';
-          } else if (sentMap.has(mId)) {
-            status = 'pending';
-            reqId = sentMap.get(mId);
-          }
+            return {
+                id: mId,
+                name: `${m.first_name} ${m.last_name}`,
+                username: m.username || "-",
+                // ⭐ ใช้ Helper จัดการรูป
+                avatar: getImageUrl(m.member_picture),
+                
+                friendCount: m.friend_count || 0,
+                followerCount: m.follower_count || 0,
+                followingCount: m.following_count || 0,
 
-          return {
-            id: mId,
-            name: `${m.first_name} ${m.last_name}`,
-            username: m.username || "-",
-            // ⭐ ใช้ Helper จัดการรูป
-            avatar: getImageUrl(m.member_picture),
+                bio: m.bio || "-",
+                gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
+                dob: m.dob ? dayjs(m.dob).format("D MMM BBBB") : "-",
 
-            friendCount: m.friend_count || 0,
-            followerCount: m.follower_count || 0,
-            followingCount: m.following_count || 0,
-
-            bio: m.bio || "-",
-            gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
-            dob: m.dob ? dayjs(m.dob).format("D MMM BBBB") : "-",
-
-            status: status,
-            requestId: reqId,
-            isFollowing: followingSet.has(mId)
-          };
+                status: status,
+                requestId: reqId,
+                isFollowing: followingSet.has(mId)
+            };
         }).filter(item => !blockedSet.has(item.id));
       };
 
       if (allMembersData.data) {
-        setAllMembers(processMembers(allMembersData.data));
+          setAllMembers(processMembers(allMembersData.data));
       }
 
       if (popData.data) {
         const processedPop = processMembers(popData.data);
-
+        
         const cleanPopulars = processedPop.filter(m => {
-          const isMe = (m.id === currentUserId) || (m.status === 'self');
-          const isFriend = (m.status === 'friend');
-          const isIncoming = (m.status === 'incoming');
-          return !isMe && !isFriend && !isIncoming;
+            const isMe = (m.id === currentUserId) || (m.status === 'self');
+            const isFriend = (m.status === 'friend');
+            const isIncoming = (m.status === 'incoming');
+            return !isMe && !isFriend && !isIncoming;
         });
-
+        
         setPopulars(cleanPopulars);
-
+        
         if (!searchTerm) {
-          setDisplayList(cleanPopulars);
+            setDisplayList(cleanPopulars);
         }
       }
 
@@ -238,13 +238,13 @@ const FriendPopular: React.FC = () => {
     setSearchTerm(term);
 
     if (term.trim() === "") {
-      setDisplayList(populars);
+        setDisplayList(populars);
     } else {
-      const filtered = allMembers.filter(m =>
-        m.name.toLowerCase().includes(term.toLowerCase()) ||
-        m.username.toLowerCase().includes(term.toLowerCase())
-      );
-      setDisplayList(filtered);
+        const filtered = allMembers.filter(m => 
+            m.name.toLowerCase().includes(term.toLowerCase()) || 
+            m.username.toLowerCase().includes(term.toLowerCase())
+        );
+        setDisplayList(filtered);
     }
   };
 
@@ -252,11 +252,11 @@ const FriendPopular: React.FC = () => {
   const updateLocalState = (targetId: number, updates: Partial<MemberItem>) => {
     const updateList = (list: MemberItem[]) => list.map(m => m.id === targetId ? { ...m, ...updates } : m);
     setDisplayList(prev => updateList(prev));
-    setPopulars(prev => updateList(prev));
+    setPopulars(prev => updateList(prev)); 
     setAllMembers(prev => updateList(prev));
 
     if (selectedProfile?.id === targetId) {
-      setSelectedProfile(prev => prev ? { ...prev, ...updates } : null);
+        setSelectedProfile(prev => prev ? { ...prev, ...updates } : null);
     }
   };
 
@@ -267,10 +267,10 @@ const FriendPopular: React.FC = () => {
       });
       if (res.ok) {
         updateLocalState(targetId, { status: 'pending' });
-        fetchInitialData();
+        fetchInitialData(); 
       } else {
-        const err = await res.json();
-        alert(err.error || "เกิดข้อผิดพลาด");
+         const err = await res.json();
+         alert(err.error || "เกิดข้อผิดพลาด");
       }
     } catch (err) { console.error(err); }
   };
@@ -291,167 +291,167 @@ const FriendPopular: React.FC = () => {
     const isCurrentlyFollowing = selectedProfile.isFollowing;
 
     try {
-      if (isCurrentlyFollowing) {
-        const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, { method: "PUT", headers });
-        if (res.ok) updateLocalState(targetId, { isFollowing: false });
-      } else {
-        const res = await fetch(`${API_URL}/member/follows`, {
-          method: "POST", headers, body: JSON.stringify({ followed_id: targetId })
-        });
-        if (res.ok) updateLocalState(targetId, { isFollowing: true });
-      }
+        if (isCurrentlyFollowing) {
+            const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, { method: "PUT", headers });
+            if(res.ok) updateLocalState(targetId, { isFollowing: false });
+        } else {
+            const res = await fetch(`${API_URL}/member/follows`, { 
+                method: "POST", headers, body: JSON.stringify({ followed_id: targetId }) 
+            });
+            if(res.ok) updateLocalState(targetId, { isFollowing: true });
+        }
     } catch (err) { console.error(err); }
   };
 
   const handleBlockUser = async () => {
     if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
-      });
-      if (res.ok) {
-        alert("บล็อกเรียบร้อย");
-        const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
-        setDisplayList(prev => filterList(prev));
-        setPopulars(prev => filterList(prev));
-        setAllMembers(prev => filterList(prev));
-        setSelectedProfile(null);
-      }
-    } catch (err) { console.error(err); }
+        const res = await fetch(`${API_URL}/member/blocks`, {
+            method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
+        });
+        if (res.ok) {
+            alert("บล็อกเรียบร้อย");
+            const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
+            setDisplayList(prev => filterList(prev));
+            setPopulars(prev => filterList(prev));
+            setAllMembers(prev => filterList(prev));
+            setSelectedProfile(null);
+        }
+    } catch(err) { console.error(err); }
   };
 
   const handleEditProfile = () => {
-    navigate('/User/Profile/Edit');
+      navigate('/User/Profile/Edit');
   };
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-
+      
       {/* ----------------- LEFT SIDEBAR ----------------- */}
       <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
-
+        
         {/* Header & Search */}
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/User/Friends')}
-              className="hover:bg-orange-100 rounded-full p-2 transition-colors cursor-pointer"
+            <button 
+                onClick={() => navigate('/User/Friends')}
+                className="hover:bg-orange-100 rounded-full p-2 transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-6 h-6 text-gray-700" />
             </button>
             <h1 className="text-xl font-bold text-gray-800">
-              {searchTerm ? "ผลการค้นหา" : "เพื่อนยอดนิยม"}
+                {searchTerm ? "ผลการค้นหา" : "เพื่อนยอดนิยม"}
             </h1>
           </div>
-
+          
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="ค้นหาสมาชิก..."
-              value={searchTerm}
-              onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition-all"
+            <input 
+                type="text" 
+                placeholder="ค้นหาสมาชิก..." 
+                value={searchTerm}
+                onChange={handleSearch}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition-all"
             />
           </div>
         </div>
 
         {/* List Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {loading ? (
-            <div className="text-center py-10 text-gray-400">กำลังโหลด...</div>
-          ) : displayList.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              {searchTerm ? `ไม่พบ "${searchTerm}"` : "ไม่มีรายชื่อแนะนำ"}
-            </div>
-          ) : (
-            displayList.map((person) => (
-              <div
-                key={person.id}
-                onClick={() => setSelectedProfile(person)}
-                className={`rounded-2xl p-4 border transition-all cursor-pointer 
-                            ${selectedProfile?.id === person.id
-                    ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
-                    : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
-                  }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                    {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
-                    {person.avatar ? (
-                      <img src={person.avatar} alt={person.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                        <ImageIcon className="w-6 h-6 text-white" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-1">
-                      <h3 className="font-semibold text-base text-gray-800 truncate">{person.name}</h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        {person.status === 'self'
-                          ? 'คุณเอง'
-                          : (person.followerCount > 0 ? `${person.followerCount} ผู้ติดตาม` : 'สมาชิก')}
-                      </p>
-                    </div>
-
-                    {/* Mini Action Buttons */}
-                    <div className="mt-3">
-                      {/* ตัวเราเอง -> แก้ไข */}
-                      {person.status === 'self' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditProfile(); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-800 text-white rounded-lg font-medium text-xs hover:bg-slate-900 transition-all shadow-sm"
-                        >
-                          <Edit className="w-3 h-3" /> แก้ไขโปรไฟล์
-                        </button>
-                      )}
-
-                      {/* คนที่ส่งคำขอมา -> ตอบรับ */}
-                      {person.status === 'incoming' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate('/User/Friends/Request'); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-orange-100 text-orange-600 rounded-lg font-medium text-xs hover:bg-orange-200 transition-all"
-                        >
-                          <Check className="w-3 h-3" /> ตอบรับคำขอ
-                        </button>
-                      )}
-
-                      {/* เพื่อนแล้ว */}
-                      {person.status === 'friend' && (
-                        <div className="w-full py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-lg font-medium text-xs text-center">
-                          เป็นเพื่อนแล้ว
-                        </div>
-                      )}
-
-                      {/* ส่งไปแล้ว */}
-                      {person.status === 'pending' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleCancelRequest(person.requestId, person.id); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-100 text-slate-500 rounded-lg font-medium text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-200 border border-transparent transition-all group"
-                        >
-                          <span className="group-hover:hidden">ส่งคำขอแล้ว</span>
-                          <span className="hidden group-hover:inline">ยกเลิกคำขอ</span>
-                        </button>
-                      )}
-
-                      {/* ยังไม่เป็นเพื่อน */}
-                      {person.status === 'none' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleAddFriend(person.id); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium text-xs hover:from-orange-500 hover:to-orange-600 transition-all shadow-sm"
-                        >
-                          <UserPlus className="w-3 h-3" /> เพิ่มเพื่อน
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            {loading ? (
+                <div className="text-center py-10 text-gray-400">กำลังโหลด...</div>
+            ) : displayList.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                    {searchTerm ? `ไม่พบ "${searchTerm}"` : "ไม่มีรายชื่อแนะนำ"}
                 </div>
-              </div>
-            ))
-          )}
+            ) : (
+                displayList.map((person) => (
+                    <div
+                        key={person.id}
+                        onClick={() => setSelectedProfile(person)}
+                        className={`rounded-2xl p-4 border transition-all cursor-pointer 
+                            ${selectedProfile?.id === person.id 
+                                ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
+                                : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
+                            }`}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                                {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
+                                {person.avatar ? (
+                                    <img src={person.avatar} alt={person.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                                        <ImageIcon className="w-6 h-6 text-white" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <div className="mb-1">
+                                    <h3 className="font-semibold text-base text-gray-800 truncate">{person.name}</h3>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                        {person.status === 'self' 
+                                            ? 'คุณเอง' 
+                                            : (person.followerCount > 0 ? `${person.followerCount} ผู้ติดตาม` : 'สมาชิก')}
+                                    </p>
+                                </div>
+
+                                {/* Mini Action Buttons */}
+                                <div className="mt-3">
+                                    {/* ตัวเราเอง -> แก้ไข */}
+                                    {person.status === 'self' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleEditProfile(); }}
+                                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-800 text-white rounded-lg font-medium text-xs hover:bg-slate-900 transition-all shadow-sm"
+                                        >
+                                            <Edit className="w-3 h-3" /> แก้ไขโปรไฟล์
+                                        </button>
+                                    )}
+
+                                    {/* คนที่ส่งคำขอมา -> ตอบรับ */}
+                                    {person.status === 'incoming' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); navigate('/User/Friends/Request'); }}
+                                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-orange-100 text-orange-600 rounded-lg font-medium text-xs hover:bg-orange-200 transition-all"
+                                        >
+                                            <Check className="w-3 h-3" /> ตอบรับคำขอ
+                                        </button>
+                                    )}
+
+                                    {/* เพื่อนแล้ว */}
+                                    {person.status === 'friend' && (
+                                        <div className="w-full py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-lg font-medium text-xs text-center">
+                                            เป็นเพื่อนแล้ว
+                                        </div>
+                                    )}
+
+                                    {/* ส่งไปแล้ว */}
+                                    {person.status === 'pending' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleCancelRequest(person.requestId, person.id); }}
+                                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-100 text-slate-500 rounded-lg font-medium text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-200 border border-transparent transition-all group"
+                                        >
+                                            <span className="group-hover:hidden">ส่งคำขอแล้ว</span>
+                                            <span className="hidden group-hover:inline">ยกเลิกคำขอ</span>
+                                        </button>
+                                    )}
+
+                                    {/* ยังไม่เป็นเพื่อน */}
+                                    {person.status === 'none' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleAddFriend(person.id); }}
+                                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium text-xs hover:from-orange-500 hover:to-orange-600 transition-all shadow-sm"
+                                        >
+                                            <UserPlus className="w-3 h-3" /> เพิ่มเพื่อน
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            )}
         </div>
       </div>
 
@@ -459,7 +459,7 @@ const FriendPopular: React.FC = () => {
       <div className="flex-1 bg-slate-50 overflow-y-auto flex justify-center p-7">
         {selectedProfile ? (
           <div className="w-full max-w-[1100px] animate-in fade-in zoom-in-95 duration-300">
-
+            
             {/* PROFILE HEADER */}
             <div className="bg-white rounded-[28px] p-[35px_40px] mb-[20px] shadow-[0px_8px_20px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-[30px]">
@@ -481,7 +481,7 @@ const FriendPopular: React.FC = () => {
                       {selectedProfile.name}
                     </p>
                   </div>
-
+                  
                   <div className="flex mt-[15px] gap-[150px] ">
                     <div className="cursor-pointer group">
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
@@ -525,102 +525,103 @@ const FriendPopular: React.FC = () => {
 
             {/* ⭐ ACTION BUTTONS (Right Panel) */}
             <div className="self-start flex gap-3 min-w-[30px] mb-[20px]">
-
+              
               {/* 1. ปุ่มติดตาม (ไม่แสดงถ้าเป็นตัวเอง) */}
               {selectedProfile.status !== 'self' && (
-                <button
-                  onClick={handleFollowToggle}
-                  className={`w-full py-2 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-sm
+                  <button
+                    onClick={handleFollowToggle}
+                    className={`w-full py-2 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-sm
                                     ${selectedProfile.isFollowing
-                      ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      : "bg-[#C42E0A] text-white hover:bg-[#a02508]"
-                    }`}
-                >
-                  {selectedProfile.isFollowing ? (
-                    <><UserMinus size={18} /> เลิกติดตาม</>
-                  ) : (
-                    <><UserPlus size={18} /> ติดตาม</>
-                  )}
-                </button>
+                                        ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                        : "bg-[#C42E0A] text-white hover:bg-[#a02508]"
+                                    }`}
+                  >
+                    {selectedProfile.isFollowing ? (
+                      <><UserMinus size={18} /> เลิกติดตาม</>
+                    ) : (
+                      <><UserPlus size={18} /> ติดตาม</>
+                    )}
+                  </button>
               )}
 
-              {/* 2. ปุ่มจัดการความสัมพันธ์ */}
-              {selectedProfile.status === 'self' ? (
-                <button
-                  onClick={handleEditProfile}
-                  className="w-full py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 
+             {/* 2. ปุ่มจัดการความสัมพันธ์ */}
+             {selectedProfile.status === 'self' ? (
+                 <button
+                    onClick={handleEditProfile}
+                    className="w-full py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 
                                 flex justify-center items-center gap-2 shadow-sm transition-all"
-                >
-                  <Edit size={18} /> แก้ไขโปรไฟล์
-                </button>
-              ) : selectedProfile.status === 'friend' ? (
-                <button className="w-full py-2 bg-green-50 text-green-600 border border-green-200 rounded-xl 
+                 >
+                    <Edit size={18} /> แก้ไขโปรไฟล์
+                 </button>
+             ) : selectedProfile.status === 'friend' ? (
+                 <button className="w-full py-2 bg-green-50 text-green-600 border border-green-200 rounded-xl 
                                   font-semibold cursor-default flex items-center justify-center gap-2">
-                  <UserCheck size={18} /> เป็นเพื่อนแล้ว
-                </button>
-              ) : selectedProfile.status === 'pending' ? (
-                <button
-                  onClick={() => handleCancelRequest(selectedProfile.requestId, selectedProfile.id)}
-                  className="w-full py-2 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl 
+                    <UserCheck size={18} /> เป็นเพื่อนแล้ว
+                 </button>
+             ) : selectedProfile.status === 'pending' ? (
+                 <button
+                    onClick={() => handleCancelRequest(selectedProfile.requestId, selectedProfile.id)}
+                    className="w-full py-2 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl 
                                 font-semibold hover:bg-red-50 hover:text-red-500 hover:border-red-200 flex items-center justify-center gap-2 transition-all"
-                >
-                  <UserX size={18} /> ยกเลิกคำขอ
-                </button>
-              ) : selectedProfile.status === 'incoming' ? (
-                <button
-                  onClick={() => navigate('/User/Friends/Request')}
-                  className="w-full py-2 bg-orange-100 text-orange-600 rounded-xl font-semibold hover:bg-orange-200 
+                 >
+                    <UserX size={18} /> ยกเลิกคำขอ
+                 </button>
+             ) : selectedProfile.status === 'incoming' ? (
+                 <button
+                    onClick={() => navigate('/User/Friends/Request')}
+                    className="w-full py-2 bg-orange-100 text-orange-600 rounded-xl font-semibold hover:bg-orange-200 
                                 flex justify-center items-center gap-2 shadow-sm transition-all"
-                >
-                  <Check size={18} /> ตอบรับคำขอ
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleAddFriend(selectedProfile.id)}
-                  className="w-full py-2 bg-[#FF9F43] text-white rounded-xl font-semibold hover:bg-[#ff8c24] 
+                 >
+                    <Check size={18} /> ตอบรับคำขอ
+                 </button>
+             ) : (
+                 <button
+                    onClick={() => handleAddFriend(selectedProfile.id)}
+                    className="w-full py-2 bg-[#FF9F43] text-white rounded-xl font-semibold hover:bg-[#ff8c24] 
                                 flex justify-center items-center gap-2 shadow-sm transition-all"
-                >
-                  <UserPlus size={18} /> เพิ่มเพื่อน
-                </button>
-              )}
+                 >
+                    <UserPlus size={18} /> เพิ่มเพื่อน
+                 </button>
+             )}
 
-              {/* 3. ส่งข้อความ & Block (ซ่อนถ้าเป็นตัวเอง) */}
-              {selectedProfile.status !== 'self' && (
+            {/* 3. ส่งข้อความ & Block (ซ่อนถ้าเป็นตัวเอง) */}
+            {selectedProfile.status !== 'self' && (
                 <div className="flex gap-2 w-full">
-                  <button className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors">
+                <button className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors">
                     <MessageCircle size={20} />
                     <span className="text-sm">ส่งข้อความ</span>
-                  </button>
+                </button>
 
-                  <div className="relative">
+                <div className="relative"> 
                     <button
-                      onClick={() => setShowMoreMenu(!showMoreMenu)}
-                      className={`py-2 px-3 rounded-xl flex justify-center border transition-all ${showMoreMenu
-                          ? "bg-slate-100 text-slate-600 border-slate-300"
-                          : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
-                        }`}
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className={`py-2 px-3 rounded-xl flex justify-center border transition-all ${
+                        showMoreMenu 
+                        ? "bg-slate-100 text-slate-600 border-slate-300"
+                        : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                    }`}
                     >
-                      <MoreHorizontal size={20} />
+                    <MoreHorizontal size={20} />
                     </button>
 
                     {showMoreMenu && (
-                      <div className="absolute right-0 top-full mt-2 w-32 bg-white border border-slate-100 
+                    <div className="absolute right-0 top-full mt-2 w-32 bg-white border border-slate-100 
                                     rounded-xl shadow-lg overflow-hidden z-20 p-1 animate-in zoom-in-95">
                         <button
-                          onClick={() => {
+                        onClick={() => {
                             handleBlockUser();
                             setShowMoreMenu(false);
-                          }}
-                          className="w-full py-2 px-3 text-red-500 font-medium text-sm hover:bg-red-50 
+                        }}
+                        className="w-full py-2 px-3 text-red-500 font-medium text-sm hover:bg-red-50 
                                     rounded-lg flex items-center gap-2 transition-colors"
                         >
-                          <Ban size={16} /> Block
+                        <Ban size={16} /> Block
                         </button>
-                      </div>
+                    </div>
                     )}
-                  </div>
                 </div>
-              )}
+                </div>
+            )}
             </div>
 
             {/* TABS CARD */}

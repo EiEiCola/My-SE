@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col } from "antd";
-import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image } from "antd";
+import { EyeOutlined, EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ReportService, type Report } from "../../../../services/http/report";
 
@@ -24,21 +24,10 @@ const ReportManage: React.FC = () => {
   const [currentReport, setCurrentReport] = useState<Report | null>(null);
   const [newStatus, setNewStatus] = useState<number>(0);
 
-  // Filter States
-  const [searchText, setSearchText] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<number | undefined>(undefined);
-  const [filterType, setFilterType] = useState<string | undefined>(undefined);
-
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await ReportService.getAdminReports({
-        page: 1,
-        page_size: 100,
-        q: searchText,
-        status_id: filterStatus,
-        target_type: filterType
-      });
+      const res = await ReportService.getAdminReports({ page: 1, page_size: 100 });
       // Helper to handle different response structures if needed, strictly speaking based on controller it returns { data: items, total: count }
       // The controller returns: c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
       // So res.data.data is the array.
@@ -57,7 +46,7 @@ const ReportManage: React.FC = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [searchText, filterStatus, filterType]);
+  }, []);
 
   const handleView = (report: Report) => {
     setCurrentReport(report);
@@ -94,7 +83,8 @@ const ReportManage: React.FC = () => {
       title: "ผู้แจ้ง",
       key: "reporter",
       render: (_: any, record: Report) => {
-        return (record.reporter?.username) || (record.reporter?.email) || `ผู้ใช้ #${record.reporter_id}`;
+        // Assuming reporter object exists based on preloads, otherwise show ID
+        return (record as any).reporter?.username || (record as any).reporter?.email || `ผู้ใช้ #${record.reporter_id}`;
       }
     },
     {
@@ -156,53 +146,11 @@ const ReportManage: React.FC = () => {
   return (
     <main className="flex-1 overflow-y-auto bg-transparent p-6">
       <Card className="rounded-2xl shadow-sm" bodyStyle={{ padding: "40px" }}>
-        <div style={{ marginBottom: 20 }}>
-          <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={8} md={6}>
-              <Input
-                prefix={<SearchOutlined className="text-gray-400" />}
-                placeholder="ค้นหา (หัวข้อ, รายละเอียด, ผู้แจ้ง)..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-              />
-            </Col>
-            <Col xs={24} sm={8} md={4}>
-              <Select
-                placeholder="สถานะ"
-                style={{ width: "100%" }}
-                allowClear
-                value={filterStatus}
-                onChange={(val) => setFilterStatus(val)}
-              >
-                <Option value={1}>รอดำเนินการ</Option>
-                <Option value={2}>กำลังดำเนินการ</Option>
-                <Option value={3}>เสร็จสิ้น</Option>
-                <Option value={4}>ปฏิเสธ</Option>
-              </Select>
-            </Col>
-            <Col xs={24} sm={8} md={4}>
-              <Select
-                placeholder="ประเภทเป้าหมาย"
-                style={{ width: "100%" }}
-                allowClear
-                value={filterType}
-                onChange={(val) => setFilterType(val)}
-              >
-                <Option value="announcement">Announcement</Option>
-                <Option value="pr_submission">PR Submission</Option>
-                <Option value="member">Member</Option>
-                <Option value="post">Post</Option>
-                <Option value="comment">Comment</Option>
-                <Option value="review">Review</Option>
-              </Select>
-            </Col>
-            <Col xs={24} sm={8} md={4}>
-              <Button icon={<ReloadOutlined />} onClick={fetchReports}>
-                รีโหลด
-              </Button>
-            </Col>
-          </Row>
+        <div className="flex justify-between items-center mb-6">
+          <Title level={3} style={{ color: "#C42E0A", margin: 0 }}>
+            จัดการรายงานปัญหา
+          </Title>
+          <Button onClick={fetchReports}>รีเฟรช</Button>
         </div>
 
         <Table
@@ -293,7 +241,6 @@ const ReportManage: React.FC = () => {
         </Modal>
       </Card>
     </main>
-
   );
 };
 
