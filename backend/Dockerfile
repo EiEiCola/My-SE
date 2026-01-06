@@ -24,9 +24,6 @@ RUN apk --no-cache add ca-certificates tzdata
 # Copy binary from builder
 COPY --from=builder /app/main .
 
-# Copy .env file (optional, can be overridden by docker-compose)
-COPY .env .
-
 # Expose port
 EXPOSE 8080
 

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 /** แปลง url รูปให้เป็น full url เสมอ */
 const toFullUrl = (u?: string) => {
@@ -110,7 +110,7 @@ export async function getCategories() {
 
   // แปลงข้อมูลจาก Backend (Title) ให้ตรงกับ Frontend (name)
   // และจัดการโครงสร้าง parent_id ให้ React ใช้งานได้ง่าย
-  
+
   const rawData = json.data || [];
   return rawData.map((item: any) => ({
     id: item.ID || item.id,

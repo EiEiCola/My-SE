@@ -1,0 +1,29 @@
+
+func (s *AnnouncementService) GetUnreadAnnouncements(memberID uint, limit int) ([]entity.Announcement, error) {
+	now := time.Now()
+	var announcements []entity.Announcement
+
+	// Subquery: Select IDs read by member
+	readSubQuery := s.DB.Model(&entity.AnnouncementRead{}).Select("announcement_id").Where("member_id = ?", memberID)
+
+	err := s.DB.Preload("Media").
+		Where("status = ?", 1). // Active
+		Where("publish_start_at <= ? AND publish_end_at >= ?", now, now).
+		Where("ann_id NOT IN (?)", readSubQuery).
+		Order("publish_start_at DESC").
+		Limit(limit).
+		Find(&announcements).Error
+
+	return announcements, err
+}
+
+func (s *AnnouncementService) MarkAsRead(memberID uint, announcementID int) error {
+	read := entity.AnnouncementRead{
+		MemberID:       memberID,
+		AnnouncementID: announcementID,
+		ReadAt:         time.Now(),
+	}
+	// Use FirstOrCreate to avoid duplicates
+	return s.DB.Where("member_id = ? AND announcement_id = ?", memberID, announcementID).
+		FirstOrCreate(&read).Error
+}

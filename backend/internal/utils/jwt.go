@@ -68,8 +68,8 @@ func ParseToken(tokenStr string) (*Claims, error) {
 // -------------------- reset token (forgot password) --------------------
 
 type ResetClaims struct {
-	UserID   uint   `json:"user_id"`
-	Purpose  string `json:"purpose"`
+	UserID  uint   `json:"user_id"`
+	Purpose string `json:"purpose"`
 	jwt.RegisteredClaims
 }
 

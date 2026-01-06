@@ -25,15 +25,21 @@ const AnnouncementRequestDetail: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/pr-submissions/${id}`);
+        const token = localStorage.getItem("token");
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const res = await fetch(`/api/admin/pr-submissions/${id}`, { headers });
         if (!res.ok) throw new Error("Failed to fetch submission");
         const json = await res.json();
         setData(json);
         setTitle(json.title);
         setContent(json.content);
         // Assuming backend sends RFC3339, slice to YYYY-MM-DD for input type=date
-        if (json.req_start_at) setDate(json.req_start_at.slice(0, 10));
-        if (json.req_end_at) setEndDate(json.req_end_at.slice(0, 10));
+        if (json.req_start_at) setDate(new Date(json.req_start_at).toISOString().split('T')[0]);
+        if (json.req_end_at) setEndDate(new Date(json.req_end_at).toISOString().split('T')[0]);
 
         // Map status ID to string for UI
         if (json.status_id === 1) setStatus('pending'); // Fixed: 1 is Pending
@@ -54,9 +60,15 @@ const AnnouncementRequestDetail: React.FC = () => {
     if (!window.confirm("ยืนยันการอนุมัติ?")) return;
     setProcessing(true);
     try {
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
       });
       if (!res.ok) throw new Error("Failed to approve");
@@ -80,9 +92,15 @@ const AnnouncementRequestDetail: React.FC = () => {
     }
     setProcessing(true);
     try {
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ status_id: 3, create_announcement: false, comment: rejectReason }), // Status 3 = Rejected
       });
       if (!res.ok) throw new Error("Failed to reject");
@@ -110,9 +128,15 @@ const AnnouncementRequestDetail: React.FC = () => {
         req_end_at: endDate ? new Date(endDate).toISOString() : null,
       };
 
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/admin/pr-submissions/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -147,9 +171,9 @@ const AnnouncementRequestDetail: React.FC = () => {
               </div>
             )}
             <div>
-              <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{data.member?.username}</div>
-              <div style={{ color: '#666', fontSize: '0.9em' }}>{data.member?.email || 'No Email'} (ID: {data.member_id})</div>
-              <div style={{ color: '#888', fontSize: '0.85em' }}>ส่งเมื่อ: {new Date(data.req_start_at).toLocaleDateString('th-TH')}</div>
+              <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{data.member?.username || `Member #${data.member_id}`}</div>
+              {data.member?.email && <div style={{ color: '#666', fontSize: '0.9em' }}>{data.member.email}</div>}
+              <div style={{ color: '#888', fontSize: '0.85em' }}>ID: {data.member_id} • ส่งเมื่อ: {new Date(data.req_start_at).toLocaleDateString('th-TH')}</div>
             </div>
           </div>
 
