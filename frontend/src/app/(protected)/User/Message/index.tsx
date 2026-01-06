@@ -329,14 +329,14 @@ const ChatPage: React.FC = () => {
                                 <Trash2 className="w-3 h-3"/> ข้อความถูกยกเลิก
                              </span>
                           ) : msg.type_message === 'text' ? (
-                             msg.content
+                            msg.content
                           ) : msg.type_message === 'file' ? (
-                             <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4"/>
-                                <span className="underline cursor-pointer">{msg.content}</span>
-                             </div>
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              <span className="underline cursor-pointer">{msg.content}</span>
+                            </div>
                           ) : (
-                             msg.content
+                            msg.content
                           )}
                         </div>
                         

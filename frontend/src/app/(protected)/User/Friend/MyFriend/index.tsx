@@ -25,12 +25,12 @@ interface FriendItem {
   name: string;
   username: string;
   avatar: string;
-  
+
   // Stats
   friendCount: number;
   followerCount: number;
   followingCount: number;
-  
+
   // Profile
   bio: string;
   gender: string;
@@ -42,18 +42,18 @@ interface FriendItem {
 
 const FriendRelation: React.FC = () => {
   const navigate = useNavigate();
-  const API_URL = "http://localhost:8080/api";
+  const API_URL = "/api";
   const token = localStorage.getItem("token");
 
   // State
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<FriendItem[]>([]);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<number | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<FriendItem | null>(null);
-  
+
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [activeTab, setActiveTab] = useState("post");
 
@@ -68,7 +68,7 @@ const FriendRelation: React.FC = () => {
   const getImageUrl = (path: string | undefined | null) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("data:")) return path;
-    return `http://localhost:8080${path.startsWith("/") ? "" : "/"}${path}`;
+    return `${API_URL.replace("/api", "")}${path.startsWith("/") ? "" : "/"}${path}`;
   };
 
   // Reset Menu when profile changes
@@ -112,10 +112,10 @@ const FriendRelation: React.FC = () => {
             followingCount: m.following_count || 0,
 
             bio: m.bio || "-",
-            gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
+           gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
             dob: m.dob ? dayjs(m.dob).format("D MMM BBBB") : "-",
 
-            isFollowing: followingSet.has(m.ID || m.id)
+          isFollowing: followingSet.has(m.ID || m.id)
         })));
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -123,7 +123,7 @@ const FriendRelation: React.FC = () => {
 
   const fetchBlockedUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/member/my/blocks`, { headers }); 
+      const res = await fetch(`${API_URL}/member/my/blocks`, { headers });
       const data = await res.json();
       if (data.data) {
         setBlockedUsers(data.data.map((m: any) => ({
@@ -157,7 +157,7 @@ const FriendRelation: React.FC = () => {
     setFriends(prev => prev.map(f => f.id === targetId ? { ...f, ...updates } : f));
     // อัปเดตหน้าขวาด้วยถ้าเปิดอยู่
     if (selectedProfile?.id === targetId) {
-        setSelectedProfile(prev => prev ? { ...prev, ...updates } : null);
+      setSelectedProfile(prev => prev ? { ...prev, ...updates } : null);
     }
   };
 
@@ -169,7 +169,7 @@ const FriendRelation: React.FC = () => {
         setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
         // ถ้าคนที่ถูกลบ คือคนที่เปิดดูอยู่ ให้ปิดหน้าขวา
         if (selectedProfile?.id === friendId) {
-            setSelectedProfile(null);
+          setSelectedProfile(null);
         }
       }
     } catch (e) { console.error(e); }
@@ -192,8 +192,8 @@ const FriendRelation: React.FC = () => {
   const handleUnblock = async (blockedId: number) => {
     if (!window.confirm("ต้องการปลดบล็อก?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, { 
-        method: "PUT", headers 
+      const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, {
+        method: "PUT", headers
       });
       if (res.ok) {
         setBlockedUsers(prev => prev.filter(u => u.id !== blockedId));
@@ -204,25 +204,25 @@ const FriendRelation: React.FC = () => {
 
   const handleFollowToggle = async (targetId: number, isCurrentlyFollowing: boolean) => {
     try {
-        if (isCurrentlyFollowing) {
-            const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, { method: "PUT", headers });
-            if(res.ok) updateLocalState(targetId, { isFollowing: false });
-        } else {
-            const res = await fetch(`${API_URL}/member/follows`, { 
-                method: "POST", headers, body: JSON.stringify({ followed_id: targetId }) 
-            });
-            if(res.ok) updateLocalState(targetId, { isFollowing: true });
-        }
+      if (isCurrentlyFollowing) {
+        const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, { method: "PUT", headers });
+        if (res.ok) updateLocalState(targetId, { isFollowing: false });
+      } else {
+        const res = await fetch(`${API_URL}/member/follows`, {
+          method: "POST", headers, body: JSON.stringify({ followed_id: targetId })
+        });
+        if (res.ok) updateLocalState(targetId, { isFollowing: true });
+      }
     } catch (e) { console.error(e); }
   };
-  
+
   const handleMessage = (name: string) => { alert(`Chat with ${name} (Coming Soon)`); };
 
   const filteredFriends = friends.filter(friend => friend.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="flex h-screen bg-gray-100" onClick={() => setActiveMenu(null)}>
-      
+
       {/* ----------------- LEFT SIDEBAR ----------------- */}
       <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
         <div className="p-4 border-b border-slate-100">
@@ -240,70 +240,70 @@ const FriendRelation: React.FC = () => {
           </div>
 
           <div className="flex justify-between items-center px-1">
-             <p className="text-sm text-gray-600 font-medium">เพื่อน {filteredFriends.length} คน</p>
-             <button 
-                onClick={handleOpenBlockModal}
-                className="text-xs text-red-500 hover:text-red-600 font-medium hover:underline flex items-center gap-1 transition-colors"
-             >
-                <Ban className="w-3 h-3" /> รายชื่อที่ถูกบล็อก
-             </button>
+            <p className="text-sm text-gray-600 font-medium">เพื่อน {filteredFriends.length} คน</p>
+            <button
+              onClick={handleOpenBlockModal}
+              className="text-xs text-red-500 hover:text-red-600 font-medium hover:underline flex items-center gap-1 transition-colors"
+            >
+              <Ban className="w-3 h-3" /> รายชื่อที่ถูกบล็อก
+            </button>
           </div>
         </div>
 
         {/* Friend List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {filteredFriends.map((friend) => (
-            <div 
-                key={friend.id} 
-                onClick={() => setSelectedProfile(friend)}
-                className={`relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group border-b border-slate-50 last:border-0
+            <div
+              key={friend.id}
+              onClick={() => setSelectedProfile(friend)}
+              className={`relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group border-b border-slate-50 last:border-0
                     ${selectedProfile?.id === friend.id ? 'bg-orange-50' : 'hover:bg-gray-50'}
                 `}
             >
-               {/* Avatar */}
-               <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
-                  {friend.avatar ? <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}
-               </div>
-               {/* Info */}
-               <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-800 truncate text-sm">{friend.name}</h3>
-                  <p className="text-xs text-gray-500">เพื่อน</p>
-               </div>
-               {/* Menu (3 Dots) */}
-               <div className="relative">
-                  <button onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === friend.id ? null : friend.id); }}
-                    className={`rounded-full p-2 transition-all ${activeMenu === friend.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100 group-hover:text-gray-600'}`}>
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  {activeMenu === friend.id && (
-                    <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-64 z-50 animate-fadeIn origin-top-right">
-                       <button onClick={() => handleMessage(friend.name)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                           <MessageCircle className="w-5 h-5 text-gray-700" /><p className="text-sm font-semibold text-gray-800">ส่งข้อความ</p>
-                       </button>
-                       
-                       {/* Follow Toggle */}
-                       <button onClick={() => handleFollowToggle(friend.id, friend.isFollowing)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                           {friend.isFollowing ? <EyeOff className="w-5 h-5 text-gray-700" /> : <UserPlus className="w-5 h-5 text-gray-700" />}
-                           <div>
-                               <p className="text-sm font-semibold text-gray-800">{friend.isFollowing ? "เลิกติดตาม" : "ติดตาม"}</p>
-                               <p className="text-[10px] text-gray-500">{friend.isFollowing ? "หยุดดูเนื้อหาในฟีด" : "ดูเนื้อหาในฟีด"}</p>
-                           </div>
-                       </button>
+              {/* Avatar */}
+              <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
+                {friend.avatar ? <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-800 truncate text-sm">{friend.name}</h3>
+                <p className="text-xs text-gray-500">เพื่อน</p>
+              </div>
+              {/* Menu (3 Dots) */}
+              <div className="relative">
+                <button onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === friend.id ? null : friend.id); }}
+                  className={`rounded-full p-2 transition-all ${activeMenu === friend.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100 group-hover:text-gray-600'}`}>
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
 
-                       <button onClick={() => handleBlock(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                           <Ban className="w-5 h-5 text-gray-700" /><div><p className="text-sm font-semibold text-gray-800">บล็อก</p><p className="text-[10px] text-gray-500">ไม่เห็นเนื้อหาของคุณ</p></div>
-                       </button>
-                       
-                       <div className="h-px bg-gray-100 my-1 mx-4"></div>
-                       
-                       <button onClick={() => handleUnfriend(friend.id)} className="w-full px-4 py-3 hover:bg-red-50 flex items-center gap-3 transition-colors text-left group/delete">
-                           <UserMinus className="w-5 h-5 text-red-500 group-hover/delete:text-red-600" /><p className="text-sm font-semibold text-red-500 group-hover/delete:text-red-600">เลิกเป็นเพื่อน</p>
-                       </button>
-                    </div>
-                  )}
-               </div>
+                {/* Dropdown Menu */}
+                {activeMenu === friend.id && (
+                  <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-64 z-50 animate-fadeIn origin-top-right">
+                    <button onClick={() => handleMessage(friend.name)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                      <MessageCircle className="w-5 h-5 text-gray-700" /><p className="text-sm font-semibold text-gray-800">ส่งข้อความ</p>
+                    </button>
+
+                    {/* Follow Toggle */}
+                    <button onClick={() => handleFollowToggle(friend.id, friend.isFollowing)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                      {friend.isFollowing ? <EyeOff className="w-5 h-5 text-gray-700" /> : <UserPlus className="w-5 h-5 text-gray-700" />}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{friend.isFollowing ? "เลิกติดตาม" : "ติดตาม"}</p>
+                        <p className="text-[10px] text-gray-500">{friend.isFollowing ? "หยุดดูเนื้อหาในฟีด" : "ดูเนื้อหาในฟีด"}</p>
+                      </div>
+                    </button>
+
+                    <button onClick={() => handleBlock(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                      <Ban className="w-5 h-5 text-gray-700" /><div><p className="text-sm font-semibold text-gray-800">บล็อก</p><p className="text-[10px] text-gray-500">ไม่เห็นเนื้อหาของคุณ</p></div>
+                    </button>
+
+                    <div className="h-px bg-gray-100 my-1 mx-4"></div>
+
+                    <button onClick={() => handleUnfriend(friend.id)} className="w-full px-4 py-3 hover:bg-red-50 flex items-center gap-3 transition-colors text-left group/delete">
+                      <UserMinus className="w-5 h-5 text-red-500 group-hover/delete:text-red-600" /><p className="text-sm font-semibold text-red-500 group-hover/delete:text-red-600">เลิกเป็นเพื่อน</p>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -325,7 +325,7 @@ const FriendRelation: React.FC = () => {
                     <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1">{selectedProfile.username}</h3>
                     <p className="text-slate-500 text-lg m-0">{selectedProfile.name}</p>
                   </div>
-                  
+
                   <div className="flex mt-[15px] gap-[150px] ">
                     <div className="cursor-pointer group">
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">{selectedProfile.friendCount}</h4>
@@ -355,7 +355,7 @@ const FriendRelation: React.FC = () => {
 
             {/* ACTION BUTTONS (Layout ตามรูป) */}
             <div className="flex items-center gap-3 w-full mb-[20px]">
-              
+
               {/* 1. ปุ่มติดตาม */}
               <button
                 onClick={() => handleFollowToggle(selectedProfile.id, selectedProfile.isFollowing)}
@@ -366,7 +366,7 @@ const FriendRelation: React.FC = () => {
               </button>
 
               {/* 2. ปุ่มจัดการเพื่อน (มี Unfriend) */}
-              <button 
+              <button
                 onClick={() => handleUnfriend(selectedProfile.id)}
                 className="flex-1 py-2.5 bg-[#FF9F43] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#ff8c24] transition-all shadow-sm group"
               >
@@ -375,7 +375,7 @@ const FriendRelation: React.FC = () => {
               </button>
 
               {/* 3. ปุ่มส่งข้อความ */}
-              <button 
+              <button
                 onClick={() => handleMessage(selectedProfile.name)}
                 className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex items-center justify-center gap-2 font-medium text-sm transition-colors shadow-sm"
               >
@@ -437,19 +437,19 @@ const FriendRelation: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               <p className="text-sm text-gray-500 mb-4 font-medium">บล็อกอยู่ {blockedUsers.length} รายการ</p>
-              {blockedUsers.length === 0 ? <div className="text-center py-10 text-gray-400">ไม่มีรายชื่อที่ถูกบล็อก</div> : 
+              {blockedUsers.length === 0 ? <div className="text-center py-10 text-gray-400">ไม่มีรายชื่อที่ถูกบล็อก</div> :
                 <div className="space-y-4">
-                    {blockedUsers.map((user) => (
+                  {blockedUsers.map((user) => (
                     <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition-colors">
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                           <div className="w-12 h-12 bg-slate-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">{user.avatar ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}</div>
-                           <div className="flex-1 min-w-0"><h3 className="font-semibold text-gray-800 truncate text-sm">{user.name}</h3><p className="text-xs text-red-400">ถูกบล็อก</p></div>
-                        </div>
-                        <button onClick={() => handleUnblock(user.id)} className="ml-4 px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full font-medium text-xs transition-colors whitespace-nowrap border border-slate-200 flex items-center gap-1 hover:text-green-600 hover:border-green-200 hover:bg-green-50">
-                            <ShieldOff className="w-3 h-3" /> ปลดบล็อก
-                        </button>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="w-12 h-12 bg-slate-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">{user.avatar ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}</div>
+                        <div className="flex-1 min-w-0"><h3 className="font-semibold text-gray-800 truncate text-sm">{user.name}</h3><p className="text-xs text-red-400">ถูกบล็อก</p></div>
+                      </div>
+                      <button onClick={() => handleUnblock(user.id)} className="ml-4 px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full font-medium text-xs transition-colors whitespace-nowrap border border-slate-200 flex items-center gap-1 hover:text-green-600 hover:border-green-200 hover:bg-green-50">
+                        <ShieldOff className="w-3 h-3" /> ปลดบล็อก
+                      </button>
                     </div>
-                    ))}
+                  ))}
                 </div>
               }
             </div>
