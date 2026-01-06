@@ -13,8 +13,10 @@ import (
 	"github.com/sut68/team12/backend/config"
 	"github.com/sut68/team12/backend/config/dataseed"
 	controller "github.com/sut68/team12/backend/internal/app/controller/admin"
+	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/app/websocket"
 	"github.com/sut68/team12/backend/internal/routes"
 )
 
@@ -25,7 +27,6 @@ func main() {
 
 	// 1. Setup Database
 	config.Connect()
-
 	db := config.DB
 
 	// 2. Setup Gin
@@ -65,6 +66,24 @@ func main() {
 	})
 
 	dataseed.SeedAll(config.DB)
+	// ==========================================
+	// 🚀 CHAT SYSTEM INITIALIZATION
+	// ==========================================
+
+	// 1. WebSocket Hub
+	hub := websocket.NewHub()
+	go hub.Run() // ⭐ สำคัญ: ต้อง Run Hub ไม่งั้นแชทไม่วิ่ง
+
+	// 2. Repositories
+	chatRepo := repository.NewChatRepository(db)
+	friendRepo := repository.NewFriendRepository(db) // ✅ ต้องมี FriendRepo เพื่อเช็ค Block
+
+	// 3. Service (Inject ChatRepo + FriendRepo + Hub)
+	// ⭐ แก้ไขจุดที่ผิด: ต้องใส่ friendRepo ด้วย ตามที่แก้ใน Service ล่าสุด
+	chatSvc := services.NewChatService(chatRepo, friendRepo, hub)
+
+	// 4. Controller
+	chatCtl := memberCtl.NewChatController(chatSvc, hub)
 
 	// 4. Build dependencies (Repo -> Service -> Controller)
 
@@ -86,7 +105,7 @@ func main() {
 	categoryCtl := controller.NewAdminCategoryController(categorySvc)
 
 	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{

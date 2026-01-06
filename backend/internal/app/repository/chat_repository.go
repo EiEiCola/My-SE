@@ -1,126 +1,152 @@
 package repository
 
-// import (
-//     "errors"
-//     "time"
+import (
+	"errors"
+	"time"
 
-//     "gorm.io/gorm"
-//     "github.com/sut68/team12/backend/internal/entity"
-// )
+	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
+)
 
-// // struct นี้เป็นตัวพิมพ์เล็ก (Private) ถูกแล้ว
-// type chatRepository struct {
-//     db *gorm.DB
-// }
+type ChatRepository interface {
+	CreateRoom(room *entity.RoomChat) error
 
-// // ✅ แก้ไขตรงนี้: Return Type ต้องเป็น ChatRepository (Interface)
-// func NewChatRepository(db *gorm.DB) ChatRepository {
-//     return &chatRepository{db: db}
-// }
+	// ✅ เพิ่ม 3 ฟังก์ชันนี้ใน Interface เพื่อให้ Service เรียกใช้ได้
+	AddRoomMember(roomMember *entity.RoomMember) error
+	GetRoomMembers(roomID uint) ([]entity.RoomMember, error)
+	RemoveRoomMember(roomID, memberID uint) error
 
-// // 1. สร้างห้องใหม่
-// func (r *chatRepository) CreateRoom(room *entity.RoomChat) error {
-//     return r.db.Create(room).Error
-// }
+	FindPrivateRoom(user1, user2 uint) (*entity.RoomChat, error)
+	GetRoomByID(roomID uint) (*entity.RoomChat, error)
+	GetMyRooms(userID uint) ([]entity.RoomChat, error)
+	CreateMessage(msg *entity.Message) error
+	GetRoomMessages(userID, roomID uint) ([]entity.Message, error)
 
-// // 2. เพิ่มสมาชิกเข้าห้อง
-// func (r *chatRepository) AddRoomMember(roomMember *entity.RoomMember) error {
-//     return r.db.Create(roomMember).Error
-// }
+	// Sticker / Unsend
+	CountMemberReward(memberID, rewardID uint) (int64, error)
+	GetMessageByID(msgID uint) (*entity.Message, error)
+	UnsendMessage(msg *entity.Message) error
+	ClearChatHistory(memberID, roomID uint) error
+}
 
-// // 3. ดึงข้อมูลห้องจาก ID
-// func (r *chatRepository) GetRoomByID(roomID uint) (*entity.RoomChat, error) {
-//     var room entity.RoomChat
-//     err := r.db.First(&room, roomID).Error
-//     return &room, err
-// }
+type chatRepository struct {
+	db *gorm.DB
+}
 
-// // 4. ดึงรายชื่อห้องของฉัน
-// func (r *chatRepository) GetMyRooms(memberID uint) ([]entity.RoomChat, error) {
-//     var rooms []entity.RoomChat
-//     err := r.db.Joins("JOIN room_members ON room_members.room_id = room_chats.id").
-//         Where("room_members.member_id = ?", memberID).
-//         Order("room_chats.updated_at DESC").
-//         Find(&rooms).Error
-//     return rooms, err
-// }
+func NewChatRepository(db *gorm.DB) ChatRepository {
+	return &chatRepository{db: db}
+}
 
-// // 5. สร้างข้อความ
-// func (r *chatRepository) CreateMessage(msg *entity.Message) error {
-//     return r.db.Transaction(func(tx *gorm.DB) error {
-//         if err := tx.Create(msg).Error; err != nil {
-//             return err
-//         }
-//         // อัปเดตเวลาห้อง
-//         if err := tx.Model(&entity.RoomChat{}).Where("id = ?", msg.RoomID).
-//             Update("updated_at", time.Now()).Error; err != nil {
-//             return err
-//         }
-//         return nil
-//     })
-// }
+func (r *chatRepository) CreateRoom(room *entity.RoomChat) error {
+	return r.db.Create(room).Error
+}
 
-// // 6. ดึงข้อความในห้อง (กรอง ClearedAt)
-// func (r *chatRepository) GetRoomMessages(userID, roomID uint) ([]entity.Message, error) {
-//     var messages []entity.Message
+// 2. เพิ่มสมาชิกเข้าห้อง
+func (r *chatRepository) AddRoomMember(roomMember *entity.RoomMember) error {
+	return r.db.Create(roomMember).Error
+}
 
-//     var member entity.RoomMember
-//     if err := r.db.Where("room_id = ? AND member_id = ?", roomID, userID).First(&member).Error; err != nil {
-//         return nil, errors.New("member not found in room")
-//     }
+// ✅ 3. ดึงสมาชิกในห้อง (สำหรับดูว่าใครอยู่ในกลุ่มบ้าง)
+func (r *chatRepository) GetRoomMembers(roomID uint) ([]entity.RoomMember, error) {
+	var members []entity.RoomMember
+	// Preload Member เพื่อเอารูป/ชื่อ
+	err := r.db.Preload("Member").Where("room_id = ?", roomID).Find(&members).Error
+	return members, err
+}
 
-//     // ใช้ JoinedAt เป็นจุดตัดเวลา (ถ้ามี field last_cleared_at ให้เปลี่ยนมาใช้ตรงนี้)
-//     cutoffTime := member.JoinedAt 
+// ✅ 4. ลบสมาชิกออกจากห้อง (Leave Group)
+func (r *chatRepository) RemoveRoomMember(roomID, memberID uint) error {
+	return r.db.Where("room_id = ? AND member_id = ?", roomID, memberID).
+		Delete(&entity.RoomMember{}).Error
+}
 
-//     err := r.db.Where("room_id = ? AND sent_at >= ?", roomID, cutoffTime).
-//         Order("sent_at ASC").
-//         Find(&messages).Error
+func (r *chatRepository) FindPrivateRoom(user1, user2 uint) (*entity.RoomChat, error) {
+	var room entity.RoomChat
+	err := r.db.Raw(`
+        SELECT rc.* FROM room_chats rc
+        JOIN room_members rm1 ON rc.room_id = rm1.room_id
+        JOIN room_members rm2 ON rc.room_id = rm2.room_id
+        WHERE rc.rc_type = 'private' 
+        AND rm1.member_id = ? AND rm2.member_id = ?
+        LIMIT 1
+    `, user1, user2).Scan(&room).Error
 
-//     return messages, err
-// }
+	if room.ID == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &room, err
+}
 
-// // 7. ดึงข้อความเดียว
-// func (r *chatRepository) GetMessageByID(msgID uint) (*entity.Message, error) {
-//     var msg entity.Message
-//     err := r.db.First(&msg, msgID).Error
-//     return &msg, err
-// }
+func (r *chatRepository) GetRoomByID(roomID uint) (*entity.RoomChat, error) {
+	var room entity.RoomChat
+	err := r.db.First(&room, roomID).Error
+	return &room, err
+}
 
-// // 8. หาห้องส่วนตัว (Private 1-1)
-// func (r *chatRepository) FindPrivateRoom(member1ID, member2ID uint) (*entity.RoomChat, error) {
-//     var room entity.RoomChat
-    
-//     err := r.db.Table("room_chats").
-//         Joins("JOIN room_members m1 ON m1.room_id = room_chats.id").
-//         Joins("JOIN room_members m2 ON m2.room_id = room_chats.id").
-//         Where("room_chats.type = ?", "private").
-//         Where("m1.member_id = ? AND m2.member_id = ?", member1ID, member2ID).
-//         First(&room).Error
+func (r *chatRepository) GetMyRooms(userID uint) ([]entity.RoomChat, error) {
+	var rooms []entity.RoomChat
+	err := r.db.Joins("JOIN room_members ON room_members.room_id = room_chats.room_id").
+		Where("room_members.member_id = ?", userID).
+		Order("room_chats.updated_at DESC").
+		Preload("Member").
+		Preload("Member.Member").
+		Find(&rooms).Error
+	return rooms, err
+}
 
-//     if errors.Is(err, gorm.ErrRecordNotFound) {
-//         return nil, nil 
-//     }
-//     return &room, err
-// }
+func (r *chatRepository) CreateMessage(msg *entity.Message) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(msg).Error; err != nil {
+			return err
+		}
+		// Update room timestamp
+		return tx.Model(&entity.RoomChat{}).Where("room_id = ?", msg.RoomID).
+			Update("updated_at", time.Now()).Error
+	})
+}
 
-// // 9. เช็คว่ามี Sticker
-// func (r *chatRepository) CountMemberReward(memberID, rewardID uint) (int64, error) {
-//     var count int64
-//     // ⚠️ เช็คชื่อ Table ใน Database จริงๆ อีกทีนะครับ
-//     err := r.db.Table("member_rewards").
-//         Where("member_id = ? AND reward_id = ?", memberID, rewardID).
-//         Count(&count).Error
-//     return count, err
-// }
+func (r *chatRepository) GetRoomMessages(userID, roomID uint) ([]entity.Message, error) {
+	var messages []entity.Message
+	var member entity.RoomMember
 
-// // 10. ยกเลิกข้อความ
-// func (r *chatRepository) UnsendMessage(msg *entity.Message) error {
-//     return r.db.Save(msg).Error
-// }
+	// 1. หาข้อมูลสมาชิกเพื่อดู ClearedAt
+	if err := r.db.Where("room_id = ? AND member_id = ?", roomID, userID).First(&member).Error; err != nil {
+		return nil, errors.New("member not found in room")
+	}
 
-// // 11. ล้างประวัติแชท
-// func (r *chatRepository) ClearChatHistory(memberID, roomID uint) error {
-//     return r.db.Model(&entity.RoomMember{}).
-//         Where("room_id = ? AND member_id = ?", roomID, memberID).
-//         Update("joined_at", time.Now()).Error 
-// }
+	// 2. ใช้ ClearedAt เป็นตัวกรอง (ถ้าไม่เคยลบ จะเป็น zero time ก็จะดึงทั้งหมด)
+	cutoffTime := member.JoinedAt
+	if !member.ClearedAt.IsZero() {
+		cutoffTime = member.ClearedAt
+	}
+
+	err := r.db.Where("room_id = ? AND sent_at > ?", roomID, cutoffTime).
+		Order("sent_at ASC").
+		Preload("Sender"). // โหลดโปรไฟล์คนส่ง
+		Find(&messages).Error
+	return messages, err
+}
+
+// Helpers
+func (r *chatRepository) CountMemberReward(memberID, rewardID uint) (int64, error) {
+	var count int64
+	err := r.db.Table("member_rewards").Where("member_id = ? AND reward_id = ?", memberID, rewardID).Count(&count).Error
+	return count, err
+}
+
+func (r *chatRepository) GetMessageByID(msgID uint) (*entity.Message, error) {
+	var msg entity.Message
+	err := r.db.First(&msg, msgID).Error
+	return &msg, err
+}
+
+func (r *chatRepository) UnsendMessage(msg *entity.Message) error {
+	return r.db.Save(msg).Error
+}
+
+// ✅ แก้ไข: ใช้ cleared_at แทน joined_at
+func (r *chatRepository) ClearChatHistory(memberID, roomID uint) error {
+	return r.db.Model(&entity.RoomMember{}).
+		Where("room_id = ? AND member_id = ?", roomID, memberID).
+		Update("cleared_at", time.Now()).Error
+}

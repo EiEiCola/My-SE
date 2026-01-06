@@ -5,6 +5,7 @@ import (
 	"github.com/sut68/team12/backend/config"
 
 	adminCtl "github.com/sut68/team12/backend/internal/app/controller/admin"
+	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member" // เพิ่ม
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
@@ -14,6 +15,7 @@ func SetupRoutes(
 	adminProfileController *adminCtl.AdminProfileController,
 	adminUserController *adminCtl.AdminUserController,
 	adminCategoryController *adminCtl.AdminCategoryController,
+	chatController *memberCtl.ChatController, // ✅ เพิ่ม ChatController ตรงนี้
 ) {
 	// static files
 	r.Static("/uploads", "./uploads")
@@ -36,6 +38,7 @@ func SetupRoutes(
 
 	// routes ที่อยู่ใต้ /api (ของเดิม)
 	{
+		SetupChatWSRoutes(api, chatController)
 		SetupPRRoutes(api)
 		SetupPollRoutes(api)
 		SetupAdminRewardRoutes(api)
@@ -65,12 +68,15 @@ func SetupRoutes(
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
 	}
 
-	// ✅ member protected routes (อยู่ใต้ memberAPI)
+	// =========================
+	// MEMBER ROUTES (/api/member/*)
+	// =========================
+
 	{
 		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
-		// SetupChatRoutes(memberAPI)
+		SetupChatHTTPRoutes(memberAPI, chatController)
 	}
 
 	// routes ที่ไม่ได้อยู่ใต้ /api (คงเดิม)

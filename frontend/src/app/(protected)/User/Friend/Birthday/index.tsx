@@ -42,7 +42,6 @@ const FriendBirthday = () => {
     "Content-Type": "application/json",
   };
 
-  // ⭐ Helper: จัดการ URL รูปภาพ
   const getImageUrl = (path: string | undefined | null) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("data:")) return path;
@@ -64,7 +63,6 @@ const FriendBirthday = () => {
         const friends: Friend[] = data.data.map((m: any) => ({
           id: m.ID || m.id,
           name: `${m.first_name} ${m.last_name}`,
-          // ⭐ ใช้ Helper จัดการรูป
           avatar: getImageUrl(m.member_picture),
           birthday: m.dob || "", 
           age: m.dob ? dayjs().diff(dayjs(m.dob), 'year') : 0
@@ -80,7 +78,7 @@ const FriendBirthday = () => {
   };
 
   // ----------------------------------------------------------------
-  // 🧠 Logic การคำนวณวันเกิด
+  // Logic การคำนวณวันเกิด
   // ----------------------------------------------------------------
   const processBirthdays = (friendsList: Friend[]) => {
     const today = dayjs().startOf('day');
@@ -90,7 +88,7 @@ const FriendBirthday = () => {
       .filter(f => f.birthday && f.birthday !== "") 
       .map(friend => {
         const birthDate = dayjs(friend.birthday);
-        let thisYearBday = dayjs(`${currentYear}-${birthDate.format('MM-DD')}`);
+        const thisYearBday = dayjs(`${currentYear}-${birthDate.format('MM-DD')}`);
         const diff = thisYearBday.diff(today, 'day');
 
         return {

@@ -1,219 +1,240 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Search, MoreVertical, Paperclip, Image as ImageIcon, Smile, Send, FileText, Trash2, Ban } from 'lucide-react';
-
-// --- 1. Types (ต้องตรงกับ JSON ของ Go Backend) ---
-
-interface User {
-  id: number;
-  first_name: string;
-  last_name: string;
-  username: string;
-  member_picture?: string;
-}
-
-interface Room {
-  room_id: number;
-  name: string; // ชื่อกลุ่ม หรือ ชื่อเพื่อน
-  type: string; // 'private' | 'group'
-  avatar_url?: string;
-  last_message?: string; // (Optional: ถ้า Backend ส่งมา)
-  unread_count?: number; // (Optional)
-}
-
-interface Message {
-  message_id: number;
-  room_id: number;
-  sender_id: number;
-  content: string;
-  type_message: string; // 'text', 'image', 'file', 'sticker'
-  sticker_id?: number;
-  sent_at: string;
-  is_deleted?: boolean;
-  sender?: User; // Preloaded sender info
-}
-
-// --- 2. Main Component ---
+import { 
+  MessageCircle, Search, MoreVertical, Paperclip, Image as ImageIcon, 
+  Smile, Send, FileText, Trash2, LogOut, Eraser 
+} from 'lucide-react';
+import type { Room, Message, WSMessage } from '../../../../interfaces/chat'; // ตรวจสอบ Path ให้ถูกต้อง
+import { chatService } from '../../../../services/http/chat_service'; // ตรวจสอบ Path ให้ถูกต้อง
 
 const ChatPage: React.FC = () => {
-  // State
+  // --- State ---
   const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
-// --- Configuration ---
-  const API_BASE = "http://localhost:8888/api/member/chat"; // ✅ Port 8888
-  const WS_URL = "ws://localhost:8888/api/member/chat/ws";  // ✅ Port 8888
+  // สถานะ Online Users
+  const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
   
-  // ⚠️ ใส่ Token ของคุณที่นี่ (หรือดึงจาก LocalStorage)
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJyb2xlIjoibWVtYmVyIiwiZXhwIjoxNzY2NjM5NDE1LCJpYXQiOjE3NjY1NTMwMTV9.moCM2_oyq0Wnt2pYri75uframkWkzw_BybC1Pk-K6dw"; 
-  const myUserID = 4; // ⚠️ ใส่ User ID ของตัวเองให้ตรงกับ Token
+  // Dropdown Menu
+  const [showMenu, setShowMenu] = useState(false);
 
-  // Refs
+  // --- Refs ---
   const ws = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // 🔥 สำคัญ: ใช้ Ref เพื่อแก้ปัญหา Closure ใน WebSocket (เพื่อให้ onmessage อ่านค่าห้องปัจจุบันได้โดยไม่ต้อง reconnect)
+  const activeRoomIdRef = useRef<number | null>(null);
 
-  // --- 3. Connect Backend Logic ---
+  // --- Config ---
+  const WS_URL = "ws://localhost:8080/api/member/chat/ws";
+  const token = localStorage.getItem('token') || ""; 
+  // ⚠️ ID ของเรา: ต้องมั่นใจว่าตอน Login ได้ set item 'my_user_id' ไว้แล้ว
+  const myUserID = Number(localStorage.getItem('my_user_id') || 0); 
 
-  // 3.1 Fetch Rooms (โหลดรายการห้อง)
+  // --- 1. Effects ---
+
+  // Update Active Room Ref
   useEffect(() => {
-    fetch('http://localhost:8080/api/member/chat/rooms', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.data) setRooms(data.data);
-    })
-    .catch(err => console.error("Load rooms failed:", err));
+    activeRoomIdRef.current = currentRoom?.room_id || null;
+  }, [currentRoom]);
+
+  // Initial Load Rooms
+  useEffect(() => {
+    const loadRooms = async () => {
+      try {
+        const res = await chatService.getRooms();
+        if (res.data) setRooms(res.data);
+      } catch (err) {
+        console.error("Failed to load rooms", err);
+      }
+    };
+    loadRooms();
   }, []);
 
-  // 3.2 WebSocket Connection (Real-time)
+  // WebSocket Connection (Run Once)
   useEffect(() => {
     if (!token) return;
 
-    // ต่อ Socket ไปที่ Backend
-    // ✅ ใช้ WS_URL (8888) และส่ง token ทาง Query Param
-    const socketUrl = `${WS_URL}?token=${token}`;
-    ws.current = new WebSocket(socketUrl);
+    ws.current = new WebSocket(`${WS_URL}?token=${token}`);
 
-    ws.current.onopen = () => console.log("WS Connected");
+    ws.current.onopen = () => console.log("✅ WS Connected");
     
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      // กรณีมีข้อความใหม่เข้ามา
-      if (data.type === 'message') {
-        const newMsg = data.payload as Message;
-        // ถ้าเป็นห้องที่เปิดอยู่ ให้เพิ่มข้อความเลย
-        if (currentRoom && newMsg.room_id === currentRoom.room_id) {
-          setMessages(prev => [...prev, newMsg]);
+      try {
+        const msg: WSMessage = JSON.parse(event.data);
+
+        switch (msg.type) {
+          case 'new_message':
+            const newMsg = msg.payload as Message;
+            // ใช้ Ref เช็คว่าเปิดห้องนั้นอยู่ไหม
+            if (activeRoomIdRef.current === newMsg.room_id) {
+              setMessages((prev) => [...prev, newMsg]);
+            }
+            // อัปเดตข้อความล่าสุดใน Sidebar
+            updateLastMessage(newMsg.room_id, newMsg.content);
+            break;
+
+          case 'message_update': // กรณี Unsend
+            const updatedMsg = msg.payload as Message;
+            // อัปเดตข้อความในห้องปัจจุบันถ้าตรงกัน
+            if (activeRoomIdRef.current === updatedMsg.room_id) {
+               setMessages((prev) => prev.map(m => m.message_id === updatedMsg.message_id ? updatedMsg : m));
+            }
+            // อาจจะอัปเดต Sidebar ด้วยถ้าเป็นข้อความล่าสุด (Optional)
+            break;
+
+          case 'online_users': 
+            setOnlineUsers(new Set(msg.payload as number[]));
+            break;
+
+          case 'user_online': 
+            setOnlineUsers((prev) => new Set(prev).add(msg.payload as number));
+            break;
+
+          case 'user_offline': 
+            setOnlineUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(msg.payload as number);
+              return newSet;
+            });
+            break;
         }
-        // TODO: อัปเดต last_message ใน list rooms ด้านซ้ายด้วย
-      }
-      
-      // กรณี Unsend (message_update)
-      if (data.type === 'message_update') {
-         const updatedMsg = data.payload as Message;
-         setMessages(prev => prev.map(m => 
-            m.message_id === updatedMsg.message_id ? updatedMsg : m
-         ));
+      } catch (error) {
+        console.error("WS Error:", error);
       }
     };
 
     return () => {
       ws.current?.close();
     };
-  }, [token, currentRoom]); // Re-check logic เมื่อ currentRoom เปลี่ยน
+  }, [token]);
 
-  // 3.3 Load Chat History เมื่อเลือกห้อง
+  // Load Messages when room changes
   useEffect(() => {
     if (!currentRoom) return;
     
-    fetch(`${API_BASE}/rooms/${currentRoom.room_id}/messages`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.data) setMessages(data.data); // data.data คือ array ของ messages
+    setMessages([]); // เคลียร์ข้อความเก่าก่อน
+    setShowMenu(false); // ปิดเมนู
+    
+    chatService.getMessages(currentRoom.room_id).then(res => {
+      if (res.data) setMessages(res.data);
     });
   }, [currentRoom]);
 
-  // 3.4 Scroll to bottom
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 3.5 Send Message
+  // --- Functions ---
+
+  const updateLastMessage = (roomId: number, text: string) => {
+    setRooms(prev => prev.map(r => r.room_id === roomId ? { ...r, last_message: text } : r));
+  };
+
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentRoom) return;
-
     try {
-      // ยิง REST API ตามที่คุยกัน (Backend จะ Broadcast ผ่าน WS ให้เอง)
-     const res = await fetch(`${API_BASE}/rooms/${currentRoom.room_id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          content: inputText,
-          type: 'text',
-          // sticker_id: ... (ถ้ามี)
-        })
-      });
-
-      if (res.ok) {
-        setInputText('');
-      }
+      await chatService.sendMessage(currentRoom.room_id, inputText);
+      setInputText('');
     } catch (err) {
       console.error("Send failed", err);
     }
   };
 
-  // 3.6 Unsend Message
   const handleUnsend = async (msgId: number) => {
-      // เรียก API Unsend ที่ทำไว้
-      // fetch(...)
-      console.log("Unsend message:", msgId);
-  }
+    if (!confirm("ต้องการยกเลิกข้อความนี้ใช่ไหม?")) return;
+    try {
+      await chatService.unsendMessage(msgId);
+    } catch (err) {
+      console.error("Unsend failed", err);
+    }
+  };
 
-  // --- 4. Render UI (ตาม Screenshot) ---
+  const handleClearHistory = async () => {
+    if (!currentRoom || !confirm("ต้องการล้างประวัติการแชทใช่ไหม? (ข้อความจะหายไปเฉพาะฝั่งคุณ)")) return;
+    try {
+      await chatService.clearHistory(currentRoom.room_id);
+      setMessages([]); 
+      setShowMenu(false);
+    } catch (err) {
+      console.error("Clear failed", err);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!currentRoom || !confirm("ต้องการออกจากกลุ่มนี้ใช่ไหม?")) return;
+    try {
+      await chatService.leaveRoom(currentRoom.room_id);
+      setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+      setCurrentRoom(null);
+    } catch (err) {
+      console.error("Leave failed", err);
+    }
+  };
+
+  const isPrivatePartnerOnline = (room: Room) => {
+    if (room.rc_type !== 'private' || !room.member) return false;
+    const partner = room.member.find(m => m.member_id !== myUserID);
+    return partner ? onlineUsers.has(partner.member_id) : false;
+  };
+
+  // --- Render ---
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
-
-
-      {/* ⬜ Contact List Sidebar */}
+      
+      {/* ⬜ Sidebar: Room List */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-        {/* Header */}
         <div className="px-4 py-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-gray-800">ข้อความ</h1>
-            <button className="text-gray-400 hover:text-gray-600">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-          </div>
-          
-          {/* Search Box */}
+          <h1 className="text-xl font-bold text-gray-800 mb-4">ข้อความ</h1>
           <div className="relative">
             <input
               type="text"
               placeholder="ค้นหา"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           </div>
         </div>
 
-        {/* Room List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto">
           {rooms.map((room) => (
             <div
               key={room.room_id}
               onClick={() => setCurrentRoom(room)}
               className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-all ${
-                currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-r-4 border-orange-400' : ''
+                currentRoom?.room_id === room.room_id ? 'bg-blue-50 border-r-4 border-blue-500' : ''
               }`}
             >
               <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-                   {/* Avatar */}
-                   {room.avatar_url ? <img src={room.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gray-300"/>}
+                <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+                   {/* Handle Image Error */}
+                   <img 
+                      src={room.rc_url || ""} 
+                      alt="" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.classList.add('bg-gray-300'); // Fallback color
+                      }}
+                   />
                 </div>
-                {/* Online Status (สมมติ) */}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
+                {/* 🟢 Online Status */}
+                {isPrivatePartnerOnline(room) && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                )}
               </div>
-              
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline">
-                  <h3 className="font-semibold text-gray-900 truncate">{room.name}</h3>
-                  <span className="text-xs text-gray-400">18:00 น.</span>
+                  <h3 className="font-semibold text-gray-900 truncate">{room.rc_name}</h3>
                 </div>
                 <p className="text-sm text-gray-500 truncate mt-0.5">
-                   {room.last_message || "ส่งข้อความ ..."}
+                  {room.last_message || "ไม่มีข้อความล่าสุด"}
                 </p>
               </div>
             </div>
@@ -225,68 +246,88 @@ const ChatPage: React.FC = () => {
       <main className="flex-1 flex flex-col bg-white relative">
         {currentRoom ? (
           <>
-            {/* Chat Header */}
-            <div className="h-16 border-b border-gray-200 flex items-center justify-between px-6 bg-white shadow-sm z-10">
+            {/* Header */}
+            <div className="h-16 border-b border-gray-200 flex items-center justify-between px-6 bg-white shadow-sm z-10 relative">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200"></div>
+                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                   <img 
+                      src={currentRoom.rc_url || ""} 
+                      alt="" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.classList.add('bg-gray-300');
+                      }}
+                   />
+                </div>
                 <div>
-                  <h2 className="font-bold text-gray-800">{currentRoom.name}</h2>
-                  <p className="text-xs text-gray-500">Active now</p>
+                  <h2 className="font-bold text-gray-800">{currentRoom.rc_name}</h2>
+                  {currentRoom.rc_type === 'private' && isPrivatePartnerOnline(currentRoom) && (
+                      <p className="text-xs text-green-500 font-medium">Online</p>
+                  )}
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                 {/* ปุ่มตาม UI Screenshot */}
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    สวัสดี สมชาย ใจดี
-                 </button>
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    ทำอะไรอยู่
-                 </button>
-                 <button className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-full transition shadow-sm">
-                    โอเค
-                 </button>
-                 <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                 <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
-                    <Trash2 className="w-5 h-5" />
-                 </button>
-                 <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+              <div className="relative">
+                 <button 
+                    onClick={() => setShowMenu(!showMenu)} 
+                    className="p-2 hover:bg-gray-100 rounded-full text-gray-500"
+                 >
                     <MoreVertical className="w-5 h-5" />
                  </button>
+
+                 {/* Dropdown Menu */}
+                 {showMenu && (
+                    <div className="absolute right-0 top-10 w-48 bg-white shadow-lg rounded-lg border border-gray-100 py-1 z-50">
+                        <button 
+                            onClick={handleClearHistory}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                            <Eraser className="w-4 h-4"/> ล้างประวัติแชท
+                        </button>
+                        {currentRoom.rc_type === 'group' && (
+                            <button 
+                                onClick={handleLeaveRoom}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                                <LogOut className="w-4 h-4"/> ออกจากกลุ่ม
+                            </button>
+                        )}
+                    </div>
+                 )}
               </div>
             </div>
 
-            {/* Messages Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 bg-white">
-              
-              {/* Profile Summary (Top of chat) */}
-              <div className="flex flex-col items-center justify-center py-10 opacity-60">
-                 <div className="w-24 h-24 bg-gray-200 rounded-full mb-3"></div>
-                 <h3 className="text-xl font-bold text-gray-800">{currentRoom.name}</h3>
-                 <p className="text-sm text-gray-500">SUT Community Member</p>
-              </div>
-
-              {/* Message List */}
-              <div className="space-y-4">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/50">
+              <div className="space-y-2">
                 {messages.map((msg, index) => {
                   const isMe = msg.sender_id === myUserID;
                   return (
                     <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                       {/* Avatar เพื่อน */}
-                       {!isMe && (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 self-end mb-1"></div>
-                       )}
+                      
+                      {!isMe && (
+                         <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 self-end mb-1 overflow-hidden">
+                            {msg.sender?.avatar && (
+                                <img 
+                                    src={msg.sender.avatar} 
+                                    className="w-full h-full object-cover" 
+                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                />
+                            )}
+                         </div>
+                      )}
 
                       <div className="flex flex-col max-w-[70%]">
-                        {/* Bubble */}
-                        <div className={`px-4 py-2 break-words text-sm shadow-sm ${
+                        <div className={`px-4 py-2 break-words text-sm shadow-sm relative ${
                           isMe 
-                            ? 'bg-[#0084FF] text-white rounded-2xl rounded-br-sm' 
-                            : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-sm'
+                            ? 'bg-blue-600 text-white rounded-2xl rounded-br-none' 
+                            : 'bg-white text-gray-800 rounded-2xl rounded-bl-none border border-gray-100'
                         }`}>
-                          {/* จัดการ Type ต่างๆ */}
                           {msg.is_deleted ? (
-                             <span className="italic opacity-70 text-xs">ข้อความถูกยกเลิก</span>
+                             <span className="italic opacity-60 flex items-center gap-1">
+                                <Trash2 className="w-3 h-3"/> ข้อความถูกยกเลิก
+                             </span>
                           ) : msg.type_message === 'text' ? (
                              msg.content
                           ) : msg.type_message === 'file' ? (
@@ -299,14 +340,17 @@ const ChatPage: React.FC = () => {
                           )}
                         </div>
                         
-                        {/* Time & Status */}
                         <div className={`text-[10px] text-gray-400 mt-1 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                           {/* Unsend Button (Show on hover) */}
+                           {/* ปุ่ม Unsend */}
                            {isMe && !msg.is_deleted && (
-                              <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 mr-2">Unsend</button>
+                              <button 
+                                onClick={() => handleUnsend(msg.message_id)} 
+                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 mr-2 transition-opacity"
+                              >
+                                Unsend
+                              </button>
                            )}
                            {new Date(msg.sent_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                           {isMe && <span>· ส่งแล้ว</span>}
                         </div>
                       </div>
                     </div>
@@ -316,46 +360,35 @@ const ChatPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Input Area */}
+            {/* Input */}
             <div className="p-4 bg-white border-t border-gray-100">
-               {/* ส่วน File Upload (ถ้า user ลากไฟล์มาวาง) สามารถทำ Overlay ได้ */}
-               
-               <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <Paperclip className="w-5 h-5" />
-                  </button>
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <ImageIcon className="w-5 h-5" />
-                  </button>
+               <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <button className="text-gray-400 hover:text-gray-600 transition"><Paperclip className="w-5 h-5" /></button>
+                  <button className="text-gray-400 hover:text-gray-600 transition"><ImageIcon className="w-5 h-5" /></button>
                   
                   <input
                     type="text"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Aa"
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 placeholder-gray-400"
+                    placeholder="พิมพ์ข้อความ..."
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 placeholder-gray-400 outline-none"
                   />
                   
-                  <button className="text-gray-400 hover:text-gray-600 transition">
-                     <Smile className="w-5 h-5" />
-                  </button>
+                  <button className="text-gray-400 hover:text-gray-600 transition"><Smile className="w-5 h-5" /></button>
                   
                   {inputText.trim() && (
-                    <button onClick={handleSendMessage} className="text-blue-500 hover:text-blue-600 transition">
+                    <button onClick={handleSendMessage} className="text-blue-500 hover:text-blue-600 transition scale-100 hover:scale-110">
                        <Send className="w-5 h-5" />
                     </button>
                   )}
                </div>
             </div>
-
           </>
         ) : (
-          // Empty State
           <div className="flex-1 flex flex-col items-center justify-center bg-white text-gray-300">
-            <MessageCircle className="w-24 h-24 mb-4 opacity-20" />
-            <h2 className="text-xl font-semibold text-gray-400">ข้อความของคุณ</h2>
-            <p className="text-sm">ส่งรูปภาพหรือข้อความส่วนตัวกับเพื่อนหรือกลุ่ม</p>
+            <MessageCircle className="w-24 h-24 mb-4 opacity-10" />
+            <h2 className="text-lg font-medium text-gray-400">เลือกห้องสนทนาเพื่อเริ่มคุย</h2>
           </div>
         )}
       </main>

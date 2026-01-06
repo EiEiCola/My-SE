@@ -64,7 +64,7 @@ const FriendRelation: React.FC = () => {
     "Content-Type": "application/json",
   };
 
-  // ⭐ Helper: จัดการ URL รูปภาพ
+  // Helper: จัดการ URL รูปภาพ
   const getImageUrl = (path: string | undefined | null) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("data:")) return path;
@@ -104,7 +104,6 @@ const FriendRelation: React.FC = () => {
             id: m.ID || m.id,
             name: `${m.first_name} ${m.last_name}`,
             username: m.username || "-",
-            // ⭐ ใช้ Helper จัดการรูป
             avatar: getImageUrl(m.member_picture),
             
             // Stats
@@ -131,7 +130,6 @@ const FriendRelation: React.FC = () => {
             id: m.ID || m.id,
             name: `${m.first_name} ${m.last_name}`,
             username: m.username || "-",
-            // ⭐ ใช้ Helper จัดการรูป
             avatar: getImageUrl(m.member_picture),
             
             friendCount: 0, 

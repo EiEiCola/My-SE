@@ -1,143 +1,196 @@
 package controller
 
-// import (
-// 	"net/http"
-// 	"strconv"
+import (
+	"net/http"
+	"strconv"
 
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/gorilla/websocket"
-// 	"github.com/sut68/team12/backend/internal/app/services"
-// 	ws "github.com/sut68/team12/backend/internal/app/websocket"
-// 	"github.com/sut68/team12/backend/internal/dto"
-// 	"github.com/sut68/team12/backend/internal/utils"
-// )
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/sut68/team12/backend/internal/app/services"
+	ws "github.com/sut68/team12/backend/internal/app/websocket"
+	"github.com/sut68/team12/backend/internal/dto"
+	"github.com/sut68/team12/backend/internal/utils"
+)
 
-// type ChatController struct {
-// 	service *services.ChatService
-// 	hub     *ws.Hub
-// }
+type ChatController struct {
+	service *services.ChatService
+	hub     *ws.Hub
+}
 
-// func NewChatController(service *services.ChatService, hub *ws.Hub) *ChatController {
-// 	return &ChatController{service: service, hub: hub}
-// }
+func NewChatController(service *services.ChatService, hub *ws.Hub) *ChatController {
+	return &ChatController{service: service, hub: hub}
+}
 
-// // ✅ 1. CreateRoom (ที่หายไป)
-// func (c *ChatController) CreateRoom(ctx *gin.Context) {
-// 	var req dto.CreateRoomRequest
-// 	if err := ctx.ShouldBindJSON(&req); err != nil {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
+// ----------------------------------------------------------------
+// 1. Room Management
+// ----------------------------------------------------------------
 
-// 	userId := ctx.GetUint("userId") // ตรวจสอบ Key Middleware ให้ตรงกับของคุณ
+// CreateRoom: สร้างห้อง (Private / Group)
+func (c *ChatController) CreateRoom(ctx *gin.Context) {
+	var req dto.CreateRoomRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	userId, _ := ctx.Get("user_id")
+	room, err := c.service.CreateRoom(req, convertToUint(userId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": room})
+}
 
-// 	room, err := c.service.CreateRoom(req, userId)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
+// GetMyRooms: ดึงรายการห้องของฉัน
+func (c *ChatController) GetMyRooms(ctx *gin.Context) {
+	userId, _ := ctx.Get("user_id")
+	rooms, err := c.service.GetMyRooms(convertToUint(userId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": rooms})
+}
 
-// 	ctx.JSON(http.StatusOK, gin.H{"data": room})
-// }
+// ✅ GetRoomMembers: ดูสมาชิกในห้อง (สำหรับ Group)
+func (c *ChatController) GetRoomMembers(ctx *gin.Context) {
+	roomIdStr := ctx.Param("id")
+	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
 
-// // ✅ 2. GetMyRooms (ที่ routes แดงเพราะหาอันนี้ไม่เจอ)
-// func (c *ChatController) GetMyRooms(ctx *gin.Context) {
-// 	userId := ctx.GetUint("userId")
+	members, err := c.service.GetRoomMembers(uint(roomId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": members})
+}
 
-// 	rooms, err := c.service.GetMyRooms(userId)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
+// ✅ LeaveRoom: ออกจากห้อง
+func (c *ChatController) LeaveRoom(ctx *gin.Context) {
+	roomIdStr := ctx.Param("id")
+	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
+	userId, _ := ctx.Get("user_id")
 
-// 	ctx.JSON(http.StatusOK, gin.H{"data": rooms})
-// }
+	if err := c.service.LeaveRoom(convertToUint(userId), uint(roomId)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "left room successfully"})
+}
 
-// // ✅ 3. SendMessage
-// func (c *ChatController) SendMessage(ctx *gin.Context) {
-//     // 1. รับค่า id ให้ตรงกับ router (เช่น :roomId)
-//     roomIdStr := ctx.Param("roomId") 
-//     roomId, err := strconv.ParseUint(roomIdStr, 10, 32)
-//     if err != nil {
-//         ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Room ID"})
-//         return
-//     }
+// ----------------------------------------------------------------
+// 2. Messaging
+// ----------------------------------------------------------------
 
-//     userId := ctx.GetUint("userId")
+// SendMessage: ส่งข้อความ
+func (c *ChatController) SendMessage(ctx *gin.Context) {
+	roomIdStr := ctx.Param("id")
+	roomId, err := strconv.ParseUint(roomIdStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
 
-//     var req dto.SendMessageRequest
-//     if err := ctx.ShouldBindJSON(&req); err != nil {
-//         ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//         return
-//     }
+	userId, _ := ctx.Get("user_id")
+	var req dto.SendMessageRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-//     // 2. บันทึกลง DB ผ่าน Service
-//     msg, err := c.service.SendMessage(userId, uint(roomId), req)
-//     if err != nil {
-//         ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-//         return
-//     }
+	msg, err := c.service.SendMessage(convertToUint(userId), uint(roomId), req)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusCreated, gin.H{"data": msg})
+}
 
-//     // --- ส่วนที่ต้องเพิ่ม: Real-time Broadcast ---
-//     // สร้าง Struct ข้อความที่จะส่งผ่าน WebSocket
-//     broadcastMsg := ws.WSMessage{
-//         Type:    "new_message", // บอก Frontend ว่านี่คือข้อความใหม่
-//         Payload: msg,           // ข้อมูลข้อความที่เพิ่งบันทึก (หรือจะแปลงเป็น Response DTO ก่อนก็ได้)
-//         RoomID:  uint(roomId),  // ระบุห้อง เพื่อให้ Hub กรองส่งเฉพาะคนในห้องนี้
-//     }
+// GetRoomHistory: ดึงประวัติแชท
+func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
+	roomIdStr := ctx.Param("id")
+	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
+	userId, _ := ctx.Get("user_id")
 
-//     // ส่งเข้า Hub Channel
-//     c.hub.Broadcast <- broadcastMsg
-//     // ---------------------------------------
+	msgs, err := c.service.GetRoomHistory(convertToUint(userId), uint(roomId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": msgs})
+}
 
-//     ctx.JSON(http.StatusCreated, gin.H{"data": msg})
-// }
+// ReadMessage: อ่านข้อความ (Mock ไว้ก่อนเพื่อให้ Routes ไม่แดง)
+func (c *ChatController) ReadMessage(ctx *gin.Context) {
+	// TODO: Implement Logic Mark as Read in Service
+	ctx.JSON(http.StatusOK, gin.H{"message": "read status updated"})
+}
 
-// // ✅ 4. GetRoomHistory
-// func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
-// 	roomIdStr := ctx.Param("id")
-// 	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
-// 	userId := ctx.GetUint("userId")
+// ----------------------------------------------------------------
+// 3. Actions (Unsend & Clear)
+// ----------------------------------------------------------------
 
-// 	msgs, err := c.service.GetRoomHistory(userId, uint(roomId))
-// 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	ctx.JSON(http.StatusOK, gin.H{"data": msgs})
-// }
+// ✅ ClearChatHistory: ล้างแชท (ฝั่งตัวเอง)
+func (c *ChatController) ClearChatHistory(ctx *gin.Context) {
+	roomIdStr := ctx.Param("id")
+	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
+	userId, _ := ctx.Get("user_id")
 
-// // ✅ 5. WebSocket Connection
-// var upgrader = websocket.Upgrader{
-// 	CheckOrigin: func(r *http.Request) bool { return true },
-// }
+	if err := c.service.ClearChatHistory(convertToUint(userId), uint(roomId)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "chat history cleared"})
+}
 
-// func (c *ChatController) ConnectWebSocket(ctx *gin.Context) {
-// 	token := ctx.Query("token")
-// 	claims, err := utils.ParseToken(token)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-// 		return
-// 	}
-// 	userID := claims.UserID
+// ✅ UnsendMessage: ยกเลิกข้อความ (ลบข้อความเฉพาะอันที่ตัวเองส่ง)
+func (c *ChatController) UnsendMessage(ctx *gin.Context) {
+	msgIdStr := ctx.Param("message_id")
+	msgId, _ := strconv.ParseUint(msgIdStr, 10, 32)
+	userId, _ := ctx.Get("user_id")
 
-// 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-// 	if err != nil { return }
+	if err := c.service.UnsendMessage(convertToUint(userId), uint(msgId)); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "message unsent"})
+}
 
-// 	// Register Client to Hub
-// 	client := &ws.Client{UserID: userID, Conn: conn}
-// 	c.hub.Register <- client
+// ----------------------------------------------------------------
+// 4. WebSocket
+// ----------------------------------------------------------------
 
-// 	defer func() {
-// 		c.hub.Unregister <- client
-// 		conn.Close()
-// 	}()
+var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
-// 	for {
-// 		var msg ws.WSMessage
-// 		err := conn.ReadJSON(&msg)
-// 		if err != nil { break }
-// 		// ปกติเราจะรับ Message ผ่าน API SendMessage แล้วใช้ WS เพื่อ Push Noti
-// 		// แต่ถ้าจะรับผ่าน WS โดยตรง ก็เขียน Logic เรียก Service ตรงนี้ได้
-// 	}
-// }
+func (c *ChatController) ConnectWebSocket(ctx *gin.Context) {
+	token := ctx.Query("token")
+	claims, err := utils.ParseToken(token)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		return
+	}
+
+	client := &ws.Client{UserID: claims.UserID, Conn: conn, Send: make(chan ws.WSMessage)}
+	c.hub.Register <- client
+	go client.WritePump()
+	go client.ReadPump(c.hub)
+}
+
+// Helper Convert
+func convertToUint(val interface{}) uint {
+	switch v := val.(type) {
+	case uint:
+		return v
+	case int:
+		return uint(v)
+	case float64:
+		return uint(v)
+	default:
+		return 0
+	}
+}
