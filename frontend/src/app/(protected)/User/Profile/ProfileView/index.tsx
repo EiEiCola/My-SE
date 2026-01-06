@@ -77,7 +77,7 @@ function ProfileView() {
     const load = async () => {
       try {
         if (isMe) {
-          const res = await memberAPI.getMe();
+          const res = await memberAPI.getByAccountId(MY_ACCOUNT_ID);
           const data = res.data;
 
           let genderText: string = data.gender || "";
@@ -322,31 +322,31 @@ function ProfileView() {
               }}
             >
               <Button
-                size="middle"
-                style={{
-                  borderColor: "#C42E0A",
-                  color: "#C42E0A",
-                  fontWeight: 600,
-                  height: 34,
-                  padding: "0 14px",
-                }}
-              >
-                Add Friend
-              </Button>
+  size="middle"
+  style={{
+    borderColor: "#C42E0A",
+    color: "#C42E0A",
+    fontWeight: 600,
+    height: 34,
+    padding: "0 14px",
+  }}
+>
+  Add Friend
+</Button>
 
-              <Button
-                size="middle"
-                type="primary"
-                style={{
-                  backgroundColor: "#9c2510",
-                  borderColor: "#9c2510",
-                  fontWeight: 600,
-                  height: 34,
-                  padding: "0 16px",
-                }}
-              >
-                Follow
-              </Button>
+<Button
+  size="middle"
+  type="primary"
+  style={{
+    backgroundColor: "#9c2510",
+    borderColor: "#9c2510",
+    fontWeight: 600,
+    height: 34,
+    padding: "0 16px",
+  }}
+>
+  Follow
+</Button>
 
             </div>
           )}
@@ -392,7 +392,7 @@ function ProfileView() {
                     {isMe ? "My Post" : "Post"}
                   </span>
                 ),
-                children: <MyPost />,
+                children: <MyPost targetId={targetId} />,
               },
               {
                 key: "fav",
@@ -508,7 +508,7 @@ function ProfileView() {
                 </div>
 
                 {popupTab === "followers" && (
-                  <Button type="primary" style={{ background: "#C42E0A", border: "none" }}>
+                  <Button type="primary"  style={{ background: "#C42E0A", border: "none" }}>
                     follow back
                   </Button>
                 )}
