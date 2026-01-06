@@ -58,8 +58,12 @@ func (ctl *MemberController) GetMe(c *gin.Context) {
 	// ✅ FIX: ต้องดึง member ด้วย member_account_id
 	m, err := ctl.memberService.GetProfileByAccountID(accountID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
+		// fallback: maybe token contains account id instead — try by account ID
+		m, err = ctl.memberService.GetProfileByAccountID(memberID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	res := getProfileResponse{
@@ -112,8 +116,12 @@ func (ctl *MemberController) UpdateMe(c *gin.Context) {
 	// หมายเหตุ: service.UpdateProfile(...) ในโปรเจกต์นี้ถูกใช้กับ accountId อยู่แล้ว (ดูจาก UpdateProfileByAccountID ด้านล่าง)
 	m, err := ctl.memberService.UpdateProfile(accountID, input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		// fallback: treat user_id as account id and update by account
+		m, err = ctl.memberService.UpdateProfile(memberID, input)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

@@ -3,9 +3,11 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type AdminAnnouncementController struct {
@@ -31,8 +33,27 @@ func (ctl *AdminAnnouncementController) List(c *gin.Context) {
 		}
 	}
 
-	// Admin should see ALL announcements
-	items, total, err := ctl.Service.ListAll(page, pageSize)
+	// Validate pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	// Optional filter by PR Submission ID (for quick lookup from request page)
+	var prID *int
+	if p := c.Query("pr_id"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			prID = &n
+		}
+	}
+
+	// Admin should see ALL announcements (with optional pr_id filter)
+	items, total, err := ctl.Service.ListAll(page, pageSize, prID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -63,20 +84,18 @@ func (ctl *AdminAnnouncementController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	val, ok := c.Get("admin_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+	// Extra validation: title/content must be non-empty after trim
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
-	var adminID int
-	switch v := val.(type) {
-	case int:
-		adminID = v
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			adminID = n
-		}
+
+	uid, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
 	}
+	adminID := int(uid)
 
 	ann, err := ctl.Service.CreateAnnouncement(adminID, &req)
 	if err != nil {
@@ -97,6 +116,11 @@ func (ctl *AdminAnnouncementController) Update(c *gin.Context) {
 	var req services.CreateAnnouncementInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// Extra validation: title/content must be non-empty after trim
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title and content are required"})
 		return
 	}
 	ann, err := ctl.Service.UpdateAnnouncement(id, &req)

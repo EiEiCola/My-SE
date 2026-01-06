@@ -40,7 +40,7 @@ func (r *memberRewardRepository) GetOrCreateBalance(memberID uint) (*entity.Memb
 	if err == nil {
 		return &bal, nil
 	}
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 

@@ -18,43 +18,36 @@ func SetupRoutes(
 	// static files
 	r.Static("/uploads", "./uploads")
 
-	// =========================
-	// API ROOT
-	// =========================
+	// ✅ API group
 	api := r.Group("/api")
 
-	// =========================
-	// AUTH (public)
-	// =========================
+	// ✅ Auth routes under /api/auth (ไม่ protect)
 	auth := api.Group("/auth")
 	SetupAuthRoutes(auth)
 
-	// =========================
-	// MEMBER (login required)
-	// =========================
+	// ✅ Protected group: /api/member/*
 	memberAPI := api.Group("/member")
 	memberAPI.Use(middlewares.JWTAuthMiddleware())
 
-	// =========================
-	// ADMIN (login + admin only)
-	// =========================
+	// ✅ Protected group: /api/admin/* (admin only)
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middlewares.JWTAuthMiddleware())
 	adminAPI.Use(middlewares.RequireAdminMiddleware())
 
-	// =========================
-	// PUBLIC ROUTES (/api/*)
-	// =========================
+	// routes ที่อยู่ใต้ /api (ของเดิม)
 	{
 		SetupPRRoutes(api)
 		SetupPollRoutes(api)
+		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
-		SetupFriendRoutes(api)
 
 		// ✅ public reward list
 		SetupRewardRoutes(api)
 		//revirew
 		SetupReviewRoutes(api)
+
+		// Report System
+		SetupReportRoutes(api)
 	}
 
 	// =========================
@@ -64,24 +57,23 @@ func SetupRoutes(
 		// ✅ admin reward (สำคัญ)
 		SetupAdminRewardRoutes(adminAPI)
 
+		// ✅ admin routes (ย้ายมาอยู่ใต้ adminAPI)
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
-		SetupAdminPostRoutes(adminAPI)
+
+		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
 	}
 
-	// =========================
-	// MEMBER ROUTES (/api/member/*)
-	// =========================
+	// ✅ member protected routes (อยู่ใต้ memberAPI)
 	{
+		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
-		SetupMemberPostRoutes(memberAPI)
+		// SetupChatRoutes(memberAPI)
 	}
 
-	// =========================
-	// NON-API ROUTES (เดิม)
-	// =========================
+	// routes ที่ไม่ได้อยู่ใต้ /api (คงเดิม)
 	SetupMemberRoutes(r)
 	SetupPublicCategoryRoutes(r, config.DB)
 }

@@ -57,8 +57,8 @@ function Register() {
       typeof data?.message === "string"
         ? data.message
         : typeof data?.error === "string"
-        ? data.error
-        : "";
+          ? data.error
+          : "";
 
     const msg = rawMsg.toLowerCase();
 

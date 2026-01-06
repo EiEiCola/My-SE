@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type AdminReportController struct {
@@ -17,7 +18,7 @@ func NewAdminReportController(s *services.ReportService) *AdminReportController 
 }
 
 type updateReportStatusRequest struct {
-	StatusID int `json:"status_id" binding:"required"`
+	StatusID int `json:"status_id" form:"status_id"`
 }
 
 // GET /admin/reports
@@ -34,6 +35,18 @@ func (ctl *AdminReportController) List(c *gin.Context) {
 			pageSize = n
 		}
 	}
+
+	// Validate pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	var statusID *int
 	if s := c.Query("status_id"); s != "" {
 		if n, err := strconv.Atoi(s); err == nil {
@@ -83,29 +96,35 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 		return
 	}
 	var req updateReportStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Accept JSON or form; fall back to query string
+	if err := c.ShouldBind(&req); err != nil {
+		// continue to fallback parsing
+	}
+	if req.StatusID == 0 {
+		if s := c.Query("status_id"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil {
+				req.StatusID = n
+			}
+		}
+	}
+	if req.StatusID == 0 {
+		if s := c.PostForm("status_id"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil {
+				req.StatusID = n
+			}
+		}
+	}
+	if req.StatusID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status_id is required"})
 		return
 	}
 
-	val, ok := c.Get("admin_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing admin id"})
+	uid, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	var adminID uint
-	switch v := val.(type) {
-	case int:
-		adminID = uint(v)
-	case string:
-		if n, err := strconv.Atoi(v); err == nil {
-			adminID = uint(n)
-		}
-	}
-	if adminID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid admin id"})
-		return
-	}
+	adminID := uid
 
 	if err := ctl.Service.UpdateStatus(id, req.StatusID, adminID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
