@@ -21,6 +21,7 @@ import FriendBirthday from "../app/(protected)/User/Friend/Birthday";
 
 import Group from "../app/(protected)/User/Category";
 import ReviewListPage from "../app/(protected)/User/Review/ReviewListPage";
+import MyReviews from "../app/(protected)/User/Review/MyReviews";
 import CreateReviewPage from "../app/(protected)/User/Review/CreateReviewPage";
 import Voting from "../app/(protected)/User/Voting";
 import Announcement from "../app/(protected)/User/Announcement";
@@ -77,6 +78,7 @@ function UserRoutes() {
         <Route path="/User/Post/edit/:id" element={<EditPost />} />
 
         <Route path="/User/Review" element={<ReviewListPage />} />
+        <Route path="/User/Review/my" element={<MyReviews />} />
         <Route path="/User/Review/createreview" element={<CreateReviewPage />} />
 
 
@@ -88,7 +90,7 @@ function UserRoutes() {
         <Route path="/User/Polls/create" element={<PollCreate />} />
         <Route path="/User/Polls/edit/:id" element={<PollCreate />} />
         <Route path="/User/Polls/:id" element={<PollDetail />} />
-      
+
 
 
         <Route path="/User/Announcement" element={<Announcement />} />

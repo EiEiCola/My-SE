@@ -14,7 +14,7 @@ func SetupRoutes(
 	adminProfileController *adminCtl.AdminProfileController,
 	adminUserController *adminCtl.AdminUserController,
 	adminCategoryController *adminCtl.AdminCategoryController,
-	
+	adminReviewController *adminCtl.AdminReviewController,
 ) {
 	// static files
 	r.Static("/uploads", "./uploads")
@@ -62,6 +62,7 @@ func SetupRoutes(
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
+		SetupAdminReviewRoutes(adminAPI, adminReviewController)
 
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
 

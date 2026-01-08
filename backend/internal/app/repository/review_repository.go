@@ -14,6 +14,9 @@ type ReviewRepository interface {
 	FindReviewByID(id uint) (*entity.Review, error)
 	ListReviewsByCategory(mainCategoryID *uint) ([]entity.Review, error)
 	DeleteReviewByID(reviewID uint, memberID uint) error
+	// Admin
+	ListAllReviews(search string, page int, pageSize int) ([]entity.Review, int64, error)
+	DeleteReviewByAdmin(reviewID uint, reason string) error
 
 	ListMyReviews(memberID uint, mainCategoryID *uint) ([]entity.Review, error)
 
@@ -31,6 +34,9 @@ type ReviewRepository interface {
 	// Vote
 	CreateOrUpdateVote(vote *entity.ReviewVote) error
 	ToggleReviewVote(reviewID uint, memberID uint, voteType string) (helpful int, notHelpful int, myVote *string, action string, err error)
+
+	// ✅ Expose DB for stats queries
+	DB() *gorm.DB
 }
 
 type reviewRepository struct {
@@ -39,6 +45,11 @@ type reviewRepository struct {
 
 func NewReviewRepository(db *gorm.DB) ReviewRepository {
 	return &reviewRepository{db: db}
+}
+
+// DB returns the database instance
+func (r *reviewRepository) DB() *gorm.DB {
+	return r.db
 }
 
 func (r *reviewRepository) CreateReview(review *entity.Review) error {
@@ -82,14 +93,82 @@ func (r *reviewRepository) ListReviewsByCategory(mainCategoryID *uint) ([]entity
 }
 
 func (r *reviewRepository) DeleteReviewByID(reviewID uint, memberID uint) error {
-	tx := r.db.Where("id = ? AND member_id = ?", reviewID, memberID).Delete(&entity.Review{})
-	if tx.Error != nil {
-		return tx.Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1) set deleted_by_type = OWNER (ยังไม่ลบก่อน)
+		res := tx.Model(&entity.Review{}).
+			Where("id = ? AND member_id = ?", reviewID, memberID).
+			Update("deleted_by_type", "OWNER")
+
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		// 2) soft delete
+		if err := tx.Where("id = ? AND member_id = ?", reviewID, memberID).
+			Delete(&entity.Review{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// ADMIN
+func (r *reviewRepository) ListAllReviews(search string, page int, pageSize int) ([]entity.Review, int64, error) {
+	var reviews []entity.Review
+	var total int64
+
+	q := r.db.Unscoped().
+		Preload("Member").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Tags").
+		Preload("ReviewImages"). // ✅ Add images for admin view
+		Preload("Reports")       // helpful to see report count
+
+	if search != "" {
+		s := "%" + search + "%"
+		q = q.Where("title LIKE ? OR content LIKE ?", s, s)
 	}
-	if tx.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+
+	if err := q.Model(&entity.Review{}).Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
-	return nil
+
+	offset := (page - 1) * pageSize
+	err := q.Order("created_at DESC").
+		Limit(pageSize).Offset(offset).
+		Find(&reviews).Error
+
+	return reviews, total, err
+}
+
+func (r *reviewRepository) DeleteReviewByAdmin(reviewID uint, reason string) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1) update reason + deleted_by_type ก่อน
+		res := tx.Model(&entity.Review{}).
+			Where("id = ?", reviewID).
+			Updates(map[string]interface{}{
+				"admin_delete_reason": reason,
+				"deleted_by_type":     "ADMIN",
+			})
+
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		// 2) soft delete
+		if err := tx.Delete(&entity.Review{}, reviewID).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // ✅ เช็คว่า review นี้เป็นของ member คนนี้ไหม
@@ -247,8 +326,10 @@ func (r *reviewRepository) ListMyReviews(memberID uint, mainCategoryID *uint) ([
 	var reviews []entity.Review
 
 	q := r.db.
+		Unscoped().
 		Preload("Member").
 		Preload("Tags").
+		Preload("Reports").
 		Preload("ReviewImages").
 		Preload("MainCategory").
 		Preload("SubCategoryL1").

@@ -92,10 +92,10 @@ const getMyMemberId = () => {
 
 const ReviewListPage: React.FC = () => {
   const navigate = useNavigate();
-   const myId = getMyMemberId();
-   //console.log("DEBUG myId =", myId); // ✅ ใส่ตรงนี้
+  const myId = getMyMemberId();
+  //console.log("DEBUG myId =", myId); // ✅ ใส่ตรงนี้
 
- // const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  // const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -121,89 +121,89 @@ const ReviewListPage: React.FC = () => {
   const [selectedL2Id, setSelectedL2Id] = useState<number | null>(null);
 
   const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
-const [myReviews, setMyReviews] = useState<ReviewItem[]>([]);
-const myReviewIdSet = useMemo(() => new Set(myReviews.map((r) => r.id)), [myReviews]);
-const ANON_AVATAR = "/anon-avatar.png";
+  const [myReviews, setMyReviews] = useState<ReviewItem[]>([]);
+  const myReviewIdSet = useMemo(() => new Set(myReviews.map((r) => r.id)), [myReviews]);
+  const ANON_AVATAR = "/anon-avatar.png";
 
-useEffect(() => {
-  const load = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-      const [allData, myData] = await Promise.all([
-        fetchReviews(),
-        fetchMyReviews(),
-      ]);
+        const [allData, myData] = await Promise.all([
+          fetchReviews(),
+          fetchMyReviews(),
+        ]);
 
-      const mapToItems = (apiData: any[]) =>
-        (apiData || []).map((r: any) => {
-          const memberId =
-  r.member_id ??
-  r.MemberID ??
-  r.memberId ??
-  r.Member?.id ??
-  r.Member?.ID;
+        const mapToItems = (apiData: any[]) =>
+          (apiData || []).map((r: any) => {
+            const memberId =
+              r.member_id ??
+              r.MemberID ??
+              r.memberId ??
+              r.Member?.id ??
+              r.Member?.ID;
 
-          const rawImgs = r.ReviewImages ?? r.review_images ?? r.images ?? [];
-          const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
-          const images = imgArr
-            .slice()
-            .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? 0))
-            .map((img: any) => toFullUrl(img.url ?? img.URL))
-            .filter((u: string) => !!u);
+            const rawImgs = r.ReviewImages ?? r.review_images ?? r.images ?? [];
+            const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
+            const images = imgArr
+              .slice()
+              .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? 0))
+              .map((img: any) => toFullUrl(img.url ?? img.URL))
+              .filter((u: string) => !!u);
 
-          const createdAt = r.created_at ?? r.CreatedAt ?? new Date().toISOString();
-          const isAnonymous = r.is_anonymous ?? r.IsAnonymous ?? false;
-const realName = r.Member?.username || r.username || "ผู้ใช้";
-const username = isAnonymous ? "ไม่เปิดเผยชื่อ" : realName;
-// ✅ ดึงรูปโปรไฟล์จาก Member
-const rawPic =
-  r.Member?.member_picture ??
-  r.Member?.MemberPicture ??
-  r.Member?.avatar_url ??
-  r.Member?.AvatarURL ??
-  r.member_picture ??
-  r.MemberPicture ??
-  r.avatar_url ??
-  r.AvatarURL ??
-  "";
+            const createdAt = r.created_at ?? r.CreatedAt ?? new Date().toISOString();
+            const isAnonymous = r.is_anonymous ?? r.IsAnonymous ?? false;
+            const realName = r.Member?.username || r.username || "ผู้ใช้";
+            const username = isAnonymous ? "ไม่เปิดเผยชื่อ" : realName;
+            // ✅ ดึงรูปโปรไฟล์จาก Member
+            const rawPic =
+              r.Member?.member_picture ??
+              r.Member?.MemberPicture ??
+              r.Member?.avatar_url ??
+              r.Member?.AvatarURL ??
+              r.member_picture ??
+              r.MemberPicture ??
+              r.avatar_url ??
+              r.AvatarURL ??
+              "";
 
-// ✅ ถ้า anonymous = ห้ามส่งรูปจริงออกมา
-const avatarUrl = isAnonymous ? ANON_AVATAR : toFullUrl(rawPic);
+            // ✅ ถ้า anonymous = ห้ามส่งรูปจริงออกมา
+            const avatarUrl = isAnonymous ? ANON_AVATAR : toFullUrl(rawPic);
 
-          return {
-            id: r.ID ?? r.id,
-            memberId,
-            username,
-            isAnonymous,
-            avatarUrl,
-            title: r.title || r.Title || "",
-            content: r.content || r.Content || "",
-            rating: r.rating ?? r.Rating ?? 0,
-            date: formatDate(createdAt),
-            category: r.SubCategoryL2?.title || r.SubCategoryL1?.title || r.MainCategory?.title || "ทั่วไป",
-            helpfulCount: r.helpful_count ?? r.HelpfulCount ?? 0,
-            notHelpfulCount: r.not_helpful_count ?? r.NotHelpfulCount ?? 0,
-            images,
-            mainCatId: r.main_category_id ?? r.MainCategoryID,
-            subL1Id: r.sub_category_l1_id ?? r.SubCategoryL1ID,
-            subL2Id: r.sub_category_l2_id ?? r.SubCategoryL2ID,
-            myVoteType: r.my_vote_type ?? null,
-          } as ReviewItem;
-        });
+            return {
+              id: r.ID ?? r.id,
+              memberId,
+              username,
+              isAnonymous,
+              avatarUrl,
+              title: r.title || r.Title || "",
+              content: r.content || r.Content || "",
+              rating: r.rating ?? r.Rating ?? 0,
+              date: formatDate(createdAt),
+              category: r.SubCategoryL2?.title || r.SubCategoryL1?.title || r.MainCategory?.title || "ทั่วไป",
+              helpfulCount: r.helpful_count ?? r.HelpfulCount ?? 0,
+              notHelpfulCount: r.not_helpful_count ?? r.NotHelpfulCount ?? 0,
+              images,
+              mainCatId: r.main_category_id ?? r.MainCategoryID,
+              subL1Id: r.sub_category_l1_id ?? r.SubCategoryL1ID,
+              subL2Id: r.sub_category_l2_id ?? r.SubCategoryL2ID,
+              myVoteType: r.my_vote_type ?? null,
+            } as ReviewItem;
+          });
 
-      setAllReviews(mapToItems(allData));
-      setMyReviews(mapToItems(myData));
-    } catch (e: any) {
-      setError(e.message || "โหลดข้อมูลไม่สำเร็จ");
-    } finally {
-      setLoading(false);
-    }
-  };
+        setAllReviews(mapToItems(allData));
+        setMyReviews(mapToItems(myData));
+      } catch (e: any) {
+        setError(e.message || "โหลดข้อมูลไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  load();
-}, []);
+    load();
+  }, []);
 
 
   // 2) โหลดหมวดหมู่ 3 ชั้น (ไม่ทำเป็น tree — ใช้ 3 dropdown)
@@ -256,21 +256,21 @@ const avatarUrl = isAnonymous ? ANON_AVATAR : toFullUrl(rawPic);
 
   // 3) Filter + Sort
   const filteredAndSortedReviews = useMemo(() => {
-   const baseList = filterBy === "my" ? myReviews : allReviews;
+    const baseList = filterBy === "my" ? myReviews : allReviews;
 
-let list = baseList.filter((r) => {
-  const matchesSearch = (r.title + " " + r.content + " " + r.username)
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+    let list = baseList.filter((r) => {
+      const matchesSearch = (r.title + " " + r.content + " " + r.username)
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
-  // หมวดหมู่
-  let matchesCategory = true;
-  if (selectedL2Id) matchesCategory = r.subL2Id === selectedL2Id;
-  else if (selectedL1Id) matchesCategory = r.subL1Id === selectedL1Id;
-  else if (selectedMainId) matchesCategory = r.mainCatId === selectedMainId;
+      // หมวดหมู่
+      let matchesCategory = true;
+      if (selectedL2Id) matchesCategory = r.subL2Id === selectedL2Id;
+      else if (selectedL1Id) matchesCategory = r.subL1Id === selectedL1Id;
+      else if (selectedMainId) matchesCategory = r.mainCatId === selectedMainId;
 
-  return matchesSearch && matchesCategory;
-});
+      return matchesSearch && matchesCategory;
+    });
     if (sortBy === "latest") {
       // NOTE: r.date เป็น string ที่ format แล้ว (th-TH) อาจ parse ไม่แม่น
       // ถ้าอยากชัวร์ ให้เก็บ createdAt ISO อีก field แล้ว sort ด้วย ISO
@@ -282,69 +282,86 @@ let list = baseList.filter((r) => {
     return list;
   }, [allReviews, myReviews, searchTerm, selectedMainId, selectedL1Id, selectedL2Id, sortBy, filterBy]);
 
- const handleVote = async (reviewId: number, voteType: "helpful" | "not_helpful") => {
-  try {
-    const data = await voteReview(reviewId, voteType);
+  const handleVote = async (reviewId: number, voteType: "helpful" | "not_helpful") => {
+    try {
+      const data = await voteReview(reviewId, voteType);
 
-    const patch = (arr: ReviewItem[]) =>
-      arr.map((r) =>
-        r.id === reviewId
-          ? {
+      const patch = (arr: ReviewItem[]) =>
+        arr.map((r) =>
+          r.id === reviewId
+            ? {
               ...r,
               helpfulCount: data.helpful_count,
               notHelpfulCount: data.not_helpful_count,
               myVoteType: data.my_vote_type,
             }
-          : r
-      );
+            : r
+        );
 
-    setAllReviews((prev) => patch(prev));
-    setMyReviews((prev) => patch(prev));
-  } catch (e: any) {
-    alert(e.message);
-  }
-};
+      setAllReviews((prev) => patch(prev));
+      setMyReviews((prev) => patch(prev));
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
 
 
- const handleDeleteConfirm = async () => {
-  if (selectedReviewIdForDelete == null) return;
-  try {
-    await deleteReview(selectedReviewIdForDelete);
+  const handleDeleteConfirm = async () => {
+    if (selectedReviewIdForDelete == null) return;
+    try {
+      await deleteReview(selectedReviewIdForDelete);
 
-    setAllReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
-    setMyReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
+      setAllReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
+      setMyReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
 
-    setIsDeleteModalOpen(false);
-  } catch (e: any) {
-    alert(e.message);
-  }
-};
-//รีเซ็ต fillter
-const handleResetFilters = () => {
-  setSearchTerm("");
-  setSortBy("latest");
-  setFilterBy("all");
+      setIsDeleteModalOpen(false);
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+  //รีเซ็ต fillter
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSortBy("latest");
+    setFilterBy("all");
 
-  setSelectedMainId(null);
-  setSelectedL1Id(null);
-  setSelectedL2Id(null);
-};
+    setSelectedMainId(null);
+    setSelectedL1Id(null);
+    setSelectedL2Id(null);
+  };
 
   return (
-    
+
     <div className="rl-page">
       <div className="rl-wrap">
         <div className="rl-stickyHead">
-          <div className="rl-headTop">
+          <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div className="rl-eyebrow">COMMUNITY REVIEW</div>
               <div className="rl-title">
                 รีวิวจากเพื่อนถึงเพื่อน <span className="rl-bubble">💬</span>
               </div>
             </div>
-        
+            <button
+              className="rl-btn-secondary"
+              style={{
+                padding: "8px 16px",
+                borderRadius: "20px",
+                border: "1px solid #ddd",
+                background: "white",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+              onClick={() => navigate("/User/Review/my")}
+            >
+              จัดการรีวิวของฉัน ⚙️
+            </button>
           </div>
-          
+
 
           <div className="rl-search">
             <span className="rl-searchIcon">🔎</span>
@@ -411,61 +428,61 @@ const handleResetFilters = () => {
               </button>
               <button className={`rl-tab ${sortBy === "popular" ? "is-active" : ""}`} onClick={() => setSortBy("popular")}>
                 ยอดนิยม 🔥
-                 </button>
+              </button>
 
-               {/* ✅ NEW: Reset (สไตล์เดียวกับปุ่มอื่น) */}
-  <button className="rl-tab" onClick={handleResetFilters} type="button">
-    รีเซ็ต ♻️
-  </button>
+              {/* ✅ NEW: Reset (สไตล์เดียวกับปุ่มอื่น) */}
+              <button className="rl-tab" onClick={handleResetFilters} type="button">
+                รีเซ็ต ♻️
+              </button>
 
 
 
-              
+
             </div>
-            
+
           </div>
-          
+
         </div>
-        
+
 
         {loading && <div className="rl-status">กำลังโหลดรีวิว...</div>}
         {error && <div className="rl-status rl-error">{error}</div>}
 
-   <div className="rl-list">
-  {!loading &&
-    filteredAndSortedReviews.map((review) => {
-      const isMine = myReviewIdSet.has(review.id); // ✅ เช็คเจ้าของจาก myReviews
+        <div className="rl-list">
+          {!loading &&
+            filteredAndSortedReviews.map((review) => {
+              const isMine = myReviewIdSet.has(review.id); // ✅ เช็คเจ้าของจาก myReviews
 
-      return (
-        <ReviewCard
-          key={review.id}
-          review={review}
-          currentMemberId={myId ?? undefined}
-          isMine={isMine} 
-          canDelete={isMine}
-          canReport={!isMine}   // ✅ ของตัวเองไม่ให้แจ้งปัญหา
+              return (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  currentMemberId={myId ?? undefined}
+                  isMine={isMine}
+                  canDelete={isMine}
+                  canReport={!isMine}   // ✅ ของตัวเองไม่ให้แจ้งปัญหา
 
-          onDelete={() => {
-            if (!isMine) return;
-            setSelectedReviewIdForDelete(review.id);
-            setIsDeleteModalOpen(true);
-          }}
+                  onDelete={() => {
+                    if (!isMine) return;
+                    setSelectedReviewIdForDelete(review.id);
+                    setIsDeleteModalOpen(true);
+                  }}
 
-          onReport={() => {
-            if (isMine) return;
-            setSelectedReviewIdForReport(review.id);
-            setIsReportModalOpen(true);
-          }}
+                  onReport={() => {
+                    if (isMine) return;
+                    setSelectedReviewIdForReport(review.id);
+                    setIsReportModalOpen(true);
+                  }}
 
-          onVote={(type) => handleVote(review.id, type)}
-        />
-      );
-    })}
+                  onVote={(type) => handleVote(review.id, type)}
+                />
+              );
+            })}
 
-  {!loading && filteredAndSortedReviews.length === 0 && (
-    <div className="rl-empty">ไม่พบรีวิวที่คุณค้นหา</div>
-  )}
-</div>
+          {!loading && filteredAndSortedReviews.length === 0 && (
+            <div className="rl-empty">ไม่พบรีวิวที่คุณค้นหา</div>
+          )}
+        </div>
 
 
 
@@ -482,9 +499,43 @@ const handleResetFilters = () => {
         setSelectedReason={setSelectedReportReason}
         otherReason={otherReason}
         setOtherReason={setOtherReason}
-        onSubmit={() => {
-          alert("ส่งรายงานแล้ว");
-          setIsReportModalOpen(false);
+        onSubmit={async () => {
+          if (!selectedReviewIdForReport) return;
+
+          try {
+            const title = selectedReportReason;
+            const description = selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)" ? otherReason : selectedReportReason;
+
+            const token = localStorage.getItem("token");
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+            const response = await fetch(`${API_BASE}/api/members/reports`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                target_type: "Review",
+                target_id: selectedReviewIdForReport,
+                title,
+                description,
+                medias: [],
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to submit report");
+            }
+
+            alert("ส่งรายงานแล้ว");
+            setIsReportModalOpen(false);
+            // Refresh หน้าเพื่อดู report count อัพเดท
+            window.location.reload();
+          } catch (error) {
+            console.error("Report error:", error);
+            alert("เกิดข้อผิดพลาดในการส่งรายงาน");
+          }
         }}
       />
 

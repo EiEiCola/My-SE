@@ -44,6 +44,7 @@ function AdminRoutes() {
         <Route path="AnnouncementManage/Announcements" element={<AnnouncementsList />} />
         <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
         <Route path="ReportManage" element={<ReportManage />} />
+        
       </Route>
     </Routes>
   );

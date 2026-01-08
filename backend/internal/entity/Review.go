@@ -1,39 +1,44 @@
 package entity
 
 import (
-	"gorm.io/gorm"
 	"errors"
 	"strings"
+
+	"gorm.io/gorm"
 )
+
 type Review struct {
 	gorm.Model
-	Title           string    `json:"title"`
-	Content         string    `json:"content"`
-	Rating          int       `json:"rating"`
-	IsAnonymous     bool      `json:"is_anonymous"`
-	HelpfulCount    int       `json:"helpful_count"`
-	NotHelpfulCount int       `json:"not_helpful_count"`
+	Title           string `json:"title"`
+	Content         string `json:"content"`
+	Rating          int    `json:"rating"`
+	IsAnonymous     bool   `json:"is_anonymous"`
+	HelpfulCount    int    `json:"helpful_count"`
+	NotHelpfulCount int    `json:"not_helpful_count"`
 	//CreatedAt       time.Time `json:"created_at"`
 
-	MemberID   uint   `json:"member_id"`  
-    Member     Member `gorm:"foreignKey:MemberID;references:ID"`
+	MemberID uint   `json:"member_id"`
+	Member   Member `gorm:"foreignKey:MemberID;references:ID" json:"Member"`
 
 	//FK category
-	MainCategoryID *uint         `json:"main_category_id"`
-	MainCategory   MainCategory `gorm:"foreignKey:MainCategoryID;references:ID"`
+	MainCategoryID *uint        `json:"main_category_id"`
+	MainCategory   MainCategory `gorm:"foreignKey:MainCategoryID;references:ID" json:"MainCategory"`
 
-	SubCategoryL1ID *uint          `json:"sub_category_l1_id"`
-	SubCategoryL1   SubCategoryL1 `gorm:"foreignKey:SubCategoryL1ID;references:ID"`
+	SubCategoryL1ID *uint         `json:"sub_category_l1_id"`
+	SubCategoryL1   SubCategoryL1 `gorm:"foreignKey:SubCategoryL1ID;references:ID" json:"SubCategoryL1"`
 
-	SubCategoryL2ID *uint          `json:"sub_category_l2_id"`
-	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID"`
+	SubCategoryL2ID *uint         `json:"sub_category_l2_id"`
+	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"SubCategoryL2"`
 
-	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID" `
-	ReviewVotes  []ReviewVote  `gorm:"foreignKey:ReviewID;references:ID"`
-	Tags        []Tag        `gorm:"many2many:review_tags" json:"tags"`
-    ReviewTags  []ReviewTag  `gorm:"foreignKey:ReviewID"`
+	ReviewImages []ReviewImage `gorm:"foreignKey:ReviewID;references:ID" json:"ReviewImages"`
+	ReviewVotes  []ReviewVote  `gorm:"foreignKey:ReviewID;references:ID" json:"ReviewVotes"`
+	Tags         []Tag         `gorm:"many2many:review_tags" json:"tags"`
+	ReviewTags   []ReviewTag   `gorm:"foreignKey:ReviewID" json:"ReviewTags"`
 
-	Reports []Report `gorm:"polymorphic:Target;" json:"reports"`
+	Reports []Report `gorm:"polymorphic:Target;" json:"Reports"`
+
+	DeletedByType     string `json:"deleted_by_type" gorm:"type:varchar(10);default:''"`
+	AdminDeleteReason string `json:"admin_delete_reason"`
 }
 
 func ValidateReview(r Review) (bool, error) {
