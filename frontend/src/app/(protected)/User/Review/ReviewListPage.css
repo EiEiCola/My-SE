@@ -3,81 +3,90 @@
    ✅ FIX: เอา sticky ออก ไม่ให้หัวติดตอนเลื่อน
 ========================= */
 
-.rl-page{
+.rl-page {
   min-height: 100vh;
   width: 100%;
-  background: radial-gradient(1200px 700px at 20% 0%, #fdfbf7 0%, transparent 60%),
-              radial-gradient(1200px 700px at 80% 20%, rgba(254,243,199,.35) 0%, transparent 55%),
-              #fffefc;
+  background: radial-gradient(1200px 600px at 15% 0%, #ffe4cf 0%, transparent 55%),
+    radial-gradient(1000px 500px at 80% 10%, #fff1e3 0%, transparent 55%),
+    #fff7f0;
 }
 
-.rl-wrap{
+.rl-wrap {
   width: 100%;
   padding: 22px 22px 90px;
 }
 
 /* ✅ FIX: ไม่ให้หัว sticky */
-.rl-stickyHead{
-  position: static;         /* เดิม sticky */
-  top: auto;                /* เดิม 0 */
-  z-index: auto;            /* เดิม 20 (ไม่จำเป็นแล้ว) */
+.rl-stickyHead {
+  position: static;
+  /* เดิม sticky */
+  top: auto;
+  /* เดิม 0 */
+  z-index: auto;
+  /* เดิม 20 (ไม่จำเป็นแล้ว) */
 
   padding: 16px 0 14px;
-  background: rgba(253,251,247,.85);
+  background: rgba(253, 251, 247, .85);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(229,231,235,.6);
+  border-bottom: 1px solid rgba(229, 231, 235, .6);
 }
 
-.rl-headTop{
+.rl-headTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 
-.rl-eyebrow{
+.rl-eyebrow {
   font-weight: 900;
   font-size: 12px;
   letter-spacing: .12em;
-  color: #f59e0b;
+  color: #ff7a18;
   margin-bottom: 6px;
 }
 
-.rl-title{
+.rl-title {
   font-size: 44px;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.02em;
 }
 
-.rl-bubble{ margin-left: 8px; }
+.rl-bubble {
+  margin-left: 8px;
+}
 
-.rl-live{
+.rl-live {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  border: 2px solid #fed7aa;
+  border: 2px solid rgba(255, 122, 24, .25);
   background: #fff;
   padding: 10px 14px;
   border-radius: 16px;
   font-weight: 900;
   color: #111827;
-  box-shadow: 0 10px 25px rgba(0,0,0,.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
 }
 
-.rl-search{
+.rl-search {
   margin-top: 14px;
   background: #fff;
-  border: 1px solid rgba(229,231,235,.8);
+  border: 1px solid rgba(229, 231, 235, .8);
   border-radius: 18px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.04);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .04);
 }
-.rl-searchIcon{ opacity: .6; }
-.rl-search input{
+
+.rl-searchIcon {
+  opacity: .6;
+}
+
+.rl-search input {
   border: 0;
   outline: none;
   width: 100%;
@@ -86,7 +95,7 @@
   color: #374151;
 }
 
-.rl-filters{
+.rl-filters {
   margin-top: 14px;
   display: flex;
   align-items: center;
@@ -94,8 +103,8 @@
   flex-wrap: wrap;
 }
 
-.rl-selectWrap select{
-  border: 1px solid rgba(229,231,235,.9);
+.rl-selectWrap select {
+  border: 1px solid rgba(229, 231, 235, .9);
   background: #fff;
   border-radius: 16px;
   padding: 10px 14px;
@@ -103,17 +112,17 @@
   color: #374151;
   outline: none;
   min-width: 240px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.04);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .04);
 }
 
-.rl-tabs{
+.rl-tabs {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.rl-tab{
-  border: 1px solid rgba(229,231,235,.9);
+.rl-tab {
+  border: 1px solid rgba(229, 231, 235, .9);
   background: #fff;
   padding: 10px 14px;
   border-radius: 16px;
@@ -121,47 +130,58 @@
   font-size: 12px;
   color: #6b7280;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(0,0,0,.04);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .04);
 }
-.rl-tab:hover{ background: #f9fafb; }
 
-.rl-tab.is-active{
-  background: #f9a825;
-  border-color: #f9a825;
+.rl-tab:hover {
+  background: #f9fafb;
+}
+
+.rl-tab.is-active {
+  background: #ff7a18;
+  border-color: #ff7a18;
   color: #fff;
-  box-shadow: 0 18px 40px rgba(249,168,37,.22);
+  box-shadow: 0 18px 40px rgba(255, 122, 24, .22);
 }
 
-.rl-list{
+.rl-list {
   margin-top: 18px;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-.rl-empty{
+.rl-empty {
   padding: 70px 0;
   text-align: center;
   color: #9ca3af;
 }
-.rl-emptyEmoji{ font-size: 44px; margin-bottom: 10px; }
-.rl-emptyText{ font-weight: 800; }
-.rl-clear{
+
+.rl-emptyEmoji {
+  font-size: 44px;
+  margin-bottom: 10px;
+}
+
+.rl-emptyText {
+  font-weight: 800;
+}
+
+.rl-clear {
   margin-top: 12px;
   border: 0;
   background: transparent;
-  color: #f59e0b;
+  color: #ff7a18;
   text-decoration: underline;
   font-weight: 900;
   cursor: pointer;
 }
 
-.rl-fab{
+.rl-fab {
   position: fixed;
   right: 22px;
   bottom: 22px;
   border: 0;
-  background: #f9a825;
+  background: #ff7a18;
   color: #fff;
   border-radius: 999px;
   padding: 14px 16px;
@@ -170,35 +190,63 @@
   gap: 10px;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 18px 40px rgba(249,168,37,.35);
+  box-shadow: 0 18px 40px rgba(255, 122, 24, .35);
 }
-.rl-fab:hover{ filter: brightness(.98); transform: translateY(-1px); }
-.rl-fabPlus{ font-size: 22px; margin-top: -2px; }
 
-.rl-modalOverlay{
+.rl-fab:hover {
+  filter: brightness(.98);
+  transform: translateY(-1px);
+}
+
+.rl-fabPlus {
+  font-size: 22px;
+  margin-top: -2px;
+}
+
+.rl-modalOverlay {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(0,0,0,.6);
+  background: rgba(0, 0, 0, .6);
   backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
   padding: 16px;
   animation: rlFadeIn .15s ease-out;
 }
-@keyframes rlFadeIn{ from{opacity:0} to{opacity:1} }
 
-.rl-modal{
+@keyframes rlFadeIn {
+  from {
+    opacity: 0
+  }
+
+  to {
+    opacity: 1
+  }
+}
+
+.rl-modal {
   width: min(460px, 100%);
   background: #fff;
   border-radius: 26px;
   padding: 20px 18px 18px;
-  box-shadow: 0 30px 80px rgba(0,0,0,.25);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .25);
   animation: rlScaleIn .18s ease-out;
 }
-@keyframes rlScaleIn{ from{ transform: scale(.95); opacity:.7 } to{ transform: scale(1); opacity:1 } }
 
-.rl-modalIcon{
+@keyframes rlScaleIn {
+  from {
+    transform: scale(.95);
+    opacity: .7
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1
+  }
+}
+
+.rl-modalIcon {
   width: 56px;
   height: 56px;
   border-radius: 999px;
@@ -208,14 +256,16 @@
   font-size: 22px;
   margin: 2px auto 10px;
 }
-.rl-modalTitle{
+
+.rl-modalTitle {
   margin: 0;
   text-align: center;
   font-size: 22px;
   font-weight: 900;
   color: #111827;
 }
-.rl-modalDesc{
+
+.rl-modalDesc {
   margin: 10px 0 16px;
   text-align: center;
   color: #6b7280;
@@ -223,25 +273,36 @@
   line-height: 1.5;
 }
 
-.rl-modalActions{ display: grid; gap: 10px; }
+.rl-modalActions {
+  display: grid;
+  gap: 10px;
+}
 
-.rl-btn{
+.rl-btn {
   border: 0;
   border-radius: 18px;
   padding: 12px 14px;
   font-weight: 900;
   cursor: pointer;
 }
-.rl-btnDanger{
+
+.rl-btnDanger {
   background: #ef4444;
   color: #fff;
 }
-.rl-btnDanger:hover{ background: #dc2626; }
-.rl-btnGhost{
+
+.rl-btnDanger:hover {
+  background: #dc2626;
+}
+
+.rl-btnGhost {
   background: #f3f4f6;
   color: #374151;
 }
-.rl-btnGhost:hover{ background: #e5e7eb; }
+
+.rl-btnGhost:hover {
+  background: #e5e7eb;
+}
 
 /* ตกแต่ง Dropdown */
 .rl-categorySelect {
@@ -287,10 +348,13 @@
   font-size: 1.2rem;
   font-weight: bold;
 }
-.rl-error { color: #e53935; }
 
-.rl-tab.rl-tabReset{
-  border: 1px solid rgba(229,231,235,.9);
+.rl-error {
+  color: #e53935;
+}
+
+.rl-tab.rl-tabReset {
+  border: 1px solid rgba(229, 231, 235, .9);
   background: #fff;
   padding: 10px 14px;
   border-radius: 16px;
@@ -298,9 +362,9 @@
   font-size: 12px;
   color: #6b7280;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(0,0,0,.04);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .04);
 }
 
-.rl-tab.rl-tabReset:hover{
+.rl-tab.rl-tabReset:hover {
   background: #f9fafb;
 }

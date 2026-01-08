@@ -186,9 +186,9 @@ const MyReviews: React.FC = () => {
                     </div>
                     <div className="stat">
                         <div className="k" style={{ color: "#16a34a" }}>
-                            Helpful
+                            Published
                         </div>
-                        <div className="v">{reviews.reduce((a, b) => a + b.helpfulCount, 0)}</div>
+                        <div className="v">{reviews.filter((r) => !r.deletedAt).length}</div>
                     </div>
                     <div className="stat">
                         <div className="k" style={{ color: "#dc2626" }}>
