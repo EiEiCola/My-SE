@@ -53,9 +53,9 @@ const AdminAnnouncementCreate: React.FC = () => {
             const payload = {
                 title: sanitizedTitle,
                 content: sanitizedContent,
-                start_at: reqStart,
-                end_at: reqEnd,
-                medias: image ? [{ url: image, type: 'image', is_cover: true }] : []
+                publish_start_at: reqStart,
+                publish_end_at: reqEnd,
+                medias: image ? [image] : [] // Backend expects []string
             };
 
             // Get JWT token from localStorage
