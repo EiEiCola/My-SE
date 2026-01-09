@@ -86,7 +86,7 @@ const PollCreate: React.FC = () => {
   const [sub1Cats, setSub1Cats] = useState<CatItem[]>([]);
   const [sub2Cats, setSub2Cats] = useState<CatItem[]>([]);
   const [catLoading, setCatLoading] = useState(false);
-  
+
   const [catNames, setCatNames] = useState<{ main?: string; sub1?: string; sub2?: string }>({});
 
 
@@ -95,27 +95,27 @@ const PollCreate: React.FC = () => {
   const errors = useMemo(() => {
     const e: string[] = [];
 
-    if (!form.question.trim()) e.push("Question is required");
+    if (!form.question.trim()) e.push("กรุณาระบุคำถาม");
 
     const nonEmptyOptions = form.options.filter((o) => o.label.trim() !== "");
-    if (nonEmptyOptions.length < 2) e.push("At least 2 options are required");
+    if (nonEmptyOptions.length < 2) e.push("ต้องมีอย่างน้อย 2 ตัวเลือก");
 
     const labels = nonEmptyOptions.map((o) => o.label.trim().toLowerCase());
     const dup = labels.some((v, i) => labels.indexOf(v) !== i);
-    if (dup) e.push("Duplicate option labels are not allowed");
+    if (dup) e.push("ตัวเลือกซ้ำกันไม่ได้");
 
     if (form.allow_multiple) {
       if (!form.max_choice || form.max_choice < 2) {
-        e.push("Max choice must be at least 2 when allow multiple is enabled");
+        e.push("เลือกสูงสุดต้องมากกว่า 2");
       } else if (form.max_choice > optionCount) {
-        e.push("Max choice cannot exceed number of options");
+        e.push("เลือกได้ไม่เกินจำนวนตัวเลือก");
       }
     }
 
     const s = form.start_at ? dayjs(form.start_at) : null;
     const en = form.end_at ? dayjs(form.end_at) : null;
     if (s && en && s.isValid() && en.isValid() && en.isBefore(s)) {
-      e.push("End time must be after start time");
+      e.push("เวลาสิ้นสุดต้องหลังเวลาเริ่ม");
     }
 
     return e;
@@ -123,9 +123,9 @@ const PollCreate: React.FC = () => {
 
   const draftWarnings = useMemo(() => {
     const w: string[] = [];
-    if (!form.question.trim()) w.push("Draft: question is empty");
+    if (!form.question.trim()) w.push("แบบร่าง: ยังไม่มีคำถาม");
     const filled = form.options.filter((o) => o.label.trim() !== "");
-    if (filled.length < 2) w.push("Draft: recommended to have at least 2 options");
+    if (filled.length < 2) w.push("แบบร่าง: แนะนำให้มีอย่างน้อย 2 ตัวเลือก");
     return w;
   }, [form]);
 
@@ -181,7 +181,7 @@ const PollCreate: React.FC = () => {
       main_category_id: form.main_category_id || null,
       sub_category_l1_id: form.sub_category_l1_id || null,
       sub_category_l2_id: form.sub_category_l2_id || null,
-      
+
       is_anonymous: form.is_anonymous, // ✅ เพิ่มตรงนี้
       options: form.options.map((o, i) => ({
         label: o.label,
@@ -210,7 +210,7 @@ const PollCreate: React.FC = () => {
     try {
       if (draftWarnings.length) {
         // eslint-disable-next-line no-restricted-globals
-        const ok = confirm(`Save draft with warnings?\n\n- ${draftWarnings.join("\n- ")}`);
+        const ok = confirm(`บันทึกแบบร่างแม้มีข้อแนะนำ?\n\n- ${draftWarnings.join("\n- ")}`);
         if (!ok) {
           setSubmitting(false);
           return;
@@ -218,11 +218,11 @@ const PollCreate: React.FC = () => {
       }
 
       const id = await saveDraft();
-      alert("Saved draft successfully");
+      alert("บันทึกแบบร่างสำเร็จ");
       if (!isEdit && id) navigate(`/User/Polls/edit/${id}`);
     } catch (err) {
       console.error(err);
-      alert("Save draft failed");
+      alert("บันทึกล้มเหลว");
     } finally {
       setSubmitting(false);
     }
@@ -230,14 +230,14 @@ const PollCreate: React.FC = () => {
 
   const handleSubmitForReview = async () => {
     if (errors.length) {
-      alert(`Cannot submit:\n\n- ${errors.join("\n- ")}`);
+      alert(`ไม่สามารถส่งได้:\n\n- ${errors.join("\n- ")}`);
       return;
     }
 
     if (!form.main_category_id) {
-    alert("Please select Main Category before submit");
-    return;
-  }
+      alert("กรุณาเลือกหมวดหมู่หลักก่อนส่ง");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -246,11 +246,11 @@ const PollCreate: React.FC = () => {
 
       await (pollAPI as any).submitForReview(id);
 
-      alert("Submitted for review successfully");
+      alert("ส่งตรวจสอบสำเร็จ");
       navigate("/User/Polls/my");
     } catch (err) {
       console.error(err);
-      alert("Submit for review failed");
+      alert("ส่งตรวจสอบล้มเหลว");
     } finally {
       setSubmitting(false);
     }
@@ -367,7 +367,7 @@ const PollCreate: React.FC = () => {
         });
       } catch (err) {
         console.error(err);
-        alert("Failed to load poll for edit");
+        alert("โหลดข้อมูลโพลล้มเหลว");
         navigate("/User/Polls/my");
       } finally {
         setLoading(false);
@@ -378,7 +378,7 @@ const PollCreate: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, pollId]);
 
-  if (loading) return <div className="pcx-page">Loading...</div>;
+  if (loading) return <div className="pcx-page">กำลังโหลด...</div>;
 
   return (
     <div className="pcx-page">
@@ -386,25 +386,25 @@ const PollCreate: React.FC = () => {
         {/* Header */}
         <div className="pcx-header">
           <div className="pcx-headerLeft">
-            <div className="pcx-badge">{isEdit ? "EDIT POLL" : "CREATE POLL"}</div>
-            <div className="pcx-title">{isEdit ? "Edit Poll" : "Create Poll"}</div>
-            <div className="pcx-subtitle">Save Draft → Submit for Admin Review → (Approve) → Published</div>
+            <div className="pcx-badge">{isEdit ? "Edit Poll" : "Create Poll"}</div>
+            <div className="pcx-title">{isEdit ? "แก้ไขโพล" : "สร้างโพล"}</div>
+            <div className="pcx-subtitle">บันทึกแบบร่าง → ส่งตรวจสอบ → รออนุมัติ → เผยแพร่</div>
             {isEdit && pollStatusID !== null && (
               <div className="pcx-status">
-                Current Status: <span>{pollStatusID}</span>
+                สถานะ: <span>{pollStatusID}</span>
               </div>
             )}
           </div>
 
           <button type="button" className="pcx-btn pcx-btnGhost" onClick={() => navigate("/User/Polls/my")}>
-            ← Back
+            ← กลับ
           </button>
         </div>
 
         {/* Question */}
         <div className="pcx-section pcx-sectionTop">
           <div className="pcx-sectionHead">
-            <div className="pcx-sectionTitle">Question</div>
+            <div className="pcx-sectionTitle">คำถาม</div>
             <div className="pcx-sectionHint">ใส่คำถามสั้น ๆ ให้คนตอบเข้าใจง่าย</div>
           </div>
           <input
@@ -416,31 +416,31 @@ const PollCreate: React.FC = () => {
         </div>
 
         <label className="pcx-check">
-  <input
-    type="checkbox"
-    checked={form.is_anonymous}
-    onChange={(e) => setField("is_anonymous", e.target.checked)}
-  />
-  ไม่เปิดเผยชื่อ (แสดงเป็น “ไม่เปิดเผยชื่อ”)
-</label>
+          <input
+            type="checkbox"
+            checked={form.is_anonymous}
+            onChange={(e) => setField("is_anonymous", e.target.checked)}
+          />
+          ไม่เปิดเผยชื่อ 
+        </label>
 
 
         <div className="pcx-row pcx-rowBetween" style={{ marginTop: 10 }}>
-  <div>
-    <div className="pcx-sectionTitle" style={{ fontSize: 14 }}>โพสต์แบบไม่เปิดเผยชื่อ</div>
-    <div className="pcx-sectionHint">ถ้าเปิด คนอื่นจะเห็นชื่อเป็น “ไม่ระบุตัวตน”</div>
-  </div>
+          <div>
+            <div className="pcx-sectionTitle" style={{ fontSize: 14 }}>โพสต์แบบไม่เปิดเผยชื่อ</div>
+            <div className="pcx-sectionHint">ถ้าเปิด คนอื่นจะเห็นชื่อเป็น “ไม่ระบุตัวตน”</div>
+          </div>
 
-  <label className="pcx-switch">
-    <input
-      type="checkbox"
-      checked={form.is_anonymous}
-      onChange={(e) => setField("is_anonymous", e.target.checked)}
-    />
-    <span className="pcx-slider" />
-    <span className="pcx-check">{form.is_anonymous ? "เปิด" : "ปิด"}</span>
-  </label>
-</div>
+          <label className="pcx-switch">
+            <input
+              type="checkbox"
+              checked={form.is_anonymous}
+              onChange={(e) => setField("is_anonymous", e.target.checked)}
+            />
+            <span className="pcx-slider" />
+            <span className="pcx-check">{form.is_anonymous ? "เปิด" : "ปิด"}</span>
+          </label>
+        </div>
 
 
         {/* Panels row */}
@@ -448,8 +448,8 @@ const PollCreate: React.FC = () => {
           {/* Multiple choice */}
           <div className="pcx-panel">
             <div className="pcx-panelHead">
-              <div className="pcx-panelTitle">Allow multiple choices</div>
-              <div className="pcx-pill">{form.allow_multiple ? "MULTI" : "SINGLE"}</div>
+              <div className="pcx-panelTitle">เลือกได้หลายตัวเลือก</div>
+              <div className="pcx-pill">{form.allow_multiple ? "MULTIPLE" : "SINGLE"}</div>
             </div>
             <div className="pcx-panelSub">เปิดแล้วผู้โหวตเลือกได้มากกว่า 1 ตัวเลือก</div>
 
@@ -466,7 +466,7 @@ const PollCreate: React.FC = () => {
                   }}
                 />
                 <span className="pcx-slider" />
-                <span className="pcx-check">{form.allow_multiple ? "Enabled" : "Disabled"}</span>
+                <span className="pcx-check">{form.allow_multiple ? "เปิด" : "ปิด"}</span>
               </label>
 
               {form.allow_multiple && (
@@ -476,7 +476,7 @@ const PollCreate: React.FC = () => {
 
             {form.allow_multiple && (
               <div className="pcx-subsection">
-                <div className="pcx-label">Max choice</div>
+                <div className="pcx-label">เลือกได้สูงสุด</div>
                 <input
                   className="pcx-input"
                   type="number"
@@ -494,14 +494,14 @@ const PollCreate: React.FC = () => {
           {/* Time range */}
           <div className="pcx-panel">
             <div className="pcx-panelHead">
-              <div className="pcx-panelTitle">Time range (optional)</div>
-              <div className="pcx-pill">SCHEDULE</div>
+              <div className="pcx-panelTitle">กำหนดเวลา (ไม่บังคับ)</div>
+              <div className="pcx-pill">ตั้งเวลา</div>
             </div>
             <div className="pcx-panelSub">ถ้าตั้งเวลา ระบบจะให้โหวตได้เฉพาะช่วงนั้น</div>
 
             <div className="pcx-grid2tight">
               <div>
-                <div className="pcx-label">Start</div>
+                <div className="pcx-label">เริ่ม</div>
                 <input
                   className="pcx-input"
                   type="datetime-local"
@@ -511,7 +511,7 @@ const PollCreate: React.FC = () => {
               </div>
 
               <div>
-                <div className="pcx-label">End</div>
+                <div className="pcx-label">สิ้นสุด</div>
                 <input
                   className="pcx-input"
                   type="datetime-local"
@@ -523,11 +523,11 @@ const PollCreate: React.FC = () => {
 
             <div className="pcx-row">
               <div className="pcx-kv">
-                <div className="pcx-k">Start</div>
+                <div className="pcx-k">เริ่ม</div>
                 <div className="pcx-v">{form.start_at ? dayjs(form.start_at).format("DD MMM YYYY HH:mm") : "-"}</div>
               </div>
               <div className="pcx-kv">
-                <div className="pcx-k">End</div>
+                <div className="pcx-k">สิ้นสุด</div>
                 <div className="pcx-v">{form.end_at ? dayjs(form.end_at).format("DD MMM YYYY HH:mm") : "-"}</div>
               </div>
             </div>
@@ -538,10 +538,10 @@ const PollCreate: React.FC = () => {
         <details className="pcx-details" open>
           <summary className="pcx-summary">
             <div>
-              <div className="pcx-summaryTitle">Categories (optional)</div>
+              <div className="pcx-summaryTitle">หมวดหมู่ (ไม่บังคับ)</div>
               <div className="pcx-summaryHint">เลือกหมวดหมู่เพื่อให้คนหาโพลเจอง่ายขึ้น</div>
             </div>
-            <span className="pcx-miniPill">{catLoading ? "Loading..." : "Ready"}</span>
+            <span className="pcx-miniPill">{catLoading ? "กำลังโหลด..." : "พร้อม"}</span>
           </summary>
 
           <div className="pcx-panel pcx-panelSoft" style={{ borderRadius: 0, border: "none" }}>
@@ -623,12 +623,12 @@ const PollCreate: React.FC = () => {
         <div className="pcx-section">
           <div className="pcx-sectionHead pcx-sectionHeadRow">
             <div>
-              <div className="pcx-sectionTitle">Options</div>
+              <div className="pcx-sectionTitle">ตัวเลือก</div>
               <div className="pcx-sectionHint">อย่างน้อย 2 ตัวเลือก • ลากจัดลำดับด้วยปุ่ม ↑ ↓</div>
             </div>
 
             <button type="button" className="pcx-btn pcx-btnPrimary" onClick={addOption}>
-              ➕ Add Option
+              ➕ เพิ่มตัวเลือก
             </button>
           </div>
 
@@ -636,7 +636,7 @@ const PollCreate: React.FC = () => {
             {form.options.map((opt, idx) => (
               <div className="pcx-optCard" key={idx}>
                 <div className="pcx-optHead">
-                  <div className="pcx-optTitle">Option #{idx + 1}</div>
+                  <div className="pcx-optTitle">ตัวเลือก #{idx + 1}</div>
 
                   <div className="pcx-optActions">
                     <button
@@ -670,7 +670,7 @@ const PollCreate: React.FC = () => {
                 </div>
 
                 <div className="pcx-subsection">
-                  <div className="pcx-label">Label</div>
+                  <div className="pcx-label">ข้อความ</div>
                   <input
                     className="pcx-input"
                     value={opt.label}
@@ -689,7 +689,7 @@ const PollCreate: React.FC = () => {
                         setOption(idx, { hasImage: v, img_url: v ? opt.img_url : "" });
                       }}
                     />
-                    Include image (optional)
+                    เพิ่มรูปภาพ (ไม่บังคับ)
                   </label>
 
                   {opt.hasImage && (
@@ -726,7 +726,7 @@ const PollCreate: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <div className="pcx-help">เลือกรูปเพื่ออัปโหลด (ระบบจะเก็บ url ให้อัตโนมัติ)</div>
+                          <div className="pcx-help"></div>
                         )}
 
                         {opt.img_url && (
@@ -747,7 +747,7 @@ const PollCreate: React.FC = () => {
         <div className="pcx-messages">
           {errors.length > 0 && (
             <div className="pcx-alert pcx-alertError">
-              <div className="pcx-alertTitle">Submit validation</div>
+              <div className="pcx-alertTitle">ข้อผิดพลาด</div>
               <ul className="pcx-alertList">
                 {errors.map((x, i) => (
                   <li key={i}>{x}</li>
@@ -758,7 +758,7 @@ const PollCreate: React.FC = () => {
 
           {draftWarnings.length > 0 && (
             <div className="pcx-alert pcx-alertWarn">
-              <div className="pcx-alertTitle">Draft warnings</div>
+              <div className="pcx-alertTitle">ข้อแนะนำแบบร่าง</div>
               <ul className="pcx-alertList">
                 {draftWarnings.map((x, i) => (
                   <li key={i}>{x}</li>
@@ -771,11 +771,11 @@ const PollCreate: React.FC = () => {
         {/* Actions */}
         <div className="pcx-actions">
           <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
-            💾 Save Draft
+            💾 บันทึกแบบร่าง
           </button>
 
           <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
-            📤 Submit for Review
+            📤 ส่งตรวจสอบ
           </button>
         </div>
       </div>

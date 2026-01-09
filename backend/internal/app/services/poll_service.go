@@ -18,6 +18,7 @@ type PollService interface {
 	CancelRequest(memberID uint, pollID uint) (*dto.PollResponse, error)
 
 	DeletePoll(memberID uint, pollID uint) error
+	ClosePoll(memberID uint, pollID uint) (*dto.PollResponse, error) // Member closes own poll
 
 	GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsResponse, error)
 	GetMyPollByID(memberID uint, pollID uint) (*dto.PollResponse, error)
@@ -33,9 +34,9 @@ type PollService interface {
 	ListForAdmin(statusID *uint) ([]dto.PollResponse, error)
 	Approve(adminID uint, pollID uint) (*dto.PollResponse, error)
 	Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error)
-	Close(adminID uint, pollID uint) (*dto.PollResponse, error)
+	Close(adminID uint, pollID uint, reason string) (*dto.PollResponse, error)
 	GetByIDForAdmin(pollID uint) (*dto.PollResponse, error)
-	DeleteForAdmin(adminID uint, pollID uint) (*dto.PollResponse, error)
+	DeleteForAdmin(adminID uint, pollID uint, reason string) (*dto.PollResponse, error)
 }
 
 type pollService struct {
@@ -100,7 +101,7 @@ func (s *pollService) SaveDraft(memberID uint, req dto.CreatePollRequest) (*dto.
 		ToStatusID: &poll.PollStatusID,
 	})
 
-	return mapPollToResponse(&poll), nil
+	return s.mapPollToResponse(&poll), nil
 }
 
 func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePollRequest) (*dto.PollResponse, error) {
@@ -166,7 +167,7 @@ func (s *pollService) UpdateDraft(memberID uint, pollID uint, req dto.UpdatePoll
 		return nil, err
 	}
 
-	return mapPollToResponse(updated), nil
+	return s.mapPollToResponse(updated), nil
 }
 
 func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResponse, error) {
@@ -206,7 +207,7 @@ func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResp
 		return nil, err
 	}
 
-	return mapPollToResponse(updated), nil
+	return s.mapPollToResponse(updated), nil
 }
 
 func (s *pollService) CancelRequest(memberID uint, pollID uint) (*dto.PollResponse, error) {
@@ -240,7 +241,7 @@ func (s *pollService) CancelRequest(memberID uint, pollID uint) (*dto.PollRespon
 		return nil, err
 	}
 
-	return mapPollToResponse(updated), nil
+	return s.mapPollToResponse(updated), nil
 }
 
 func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
@@ -251,8 +252,15 @@ func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
 	if poll.MemberID != memberID {
 		return errors.New("you are not the owner of this poll")
 	}
-	if poll.PollStatusID != StatusDRAFT && poll.PollStatusID != StatusREJECTED {
-		return errors.New("can only delete poll in DRAFT or REJECTED status")
+	if poll.PollStatusID != StatusDRAFT && poll.PollStatusID != StatusREJECTED && poll.PollStatusID != StatusCLOSED {
+		return errors.New("can only delete poll in DRAFT, REJECTED, or CLOSED status")
+	}
+
+	// ✅ Set deleted_by_type = "OWNER" before soft delete
+	deletedByType := "OWNER"
+	poll.DeletedByType = &deletedByType
+	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+		return err
 	}
 
 	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
@@ -262,6 +270,52 @@ func (s *pollService) DeletePoll(memberID uint, pollID uint) error {
 	})
 
 	return s.pollRepo.DeletePoll(pollID)
+}
+
+// ClosePoll: Member closes their own poll (เจ้าของปิดโพลของตัวเอง)
+func (s *pollService) ClosePoll(memberID uint, pollID uint) (*dto.PollResponse, error) {
+	poll, err := s.pollRepo.GetPollByID(pollID)
+	if err != nil {
+		return nil, err
+	}
+	if poll.MemberID != memberID {
+		return nil, errors.New("you are not the owner of this poll")
+	}
+
+	// ✅ ปิดได้เฉพาะ PUBLISHED และต้อง computed status เป็น OPEN
+	if poll.PollStatusID != StatusPUBLISHED {
+		return nil, errors.New("can only close poll in PUBLISHED status")
+	}
+
+	// ตรวจสอบว่าโพลเป็น OPEN จริง (ไม่ใช่ UPCOMING หรือ CLOSED ไปแล้ว)
+	now := time.Now()
+	cs := computedStatus(poll, now)
+	if cs != "OPEN" {
+		if cs == "UPCOMING" {
+			return nil, errors.New("poll has not started yet")
+		}
+		return nil, errors.New("poll is already closed")
+	}
+
+	oldStatusID := poll.PollStatusID
+	newStatusID := StatusCLOSED
+
+	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
+		return nil, err
+	}
+
+	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
+		Action:       "CLOSE_MEMBER",
+		PollID:       poll.ID,
+		FromStatusID: &oldStatusID,
+		ToStatusID:   &newStatusID,
+	})
+
+	updated, err := s.pollRepo.GetPollByID(poll.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.mapPollToResponse(updated), nil
 }
 
 /* =========================
@@ -287,11 +341,18 @@ func (s *pollService) GetMyPolls(memberID uint, statusID *uint) ([]dto.MyPollsRe
 			StatusName:       statusName,
 			LastRejectReason: poll.LastRejectReason,
 			CreatedAt:        poll.CreatedAt,
+			UpdatedAt:        poll.UpdatedAt,
 			StartAt:          poll.StartAt,
 			EndAt:            poll.EndAt,
 			MainCategoryID:   poll.MainCategoryID,
 			SubCategoryL1ID:  poll.SubCategoryL1ID,
 			SubCategoryL2ID:  poll.SubCategoryL2ID,
+
+			// ✅ Admin moderation fields
+			DeletedAt:         &poll.DeletedAt.Time, // convert gorm.DeletedAt to *time.Time
+			AdminCloseReason:  poll.AdminCloseReason,
+			AdminDeleteReason: poll.AdminDeleteReason,
+			DeletedByType:     poll.DeletedByType,
 		})
 	}
 	return result, nil
@@ -305,7 +366,7 @@ func (s *pollService) GetMyPollByID(memberID uint, pollID uint) (*dto.PollRespon
 	if poll.MemberID != memberID {
 		return nil, errors.New("you are not the owner of this poll")
 	}
-	return mapPollToResponse(poll), nil
+	return s.mapPollToResponse(poll), nil
 }
 
 /* =========================
@@ -339,12 +400,12 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 	if err := s.pollRepo.CreatePoll(&poll); err != nil {
 		return nil, err
 	}
-	return mapPollToResponse(&poll), nil
+	return s.mapPollToResponse(&poll), nil
 }
 
 func (s *pollService) ListPublished(memberID uint) ([]dto.PollResponse, error) {
-	statusID := StatusPUBLISHED
-	polls, err := s.pollRepo.ListPolls(&statusID, nil)
+	// statusID := StatusPUBLISHED (ยกเลิก: เราต้องการทั้ง PUBLISHED และ CLOSED)
+	polls, err := s.pollRepo.ListActivePolls(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +430,7 @@ func (s *pollService) ListPublished(memberID uint) ([]dto.PollResponse, error) {
 	}
 
 	// map เป็น dto แล้วค่อยเติม fields เพิ่ม
-	res := mapPollsToResponse(polls)
+	res := s.mapPollsToResponse(polls)
 
 	for i := range res {
 		pid := res[i].ID
@@ -562,7 +623,7 @@ func (s *pollService) ListForAdmin(statusID *uint) ([]dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mapPollsToAdminResponse(polls), nil
+	return s.mapPollsToAdminResponse(polls), nil
 }
 
 func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, error) {
@@ -598,7 +659,7 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToAdminResponse(updated), nil
+	return s.mapPollToAdminResponse(updated), nil
 }
 
 func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
@@ -630,29 +691,52 @@ func (s *pollService) Reject(adminID uint, pollID uint, reason string) (*dto.Pol
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToAdminResponse(updated), nil
+	return s.mapPollToAdminResponse(updated), nil
 }
 
-func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error) {
+func (s *pollService) Close(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
 	}
-	if poll.PollStatusID != StatusPUBLISHED {
-		return nil, errors.New("can only close poll in PUBLISHED status")
+
+	// ✅ ห้ามปิดโพลที่ปิดไปแล้ว (status_id = 5)
+	if poll.PollStatusID == StatusCLOSED {
+		return nil, errors.New("poll is already closed")
 	}
+
+	// ✅ ปิดได้เฉพาะ PUBLISHED (และต้องไม่ใช่ PUBLISHED ที่หมดเวลาไปแล้ว)
+	// PENDING ให้ใช้ Reject แทน
+	if poll.PollStatusID != StatusPUBLISHED {
+		return nil, errors.New("can only force close PUBLISHED polls (use Reject for PENDING)")
+	}
+
+	// ตรวจสอบ computed status
+	now := time.Now()
+	cs := computedStatus(poll, now)
+	if cs == "CLOSED" {
+		return nil, errors.New("poll voting period has already ended")
+	}
+	// UPCOMING/OPEN → OK
 
 	oldStatusID := poll.PollStatusID
 	newStatusID := StatusCLOSED
+
+	// ✅ บันทึก reason
+	poll.AdminCloseReason = &reason
+	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+		return nil, err
+	}
 
 	if err := s.pollRepo.UpdatePollStatus(poll.ID, newStatusID); err != nil {
 		return nil, err
 	}
 
 	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
-		Action:       "CLOSE",
+		Action:       "CLOSE_ADMIN",
 		PollID:       poll.ID,
 		AdminID:      &adminID,
+		Reason:       reason,
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &newStatusID,
 	})
@@ -661,7 +745,7 @@ func (s *pollService) Close(adminID uint, pollID uint) (*dto.PollResponse, error
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToAdminResponse(updated), nil
+	return s.mapPollToAdminResponse(updated), nil
 }
 
 func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
@@ -669,10 +753,10 @@ func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mapPollToAdminResponse(poll), nil
+	return s.mapPollToAdminResponse(poll), nil
 }
 
-func (s *pollService) DeleteForAdmin(adminID uint, pollID uint) (*dto.PollResponse, error) {
+func (s *pollService) DeleteForAdmin(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
 	poll, err := s.pollRepo.GetPollByID(pollID)
 	if err != nil {
 		return nil, err
@@ -691,16 +775,26 @@ func (s *pollService) DeleteForAdmin(adminID uint, pollID uint) (*dto.PollRespon
 		return nil, errors.New("can only delete poll in DRAFT / REJECTED / CLOSED status")
 	}
 
+	// ✅ บันทึก reason + deleted_by_type ก่อน soft delete
+	deletedByType := "ADMIN"
+	poll.DeletedByType = &deletedByType
+	poll.AdminDeleteReason = &reason
+	if err := s.pollRepo.UpdatePoll(poll); err != nil {
+		return nil, err
+	}
+
 	_ = s.pollRepo.CreateHistory(&entity.PollHistory{
 		Action:       "DELETE_ADMIN",
 		PollID:       poll.ID,
 		AdminID:      &adminID,
+		Reason:       reason,
 		FromStatusID: &poll.PollStatusID,
 	})
 
 	// ✅ สำคัญ: ตอนตอบกลับ admin ให้ใช้ mapper แบบไม่ mask
-	res := mapPollToAdminResponse(poll)
+	res := s.mapPollToAdminResponse(poll)
 
+	// ✅ ใช้ DeletePoll (GORM จะทำ soft delete อัตโนมัติเพราะ Poll มี gorm.Model)
 	if err := s.pollRepo.DeletePoll(pollID); err != nil {
 		return nil, err
 	}
@@ -749,52 +843,56 @@ func validatePollForSubmission(poll *entity.Poll) error {
 	return nil
 }
 
-func mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
+func (s *pollService) mapPollToResponse(poll *entity.Poll) *dto.PollResponse {
 	// ✅ public/member: mask ตาม IsAnonymous
-	return mapPollToResponseWithMask(poll, true)
+	return s.mapPollToResponseWithMask(poll, true)
 }
 
-func mapPollToAdminResponse(poll *entity.Poll) *dto.PollResponse {
-	// ✅ admin: ไม่ mask (แต่ยังส่ง is_anonymous ให้ FE ไปทำป้าย “ไม่เปิดเผยชื่อ” ได้)
-	return mapPollToResponseWithMask(poll, false)
-}
-
-func mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
+func (s *pollService) mapPollsToResponse(polls []entity.Poll) []dto.PollResponse {
 	res := make([]dto.PollResponse, 0, len(polls))
 	for i := range polls {
-		res = append(res, *mapPollToResponse(&polls[i]))
+		res = append(res, *s.mapPollToResponse(&polls[i]))
 	}
 	return res
 }
 
-func mapPollsToAdminResponse(polls []entity.Poll) []dto.PollResponse {
+func (s *pollService) mapPollToAdminResponse(poll *entity.Poll) *dto.PollResponse {
+	// ✅ admin: ไม่ mask (แต่ยังส่ง is_anonymous ให้ FE ไปทำป้าย "ไม่เปิดเผยชื่อ" ได้)
+	return s.mapPollToResponseWithMask(poll, false)
+}
+
+func (s *pollService) mapPollsToAdminResponse(polls []entity.Poll) []dto.PollResponse {
 	res := make([]dto.PollResponse, 0, len(polls))
 	for i := range polls {
-		res = append(res, *mapPollToAdminResponse(&polls[i]))
+		res = append(res, *s.mapPollToAdminResponse(&polls[i]))
 	}
 	return res
 }
 
-func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollResponse {
+func (s *pollService) mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollResponse {
 	statusName := ""
 	if poll.PollStatus != nil {
 		statusName = poll.PollStatus.Name
 	}
 
-	// ✅ ดึง username จาก member (repo ของหนู Preload("Member") แล้ว)
+	// ✅ ดึง username + avatar จาก member (repo ของหนู Preload("Member") แล้ว)
 	username := ""
+	avatarURL := ""
 	if poll.Member != nil {
 		username = strings.TrimSpace(poll.Member.Username)
+		avatarURL = strings.TrimSpace(poll.Member.MemberPicture)
 	}
 
 	authorName := ""
 	authorUsername := ""
+	authorAvatarURL := ""
 
 	if maskAnonymous && poll.IsAnonymous {
 		authorName = "ไม่เปิดเผยชื่อ"
-		authorUsername = "" // จะส่ง/ไม่ส่งก็ได้ (omitempty)
+		authorUsername = ""  // จะส่ง/ไม่ส่งก็ได้ (omitempty)
+		authorAvatarURL = "" // ไม่ส่ง avatar ถ้า anonymous
 	} else {
-		// ✅ admin หรือ public ที่เปิดเผยชื่อ: ให้เห็น username
+		// ✅ admin หรือ public ที่เปิดเผยชื่อ: ให้เห็น username + avatar
 		if username != "" {
 			authorName = username
 			authorUsername = username
@@ -802,6 +900,7 @@ func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollR
 			authorName = "ผู้ใช้"
 			authorUsername = ""
 		}
+		authorAvatarURL = avatarURL
 	}
 
 	opts := poll.Options
@@ -826,6 +925,7 @@ func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollR
 		MemberID:        poll.MemberID,
 		AuthorName:      authorName,
 		AuthorUsername:  authorUsername,
+		AuthorAvatarURL: authorAvatarURL,
 		IsAnonymous:     poll.IsAnonymous,
 
 		AllowMultiple: poll.AllowMultiple,
@@ -843,6 +943,7 @@ func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollR
 
 		LastRejectReason: poll.LastRejectReason,
 		CreatedAt:        poll.CreatedAt,
+		UpdatedAt:        poll.UpdatedAt,
 
 		Options: make([]dto.PollOptionResponse, 0, len(opts)),
 	}
@@ -858,18 +959,49 @@ func mapPollToResponseWithMask(poll *entity.Poll, maskAnonymous bool) *dto.PollR
 		res.SubCategoryL2 = &dto.CategoryBrief{ID: poll.SubCategoryL2.ID, Title: poll.SubCategoryL2.Title}
 	}
 
+	// ✅ Get vote counts for each option
+	voteCounts := make(map[uint]int64)
+	if poll.ID != 0 {
+		rows, err := s.pollRepo.CountVotesByOption(poll.ID)
+		if err == nil {
+			for _, r := range rows {
+				voteCounts[r.OptionID] = r.Count
+			}
+		}
+	}
+
+	totalVotes := int64(0)
+	for _, count := range voteCounts {
+		totalVotes += count
+	}
+
 	for _, opt := range opts {
+		voteCount := voteCounts[opt.ID]
+		percent := 0.0
+		if totalVotes > 0 {
+			percent = float64(voteCount) * 100 / float64(totalVotes)
+		}
+
 		res.Options = append(res.Options, dto.PollOptionResponse{
 			ID:        opt.ID,
 			Label:     opt.Label,
 			ImgURL:    opt.ImgURL,
 			SortOrder: opt.SortOrder,
+			VoteCount: voteCount,
+			Percent:   percent,
 		})
+	}
+
+	// ✅ Admin moderation fields
+	res.AdminCloseReason = poll.AdminCloseReason
+	res.AdminDeleteReason = poll.AdminDeleteReason
+	res.DeletedByType = poll.DeletedByType
+	if !poll.DeletedAt.Time.IsZero() {
+		res.DeletedAt = &poll.DeletedAt.Time
 	}
 
 	return res
 }
-
 
 // effectiveStart = max(start_at, published_at)
 func effectiveStart(p *entity.Poll) *time.Time {
@@ -892,6 +1024,11 @@ func effectiveStart(p *entity.Poll) *time.Time {
 }
 
 func computedStatus(p *entity.Poll, now time.Time) string {
+	// ✅ 1. Check Explicit Status First
+	if p.PollStatusID == StatusCLOSED {
+		return "CLOSED"
+	}
+
 	es := effectiveStart(p)
 	if p.EndAt != nil && now.After(*p.EndAt) {
 		return "CLOSED"
@@ -916,7 +1053,7 @@ func (s *pollService) GetPublishedByID(memberID uint, pollID uint) (*dto.PollRes
 		return nil, errors.New("poll_not_found")
 	}
 
-	res := mapPollToResponse(poll)
+	res := s.mapPollToResponse(poll)
 
 	// ✅ เติม has_voted + my_option_ids
 	myVotes, err := s.pollRepo.GetMyVotesForPolls([]uint{pollID}, memberID)

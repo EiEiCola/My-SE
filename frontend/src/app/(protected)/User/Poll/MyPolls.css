@@ -42,6 +42,13 @@
   letter-spacing: -0.4px;
 }
 
+.my-subtitle {
+  margin-top: 6px;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 14px;
+}
+
 .my-sub {
   margin-top: 6px;
   color: var(--muted);
@@ -134,7 +141,7 @@
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
   background: #fff !important;
   color: var(--text) !important;
-  font-weight: 950 !important;
+  font-weight: 700 !important;
   border-radius: 999px !important;
   padding: 8px 12px !important;
   cursor: pointer !important;
@@ -191,7 +198,7 @@
 
 .loading {
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .table-wrap {
@@ -254,7 +261,7 @@
 
 .muted {
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* BADGE */
@@ -304,7 +311,9 @@
 .btn {
   border: none;
   border-radius: 999px;
-  padding: 9px 12px;
+  padding: 10px 16px;
+  font-size: 16px;
+  /* ✅ Match Create Review */
   font-weight: 600;
   cursor: pointer;
   letter-spacing: .2px;
@@ -376,7 +385,7 @@
 .empty-sub {
   margin-top: 6px;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* DETAIL CARD MODAL */
@@ -435,7 +444,7 @@
 .card-sub {
   margin-top: 4px;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
   font-size: 12px;
 }
 
@@ -654,7 +663,7 @@
 }
 
 .cat-k {
-  font-weight: 800;
+  font-weight: 600;
   color: #475569;
   /* เทาเข้ม */
   min-width: 92px;

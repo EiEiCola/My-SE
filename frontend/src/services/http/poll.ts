@@ -50,7 +50,8 @@ export interface Poll {
 
   created_at?: string;
   author_name?: string;
-  is_anonymous?: boolean; 
+  author_avatar_url?: string; // ✅ รูปโปรไฟล์ของผู้สร้างโพล
+  is_anonymous?: boolean;
   has_voted?: boolean;
   my_option_ids?: number[];
 }
@@ -174,26 +175,26 @@ export const pollAPI = {
 
   getMyVote: (id: number) => api.get<MyVoteResponse>(`/member/polls/${id}/my-vote`),
 
- getResults: async (id: number) => {
-  const res = await api.get<PollResultsResponse>(`/member/polls/${id}/results`);
-  const data: any = (res as any).data;
+  getResults: async (id: number) => {
+    const res = await api.get<PollResultsResponse>(`/member/polls/${id}/results`);
+    const data: any = (res as any).data;
 
-  // ✅ แปลง img_url
-  if (data?.items) {
-    data.items = data.items.map((it: any) => ({
-      ...it,
-      img_url: toFullUrl(it.img_url),
-    }));
-  }
+    // ✅ แปลง img_url
+    if (data?.items) {
+      data.items = data.items.map((it: any) => ({
+        ...it,
+        img_url: toFullUrl(it.img_url),
+      }));
+    }
 
-  // ✅ normalize (เผื่อบางหน้าใช้ results.total)
-  if (data && data.total_votes !== undefined) {
-    data.total = data.total_votes;
-  }
+    // ✅ normalize (เผื่อบางหน้าใช้ results.total)
+    if (data && data.total_votes !== undefined) {
+      data.total = data.total_votes;
+    }
 
-  (res as any).data = data;
-  return res;
-},
+    (res as any).data = data;
+    return res;
+  },
 
   vote: (id: number, payload: VotePollRequest) =>
     api.post(`/member/polls/${id}/vote`, payload),
@@ -213,6 +214,9 @@ export const pollAPI = {
 
   cancelRequest: (id: number) =>
     api.post(`/member/polls/${id}/cancel`, {}),
+
+  closePoll: (id: number) =>
+    api.post(`/member/polls/${id}/close`, {}), // ✅ Member closes own poll
 
   uploadOptionImage: (file: File) => {
     const fd = new FormData();

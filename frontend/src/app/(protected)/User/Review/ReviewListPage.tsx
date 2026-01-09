@@ -335,7 +335,7 @@ const ReviewListPage: React.FC = () => {
     <div className="rl-page">
       <div className="rl-wrap">
         <div className="rl-stickyHead">
-          <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "20px" }}>
             <div>
               <div className="rl-eyebrow">COMMUNITY REVIEW</div>
               <div className="rl-title">
@@ -343,22 +343,25 @@ const ReviewListPage: React.FC = () => {
               </div>
             </div>
             <button
-              className="rl-btn-secondary"
+              className="rl-btn-primary"
               style={{
-                padding: "8px 16px",
+                padding: "10px 18px",
                 borderRadius: "20px",
-                border: "1px solid #ddd",
-                background: "white",
+                border: "none",
+                background: "linear-gradient(135deg, #ff7a18, #ff9a3c)",
+                color: "#fff",
                 cursor: "pointer",
-                fontSize: "0.9rem",
-                fontWeight: 500,
+                fontSize: "0.95rem",
+                fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
-                gap: "8px"
+                gap: "8px",
+                boxShadow: "0 14px 28px rgba(255, 122, 24, 0.25)",
+                flexShrink: 0
               }}
               onClick={() => navigate("/User/Review/my")}
             >
-              จัดการรีวิวของฉัน ⚙️
+              📝 รีวิวของฉัน
             </button>
           </div>
 
@@ -487,8 +490,8 @@ const ReviewListPage: React.FC = () => {
 
 
         <button className="rl-fab" onClick={() => navigate("/User/Review/createreview")}>
-          <span className="rl-fabPlus">+</span>เขียนรีวิว
-        </button>
+  <span className="rl-fabPlus">＋</span>สร้างรีวิว
+</button>
       </div>
 
       <ReportReviewModal

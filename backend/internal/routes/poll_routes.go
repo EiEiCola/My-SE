@@ -43,9 +43,10 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 		member.PUT("/polls/:id", memberPollController.UpdateDraft)
 		member.DELETE("/polls/:id", memberPollController.DeletePoll)
 
-		// submit/cancel
+		//submit/cancel
 		member.POST("/polls/:id/submit", memberPollController.SubmitForReview)
 		member.POST("/polls/:id/cancel", memberPollController.CancelRequest)
+		member.POST("/polls/:id/close", memberPollController.ClosePoll) // ✅ NEW: close poll (owner)
 
 		// my polls
 		member.GET("/polls/my", memberPollController.GetMyPolls)
@@ -59,15 +60,15 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 	// ADMIN: /api/admin/*
 	// =========================
 	admin := api.Group("/admin")
-admin.Use(
-    middlewares.JWTAuthMiddleware(),
-    middlewares.RequireAdminPollMiddleware(), // ✅ ใช้ตัวใหม่
-)
+	admin.Use(
+		middlewares.JWTAuthMiddleware(),
+		middlewares.RequireAdminPollMiddleware(), // ✅ ใช้ตัวใหม่
+	)
 
 	{
-		
+
 		admin.GET("/polls", adminPollController.List)
-		 admin.GET("/polls/:id", adminPollController.GetByID)    
+		admin.GET("/polls/:id", adminPollController.GetByID)
 		admin.POST("/polls/:id/approve", adminPollController.Approve)
 		admin.POST("/polls/:id/reject", adminPollController.Reject)
 		admin.POST("/polls/:id/close", adminPollController.Close)

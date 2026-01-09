@@ -60,10 +60,10 @@ const UserItems: MenuItem[] = [
         name: "โพล",
         path: "/User/Polls",
         icon: <InsertChartOutlined />,
-        subItems: [
-            { name: "ฟีดโพล", path: "/User/Polls" },
-            { name: "My Polls", path: "/User/Polls/my" },
-        ]
+        
+          
+           
+        
     },
     { name: "ประชาสัมพันธ์", path: "/User/Announcement", icon: <Campaign /> },
     { name: "รายงานปัญหา", path: "/User/Report", icon: <ReportProblem /> },

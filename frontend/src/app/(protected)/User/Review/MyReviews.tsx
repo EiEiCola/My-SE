@@ -120,7 +120,8 @@ const MyReviews: React.FC = () => {
                         deletedByType: deletedByType === "ADMIN" || deletedByType === "OWNER" ? (deletedByType as any) : "",
                         adminDeleteReason: r.admin_delete_reason ?? r.AdminDeleteReason,
                     } as ReviewItem;
-                });
+                })
+                    .filter((r) => r.deletedByType !== "OWNER"); // ✅ Hide owner-deleted reviews
 
                 items.sort((a: ReviewItem, b: ReviewItem) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
                 setReviews(items);

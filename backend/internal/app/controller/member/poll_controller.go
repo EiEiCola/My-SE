@@ -9,9 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	//"github.com/sut68/team12/backend/config"
-    //"github.com/sut68/team12/backend/internal/entity"
-    
+	//"github.com/sut68/team12/backend/internal/entity"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
@@ -150,6 +151,29 @@ func (ctl *PollController) DeletePoll(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "poll deleted successfully"})
 }
 
+// ClosePoll: ปิดโพล (เจ้าของปิดเอง ก่อนถึง end_at)
+func (ctl *PollController) ClosePoll(c *gin.Context) {
+	pollID, err := parseUintParam(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
+		return
+	}
+
+	memberID, ok := getMemberIDForPoll(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	res, err := ctl.pollService.ClosePoll(memberID, pollID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
 /* =========================
    MY POLLS
 ========================= */
@@ -204,26 +228,27 @@ func (ctl *PollController) GetMyPollByID(c *gin.Context) {
 	}
 
 	res, err := ctl.pollService.GetMyPollByID(memberID, pollID)
-if err != nil {
-    if err.Error() == "you are not the owner of this poll" {
-        c.JSON(http.StatusForbidden, gin.H{
-            "error": err.Error(),
-            "member_id_from_token": memberID,
-            "poll_id": pollID,
-        })
-        return
-    }
+	if err != nil {
+		if err.Error() == "you are not the owner of this poll" {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":                err.Error(),
+				"member_id_from_token": memberID,
+				"poll_id":              pollID,
+			})
+			return
+		}
 
-    c.JSON(http.StatusBadRequest, gin.H{
-        "error": err.Error(),
-        "member_id_from_token": memberID,
-        "poll_id": pollID,
-    })
-    return
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":                err.Error(),
+			"member_id_from_token": memberID,
+			"poll_id":              pollID,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
 }
 
-c.JSON(http.StatusOK, res)
-}
 /* =========================
    PUBLIC (EXISTING)
 ========================= */
@@ -237,10 +262,10 @@ func (ctl *PollController) CreateRequest(c *gin.Context) {
 
 	memberID, ok := getMemberIDForPoll(c)
 
-if !ok {
-  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-  return
-}
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	res, err := ctl.pollService.CreateRequest(memberID, req)
 	if err != nil {
@@ -252,18 +277,18 @@ if !ok {
 }
 
 func (ctl *PollController) ListPublished(c *gin.Context) {
-  memberID, ok := getMemberIDForPoll(c)
-  if !ok {
-    c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-    return
-  }
+	memberID, ok := getMemberIDForPoll(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-  res, err := ctl.pollService.ListPublished(memberID)
-  if err != nil {
-    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-    return
-  }
-  c.JSON(http.StatusOK, res)
+	res, err := ctl.pollService.ListPublished(memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
 }
 
 // ✅ GET /api/member/polls/:id
@@ -296,8 +321,8 @@ func (ctl *PollController) GetMyVote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
 		return
 	}
-  
-   memberID, ok := getMemberIDForPoll(c)
+
+	memberID, ok := getMemberIDForPoll(c)
 
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -311,11 +336,6 @@ func (ctl *PollController) GetMyVote(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
-
-
-
-
-
 
 func (ctl *PollController) Vote(c *gin.Context) {
 	pollID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -332,23 +352,23 @@ func (ctl *PollController) Vote(c *gin.Context) {
 	}
 
 	memberID, ok := getMemberIDForPoll(c)
-if !ok {
-  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-  return
-}
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	res, err := ctl.pollService.Vote(memberID, pollID, req)
 	if err != nil {
-	switch err.Error() {
-	case "poll_closed", "poll_not_started", "poll_not_open", "already_voted", "owner_cannot_vote":
-		
-    c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case "poll_closed", "poll_not_started", "poll_not_open", "already_voted", "owner_cannot_vote":
 
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+		return
 	}
-	return
-}
 
 	c.JSON(http.StatusOK, res)
 }
@@ -361,22 +381,23 @@ func (ctl *PollController) Results(c *gin.Context) {
 	pollID := uint(pollID64)
 
 	memberID, ok := getMemberIDForPoll(c)
-if !ok {
-  c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-  return
-}
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	res, err := ctl.pollService.Results(memberID, pollID)
-if err != nil {
-  switch err.Error() {
-  case "must_vote_to_see_results", "results_not_available":
-    c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-  default:
-    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-  }
-  return
+	if err != nil {
+		switch err.Error() {
+		case "must_vote_to_see_results", "results_not_available":
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, res)
 }
-c.JSON(http.StatusOK, res)}
 
 // ✅ POST /api/member/polls/options/upload (multipart/form-data)
 // form key: file
@@ -424,24 +445,29 @@ func (ctl *PollController) UploadOptionImage(c *gin.Context) {
 		"url":     publicURL,
 	})
 }
+
 //heple
 
 func getMemberIDForPoll(c *gin.Context) (uint, bool) {
-  uidAny, ok := c.Get("user_id")
-  if !ok {
-    return 0, false
-  }
+	uidAny, ok := c.Get("user_id")
+	if !ok {
+		return 0, false
+	}
 
-  switch v := uidAny.(type) {
-  case uint:
-    return v, v > 0
-  case int:
-    if v <= 0 { return 0, false }
-    return uint(v), true
-  case float64:
-    if v <= 0 { return 0, false }
-    return uint(v), true
-  default:
-    return 0, false
-  }
+	switch v := uidAny.(type) {
+	case uint:
+		return v, v > 0
+	case int:
+		if v <= 0 {
+			return 0, false
+		}
+		return uint(v), true
+	case float64:
+		if v <= 0 {
+			return 0, false
+		}
+		return uint(v), true
+	default:
+		return 0, false
+	}
 }

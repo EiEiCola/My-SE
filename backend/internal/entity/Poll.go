@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-)	
+)
 
 type Poll struct {
 	gorm.Model
@@ -13,22 +13,27 @@ type Poll struct {
 	MaxChoice        *int       `json:"max_choice"`         // ถ้า AllowMultiple = true จะใช้กำหนดจำนวนสูงสุด
 	StartAt          *time.Time `json:"start_at"`           // เวลาเริ่มโหวต
 	EndAt            *time.Time `json:"end_at"`             // เวลาสิ้นสุดโหวต
-	PublishedAt *time.Time `json:"published_at"`            // เวลา admin approve/publish  เพิ่ม
+	PublishedAt      *time.Time `json:"published_at"`       // เวลา admin approve/publish  เพิ่ม
 	LastRejectReason string     `json:"last_reject_reason"` // เหตุผลที่ล่าสุดถูก reject (ถ้ามี)
-	IsAnonymous bool `json:"is_anonymous" gorm:"default:false"`
+	IsAnonymous      bool       `json:"is_anonymous" gorm:"default:false"`
+
+	// Admin moderation fields
+	AdminCloseReason  *string `json:"admin_close_reason" gorm:"type:text"`     // เหตุผลที่ admin บังคับปิด
+	AdminDeleteReason *string `json:"admin_delete_reason" gorm:"type:text"`    // เหตุผลที่ admin ลบ (soft delete)
+	DeletedByType     *string `json:"deleted_by_type" gorm:"type:varchar(20)"` // "OWNER" or "ADMIN"
 
 	// FK ไปยังคนสร้างโพล (สมาชิก)
 	MemberID uint    `json:"member_id"`
 	Member   *Member `gorm:"foreignKey:MemberID;references:ID" json:"member"`
 
 	// FK ไปยังหมวดหมู่ (ใช้หมวดเดียวกับระบบรีวิว / category หลักของระบบ)
-	MainCategoryID *uint         `json:"maincategory_id"`
+	MainCategoryID *uint        `json:"maincategory_id"`
 	MainCategory   MainCategory `gorm:"foreignKey:MainCategoryID" json:"main_category"`
 
-	SubCategoryL1ID *uint          `json:"subcategoryl1_id"`
+	SubCategoryL1ID *uint         `json:"subcategoryl1_id"`
 	SubCategoryL1   SubCategoryL1 `gorm:"foreignKey:SubCategoryL1ID;references:ID" json:"subcategory_l1"`
 
-	SubCategoryL2ID *uint          `json:"subcategoryl2_id"`
+	SubCategoryL2ID *uint         `json:"subcategoryl2_id"`
 	SubCategoryL2   SubCategoryL2 `gorm:"foreignKey:SubCategoryL2ID;references:ID" json:"subcategory_l2"`
 
 	// FK ไปยังสถานะของโพล เช่น DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED

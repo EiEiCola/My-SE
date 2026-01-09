@@ -1,9 +1,10 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
-	"time"
 )
 
 type PollRepository interface {
@@ -11,6 +12,7 @@ type PollRepository interface {
 	CreatePoll(poll *entity.Poll) error
 	GetPollByID(id uint) (*entity.Poll, error)
 	ListPolls(statusID *uint, search *string) ([]entity.Poll, error)
+	ListActivePolls(statusID *uint, search *string) ([]entity.Poll, error) // ✅ For Public Feed (No Deleted)
 	ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error)
 	UpdatePoll(poll *entity.Poll) error
 	DeletePoll(pollID uint) error
@@ -62,7 +64,9 @@ func (r *pollRepository) CreatePoll(poll *entity.Poll) error {
 
 func (r *pollRepository) GetPollByID(id uint) (*entity.Poll, error) {
 	var poll entity.Poll
+	// ✅ ใช้ Unscoped เพื่อให้ member เห็น detail ของโพลที่ถูก admin ลบได้
 	err := r.db.
+		Unscoped(). // ✅ รวม soft-deleted polls
 		Preload("Options", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
@@ -84,6 +88,7 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 	var polls []entity.Poll
 
 	query := r.db.
+		Unscoped(). // ✅ รวม soft-deleted polls สำหรับ admin
 		Preload("Options", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
@@ -107,18 +112,51 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 	return polls, err
 }
 
-func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error) {
+// ListActivePolls: สำหรับ Public Feed (ห้ามเห็น Deleted)
+func (r *pollRepository) ListActivePolls(statusID *uint, search *string) ([]entity.Poll, error) {
 	var polls []entity.Poll
 
+	// ❌ NO Unscoped() here -> Only active (non-deleted) polls
 	query := r.db.
 		Preload("Options", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
+		Preload("Member").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Model(&entity.Poll{})
+
+	if statusID != nil {
+		query = query.Where("poll_status_id = ?", *statusID)
+	} else {
+		// ✅ Default for Public Feed: Include PUBLISHED (3) and CLOSED (5)
+		query = query.Where("poll_status_id IN ?", []uint{3, 5})
+	}
+
+	if search != nil && *search != "" {
+		query = query.Where("question ILIKE ?", "%"+*search+"%")
+	}
+
+	err := query.Order("created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	// ✅ ใช้ Unscoped() เพื่อดึงโพลที่ถูก soft delete ด้วย (member ต้องเห็นโพลที่ admin ลบ)
+	query := r.db.
+		Unscoped(). // ✅ รวม soft-deleted polls
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("PollStatus").
 		Preload("Member").        // ✅ เพิ่ม
-    Preload("MainCategory").  // ✅ เพิ่ม
-    Preload("SubCategoryL1"). // ✅ เพิ่ม
-    Preload("SubCategoryL2").
+		Preload("MainCategory").  // ✅ เพิ่ม
+		Preload("SubCategoryL1"). // ✅ เพิ่ม
+		Preload("SubCategoryL2").
 		Model(&entity.Poll{}).
 		Where("member_id = ?", memberID)
 
@@ -151,10 +189,10 @@ func (r *pollRepository) ListPollsPendingByName(search *string) ([]entity.Poll, 
 			return db.Order("sort_order ASC")
 		}).
 		Preload("PollStatus").
-		 Preload("Member").        // ✅ เพิ่ม
-    Preload("MainCategory").  // ✅ เพิ่ม (ถ้าต้องโชว์หมวด)
-    Preload("SubCategoryL1").
-    Preload("SubCategoryL2").
+		Preload("Member").       // ✅ เพิ่ม
+		Preload("MainCategory"). // ✅ เพิ่ม (ถ้าต้องโชว์หมวด)
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
 		Model(&entity.Poll{})
 
 	// robust: filter ด้วยชื่อ
@@ -304,9 +342,12 @@ func (r *pollRepository) CreateHistory(history *entity.PollHistory) error {
 	return r.db.Create(history).Error
 }
 
-/* =========================
-   UPDATE POLL STATUS
-========================= */
+/*
+	=========================
+	  UPDATE POLL STATUS
+
+=========================
+*/
 func (r *pollRepository) UpdatePollStatus(pollID uint, statusID uint) error {
 	tx := r.db.Model(&entity.Poll{}).
 		Where("id = ?", pollID).

@@ -108,14 +108,35 @@ const MyPolls: React.FC = () => {
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
   const getQuestion = (p: Poll) => (p as any).question ?? "";
   const getCreatedAt = (p: Poll) => (p as any).created_at ?? (p as any).CreatedAt ?? null;
+  const getUpdatedAt = (p: Poll) => (p as any).updated_at ?? (p as any).UpdatedAt ?? null;
+
+  // ✅ Admin moderation helpers
+  const getDeletedAt = (p: Poll) => (p as any).deleted_at ?? (p as any).DeletedAt ?? null;
+  const getAdminCloseReason = (p: Poll) =>
+    (p as any).admin_close_reason ?? (p as any).AdminCloseReason ?? "";
+  const getAdminDeleteReason = (p: Poll) =>
+    (p as any).admin_delete_reason ?? (p as any).AdminDeleteReason ?? "";
+  const getDeletedByType = (p: Poll) =>
+    (p as any).deleted_by_type ?? (p as any).DeletedByType ?? "";
+
+  // ✅ เช็คว่าถูกลบโดย admin (ไม่ใช่ลบเอง)
+  const isDeletedByAdmin = (p: Poll) => {
+    const deletedByType = getDeletedByType(p);
+    return deletedByType === "ADMIN";
+  };
+
+  const isClosedByAdmin = (p: Poll) => {
+    const reason = getAdminCloseReason(p);
+    return reason && reason.trim() !== "";
+  };
 
   const getStatusId = (p: Poll) =>
     Number(
       (p as any)?.status_id ??
-        (p as any)?.StatusID ??
-        (p as any)?.poll_status_id ??
-        (p as any)?.PollStatusID ??
-        0
+      (p as any)?.StatusID ??
+      (p as any)?.poll_status_id ??
+      (p as any)?.PollStatusID ??
+      0
     ) || 0;
 
   const getAllowMultiple = (p: Poll) =>
@@ -145,13 +166,13 @@ const MyPolls: React.FC = () => {
     opt?.label ??
     "-";
 
-    const getIsAnonymous = (p: Poll) =>
-  Boolean(
-    (p as any)?.is_anonymous ??
+  const getIsAnonymous = (p: Poll) =>
+    Boolean(
+      (p as any)?.is_anonymous ??
       (p as any)?.IsAnonymous ??
       (p as any)?.isAnonymous ??
       false
-  );
+    );
 
 
   const getBaseStatus = (p: Poll): StatusName => {
@@ -237,28 +258,28 @@ const MyPolls: React.FC = () => {
   const getMainCategoryId = (p: Poll | null) =>
     Number(
       (p as any)?.main_category_id ??
-        (p as any)?.MainCategoryID ??
-        (p as any)?.mainCategoryID ??
-        (p as any)?.main_category?.id ??
-        0
+      (p as any)?.MainCategoryID ??
+      (p as any)?.mainCategoryID ??
+      (p as any)?.main_category?.id ??
+      0
     ) || 0;
 
   const getSubCategoryL1Id = (p: Poll | null) =>
     Number(
       (p as any)?.sub_category_l1_id ??
-        (p as any)?.SubCategoryL1ID ??
-        (p as any)?.subCategoryL1ID ??
-        (p as any)?.sub_category_l1?.id ??
-        0
+      (p as any)?.SubCategoryL1ID ??
+      (p as any)?.subCategoryL1ID ??
+      (p as any)?.sub_category_l1?.id ??
+      0
     ) || 0;
 
   const getSubCategoryL2Id = (p: Poll | null) =>
     Number(
       (p as any)?.sub_category_l2_id ??
-        (p as any)?.SubCategoryL2ID ??
-        (p as any)?.subCategoryL2ID ??
-        (p as any)?.sub_category_l2?.id ??
-        0
+      (p as any)?.SubCategoryL2ID ??
+      (p as any)?.subCategoryL2ID ??
+      (p as any)?.sub_category_l2?.id ??
+      0
     ) || 0;
 
   const getCatTextFromIds = (p: Poll) => {
@@ -457,6 +478,9 @@ const MyPolls: React.FC = () => {
     // ✅ base filter ตาม tab (ใช้ displayStatus)
     let base: Poll[] = polls;
 
+    // ✅ ซ่อนโพลที่ลบเอง (deleted_by_type = "OWNER")
+    base = base.filter((p) => getDeletedByType(p) !== "OWNER");
+
     if (activeTab !== 0) {
       base = polls.filter((p) => {
         const ds = getDisplayStatus(p);
@@ -588,11 +612,23 @@ const MyPolls: React.FC = () => {
 
   const handleCancel = (id: number) => {
     openConfirm(
-      "Withdraw submission?",
-      "This will withdraw your request and move the poll back to Draft so you can edit it.",
+      "ถอนคำขอโพลกลับ?",
+      "การถอนคำขอจะย้ายโพลกลับไปยังแบบร่าง เพื่อให้คุณสามารถแก้ไขได้",
       true,
       async () => {
         await pollAPI.cancelRequest(id);
+        await fetchPolls(undefined); // ✅ refresh ทั้งหมด
+      }
+    );
+  };
+
+  const handleClose = (id: number) => {
+    openConfirm(
+      "Close this poll?",
+      "Once closed, this poll cannot be reopened. Voting will stop immediately.",
+      true,
+      async () => {
+        await pollAPI.closePoll(id);
         await fetchPolls(undefined); // ✅ refresh ทั้งหมด
       }
     );
@@ -629,6 +665,19 @@ const MyPolls: React.FC = () => {
     return s === "DRAFT" || s === "REJECTED";
   };
 
+  // ✅ ลบได้: DRAFT, REJECTED, และ CLOSED
+  const canDelete = (p: Poll) => {
+    const s = getBaseStatus(p);
+    const ds = getDisplayStatus(p);
+    return s === "DRAFT" || s === "REJECTED" || ds === "CLOSED";
+  };
+
+  // ✅ ปิดได้: เฉพาะ OPEN
+  const canClose = (p: Poll) => {
+    const ds = getDisplayStatus(p);
+    return ds === "OPEN";
+  };
+
   const canCancel = (p: Poll) => getBaseStatus(p) === "PENDING_REVIEW";
 
   // ✅ ดูผล: OPEN หรือ CLOSED เท่านั้น (UPCOMING ไม่ให้ดูผล)
@@ -643,8 +692,9 @@ const MyPolls: React.FC = () => {
       {/* HERO */}
       <div className="my-hero">
         <div>
-          <div className="my-title">แบบสำรวจความสนใจของฉัน</div>
-        
+          <div className="my-title">โพลของฉัน</div>
+          <div className="my-subtitle">จัดการโพลของคุณทั้งหมด</div>
+
         </div>
 
         <div className="my-toolbar">
@@ -658,8 +708,7 @@ const MyPolls: React.FC = () => {
           </div>
 
           <button className="btn btn-primary" onClick={() => navigate("/User/Polls/create")}>
-            ➕ Create Poll
-          </button>
+            ➕ สร้างโพล          </button>
         </div>
       </div>
 
@@ -709,8 +758,8 @@ const MyPolls: React.FC = () => {
       {/* TABLE */}
       <div className="table-card">
         <div className="table-head">
-          <div className="table-title">Poll List</div>
-          {loading ? <div className="loading">Loading...</div> : null}
+          <div className="table-title">รายการโพล</div>
+          {loading ? <div className="loading">กำลังโหลด...</div> : null}
         </div>
 
         <div className="table-wrap">
@@ -718,10 +767,10 @@ const MyPolls: React.FC = () => {
             <thead>
               <tr>
                 <th style={{ width: 80 }}>ID</th>
-                <th>Question</th>
-                <th style={{ width: 170 }}>Status</th>
-                <th style={{ width: 190 }}>Created</th>
-                <th style={{ width: 420, textAlign: "right" }}>Action</th>
+                <th>คำถาม</th>
+                <th style={{ width: 170 }}>สถานะ</th>
+                <th style={{ width: 190 }}>วันที่สร้าง</th>
+                <th style={{ width: 420, textAlign: "right" }}>การกระทำ</th>
               </tr>
             </thead>
 
@@ -743,18 +792,34 @@ const MyPolls: React.FC = () => {
                   const created = getCreatedAt(p);
                   const question = getQuestion(p);
 
+                  const isDeleted = isDeletedByAdmin(p);
+                  const rowStyle = isDeleted ? { opacity: 0.6, backgroundColor: "#fff5f5", cursor: "pointer" } : { cursor: "pointer" };
+
                   return (
-                    <tr key={id}>
+                    <tr key={id} style={rowStyle} onClick={() => openDetail(p)}>
                       <td className="mono">{id}</td>
 
                       <td className="question">
-                        <button className="link-btn" onClick={() => openDetail(p)} type="button">
+                        <div style={isDeleted ? { textDecoration: "line-through", color: "#999" } : {}}>
                           {question}
-                        </button>
+                        </div>
                       </td>
 
                       <td>
-                        <StatusBadge status={status} />
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-start" }}>
+                          <StatusBadge status={status} />
+                          {/* ✅ Admin moderation badges */}
+                          {isDeleted && (
+                            <span className="badge badge-rejected" style={{ fontSize: "0.75rem", padding: "2px 6px" }}>
+                              ❌ แอดมินลบ
+                            </span>
+                          )}
+                          {!isDeleted && isClosedByAdmin(p) && (
+                            <span className="badge badge-closed" style={{ fontSize: "0.75rem", padding: "2px 6px" }}>
+                              🔒 แอดมินปิด
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="muted">
@@ -762,59 +827,65 @@ const MyPolls: React.FC = () => {
                       </td>
 
                       <td style={{ textAlign: "right" }}>
-                        <div className="actions">
-                          <button
-                            className="btn btn-outline"
-                            onClick={() => openDetail(p)}
-                            type="button"
-                            title="Detail"
-                          >
-                            👁 Detail
-                          </button>
+                        <div className="actions" onClick={(e) => e.stopPropagation()}>
 
-                          {canEditSubmitDelete(p) && (
+                          {/* ✅ ถ้าโดน Admin ลบ -> ห้าม Edit/Submit */}
+                          {!isDeleted && canEditSubmitDelete(p) && (
                             <>
                               <button
                                 className="btn btn-outline"
                                 onClick={() => navigate(`/User/Polls/edit/${id}`)}
                                 type="button"
                               >
-                                ✏️ Edit
+                                ✏️ แก้ไข
                               </button>
                               <button
                                 className="btn btn-primary"
                                 onClick={() => handleSubmit(id)}
                                 type="button"
                               >
-                                📤 Submit
-                              </button>
-                              <button
-                                className="btn btn-ghost-danger"
-                                onClick={() => handleDelete(id)}
-                                type="button"
-                              >
-                                🗑 Delete
+                                📤 ส่งตรวจ
                               </button>
                             </>
                           )}
 
-                          {canCancel(p) && (
+                          {!isDeleted && canClose(p) && (
+                            <button
+                              className="btn btn-warning"
+                              onClick={() => handleClose(id)}
+                              type="button"
+                            >
+                              🔒 ปิดโพล
+                            </button>
+                          )}
+
+                          {!isDeleted && canDelete(p) && (
+                            <button
+                              className="btn btn-ghost-danger"
+                              onClick={() => handleDelete(id)}
+                              type="button"
+                            >
+                              🗑 ลบ
+                            </button>
+                          )}
+
+                          {!isDeleted && canCancel(p) && (
                             <button
                               className="btn btn-danger"
                               onClick={() => handleCancel(id)}
                               type="button"
                             >
-                              ⛔ Cancel
+                              ⛔ ยกเลิกคำขอ
                             </button>
                           )}
 
-                          {canViewResult(p) && (
+                          {!isDeleted && canViewResult(p) && (
                             <button
                               className="btn btn-outline"
                               onClick={() => navigate(`/User/Polls/${id}`)}
                               type="button"
                             >
-                              📊 Results
+                              📊 ผลโหวต
                             </button>
                           )}
                         </div>
@@ -854,10 +925,71 @@ const MyPolls: React.FC = () => {
                 <div className="muted">Loading detail...</div>
               ) : selectedPoll ? (
                 <>
+                  {/* ✅ 1. Admin Delete Reason (TOP & PROMINENT) */}
+                  {isDeletedByAdmin(selectedPoll) && (
+                    <div
+                      style={{
+                        backgroundColor: "#fee2e2",
+                        border: "1px solid #ef4444",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "8px",
+                          color: "#b91c1c",
+                          fontWeight: "bold",
+                          fontSize: "1rem",
+                        }}
+                      >
+                        <span style={{ fontSize: "1.2rem" }}>❌</span>
+                        <span>This poll has been removed by Admin</span>
+                      </div>
+
+                      {getDeletedAt(selectedPoll) && (
+                        <div style={{ fontSize: "0.85rem", color: "#7f1d1d", marginBottom: "12px", marginLeft: "28px" }}>
+                          Deleted on: {dayjs(getDeletedAt(selectedPoll)).format("D MMM YYYY [at] HH:mm")}
+                        </div>
+                      )}
+
+                      <div style={{ fontWeight: 600, color: "#7f1d1d", marginBottom: "4px", marginLeft: "4px" }}>
+                        Reason:
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: "#fff",
+                          padding: "12px",
+                          borderRadius: "6px",
+                          fontSize: "0.95rem",
+                          color: "#333",
+                          border: "1px solid #fca5a5",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        {getAdminDeleteReason(selectedPoll) || "No reason specified."}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="detail-block">
                     <div className="detail-label">Question</div>
-                    <div className="detail-value">{getQuestion(selectedPoll)}</div>
+                    <div
+                      className="detail-value"
+                      style={
+                        isDeletedByAdmin(selectedPoll)
+                          ? { color: "#555" } // เอาขีดฆ่าออก เหลือแค่สีเทาให้รู้ว่าเก่า
+                          : {}
+                      }
+                    >
+                      {getQuestion(selectedPoll)}
+                    </div>
                   </div>
+
 
                   <div className="detail-grid">
                     <div className="detail-block">
@@ -892,11 +1024,11 @@ const MyPolls: React.FC = () => {
                       </div>
                     </div>
                     <div className="detail-block">
-  <div className="detail-label">Identity</div>
-  <div className="detail-value">
-    {getIsAnonymous(selectedPoll) ? "ไม่เปิดเผยชื่อ" : "เปิดเผยชื่อ"}
-  </div>
-</div>
+                      <div className="detail-label">Identity</div>
+                      <div className="detail-value">
+                        {getIsAnonymous(selectedPoll) ? "ไม่เปิดเผยชื่อ" : "เปิดเผยชื่อ"}
+                      </div>
+                    </div>
 
                     {/* ✅ วางตรงนี้เลย */}
                     <div className="detail-block">
@@ -937,14 +1069,48 @@ const MyPolls: React.FC = () => {
                   </div>
 
                   {/* Reject reason */}
-                  {getBaseStatus(selectedPoll) === "REJECTED" && (
+                  {getBaseStatus(selectedPoll) === "REJECTED" && getRejectReason(selectedPoll) && (
                     <div className="detail-block" style={{ marginTop: 10 }}>
                       <div className="detail-label">Reject Reason</div>
-                      <div className="detail-value">
-                        {getRejectReason(selectedPoll)?.trim() || "-"}
+                      <div className="detail-value">{getRejectReason(selectedPoll)}</div>
+                    </div>
+                  )}
+
+
+                  {/* ✅ Admin Close Reason */}
+                  {isClosedByAdmin(selectedPoll) && getAdminCloseReason(selectedPoll) && (
+                    <div className="detail-block" style={{ marginTop: 10 }}>
+                      <div className="detail-label">🔒 Closed by Admin</div>
+
+                      {/* ✅ Timestamp */}
+                      {getUpdatedAt(selectedPoll) && (
+                        <div style={{
+                          fontSize: "0.85rem",
+                          color: "#856404",
+                          marginBottom: "8px",
+                          fontWeight: 600
+                        }}>
+                          Closed on: {dayjs(getUpdatedAt(selectedPoll)).format("D MMM YYYY [at] HH:mm")}
+                        </div>
+                      )}
+
+                      {/* ✅ Reason */}
+                      <div
+                        className="detail-value"
+                        style={{
+                          padding: "12px",
+                          backgroundColor: "#fff3cd",
+                          border: "1px solid #ffc107",
+                          borderRadius: "6px",
+                          color: "#856404",
+                        }}
+                      >
+                        {getAdminCloseReason(selectedPoll)}
                       </div>
                     </div>
                   )}
+
+
 
                   {/* ✅ OPTIONS + click to zoom */}
                   <div className="detail-block" style={{ marginTop: 10 }}>
@@ -1018,32 +1184,34 @@ const MyPolls: React.FC = () => {
       )}
 
       {/* CONFIRM MODAL */}
-      {confirmOpen && (
-        <div className="modal-backdrop" onMouseDown={() => setConfirmOpen(false)}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="modal-title">{confirmTitle}</div>
-            <div className="modal-sub">{confirmDesc}</div>
+      {
+        confirmOpen && (
+          <div className="modal-backdrop" onMouseDown={() => setConfirmOpen(false)}>
+            <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="modal-title">{confirmTitle}</div>
+              <div className="modal-sub">{confirmDesc}</div>
 
-            <div className="modal-actions">
-              <button
-                className="btn btn-outline"
-                onClick={() => setConfirmOpen(false)}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className={confirmDanger ? "btn btn-danger" : "btn btn-primary"}
-                onClick={runConfirm}
-                type="button"
-              >
-                Confirm
-              </button>
+              <div className="modal-actions">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setConfirmOpen(false)}
+                  type="button"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  className={confirmDanger ? "btn btn-danger" : "btn btn-primary"}
+                  onClick={runConfirm}
+                  type="button"
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

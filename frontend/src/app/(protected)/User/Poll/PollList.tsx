@@ -626,7 +626,7 @@ useEffect(() => {
           <div className="pf-title">
             โพลในชุมชน <span className="pf-emoji">🗳️</span>
           </div>
-          <div className="pf-sub">โหวตได้เลยบนฟีด (เลือกก่อน แล้วค่อยกดยืนยัน)</div>
+          <div className="pf-sub">แบบสำรวจความคิดเห็นเพื่อให้เพื่อน ๆ โหวตได้เลยบนฟีด (เลือกก่อน แล้วค่อยกดยืนยัน)</div>
 
           <div className="pf-stats">
             <div className="stat">
@@ -649,8 +649,8 @@ useEffect(() => {
         </div>
 
         <div className="pf-hero-actions">
-          <button className="btn btn-primary" type="button" onClick={() => (window.location.href = "/User/Polls/create")}>
-            ➕ สร้างโพล
+          <button className="btn btn-primary" type="button" onClick={() => (window.location.href = "/User/Polls/my")}>
+            🗳️ โพลของฉัน
           </button>
         </div>
       </div>
@@ -823,9 +823,19 @@ useEffect(() => {
       </div>
 
       {/* Floating create */}
-      <button className="pf-fab" type="button" title="Create Poll" onClick={() => (window.location.href = "/User/Polls/create")}>
-        ➕
-      </button>
+ {/* Floating create */}
+<button
+  className="pf-fab"
+  type="button"
+  title="สร้างโพล"
+  aria-label="สร้างโพล"
+  onClick={() => (window.location.href = "/User/Polls/create")}
+>
+  <span className="pf-fab-ico">＋</span>
+  <span className="pf-fab-text">สร้างโพล</span>
+</button>
+
+
     </div>
   );
 };

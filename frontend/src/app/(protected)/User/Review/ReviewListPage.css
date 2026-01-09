@@ -39,7 +39,7 @@
 }
 
 .rl-eyebrow {
-  font-weight: 900;
+  font-weight: 700;
   font-size: 12px;
   letter-spacing: .12em;
   color: #ff7a18;
@@ -47,8 +47,8 @@
 }
 
 .rl-title {
-  font-size: 44px;
-  font-weight: 800;
+  font-size: 32px;
+  font-weight: 700;
   color: #111827;
   letter-spacing: -0.02em;
 }
@@ -65,7 +65,7 @@
   background: #fff;
   padding: 10px 14px;
   border-radius: 16px;
-  font-weight: 900;
+  font-weight: 700;
   color: #111827;
   box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
 }
@@ -108,7 +108,7 @@
   background: #fff;
   border-radius: 16px;
   padding: 10px 14px;
-  font-weight: 800;
+  font-weight: 600;
   color: #374151;
   outline: none;
   min-width: 240px;
@@ -163,7 +163,7 @@
 }
 
 .rl-emptyText {
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .rl-clear {
@@ -172,36 +172,45 @@
   background: transparent;
   color: #ff7a18;
   text-decoration: underline;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
 }
 
+/* ✅ ทำให้ "สร้างรีวิว" หนา/ขนาด เท่ากับ "สร้างโพล" */
 .rl-fab {
   position: fixed;
   right: 22px;
   bottom: 22px;
   border: 0;
+
   background: #ff7a18;
   color: #fff;
+
   border-radius: 999px;
-  padding: 14px 16px;
-  font-weight: 900;
+
+  /* ✅ ให้เท่ากับ pf-fab */
+  padding: 14px 22px;
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: .2px;
+
   display: inline-flex;
   gap: 10px;
   align-items: center;
+
   cursor: pointer;
   box-shadow: 0 18px 40px rgba(255, 122, 24, .35);
 }
 
-.rl-fab:hover {
-  filter: brightness(.98);
-  transform: translateY(-1px);
+.rl-fabPlus {
+  /* ✅ ให้เท่ากับ pf-fab-ico */
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 0;
+  /* เดิม -2px */
 }
 
-.rl-fabPlus {
-  font-size: 22px;
-  margin-top: -2px;
-}
 
 .rl-modalOverlay {
   position: fixed;
@@ -260,8 +269,8 @@
 .rl-modalTitle {
   margin: 0;
   text-align: center;
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 20px;
+  font-weight: 700;
   color: #111827;
 }
 
@@ -269,7 +278,7 @@
   margin: 10px 0 16px;
   text-align: center;
   color: #6b7280;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.5;
 }
 
@@ -282,7 +291,7 @@
   border: 0;
   border-radius: 18px;
   padding: 12px 14px;
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
 }
 

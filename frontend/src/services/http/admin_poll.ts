@@ -20,10 +20,10 @@ export const adminPollAPI = {
   reject: (id: number, reason: string) =>
     api.post(`/admin/polls/${id}/reject`, { reason }),
 
-  close: (id: number) =>
-    api.post(`/admin/polls/${id}/close`, {}),
+  close: (id: number, reason: string) =>
+    api.post(`/admin/polls/${id}/close`, { reason }),
 
-  delete: (id: number) =>
-    api.delete(`/admin/polls/${id}`),
+  delete: (id: number, reason: string) =>
+    api.delete(`/admin/polls/${id}`, { data: { reason } }),
 };
 
