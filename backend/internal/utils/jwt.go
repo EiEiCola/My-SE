@@ -2,14 +2,22 @@ package utils
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// TODO: แนะนำให้อ่านจาก ENV ทีหลัง (เช่น JWT_SECRET)
-// ตอนนี้ให้ใช้ค่าเดิมไปก่อน
-var JwtSecret = []byte("CHANGE_ME")
+// ฟังก์ชันช่วยอ่านค่า Secret และแปลงเป็น []byte (สำคัญมาก!)
+func getJwtSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// ถ้าลืมตั้งใน .env ให้ใช้ค่า Default นี้ (ห้ามใช้บน Prod)
+		return []byte("CHANGE_ME")
+	}
+	// ✅ ต้องแปลง string เป็น []byte เสมอ ไม่งั้นจะเจอ error HMAC sign expects []byte
+	return []byte(secret)
+}
 
 type Claims struct {
 	UserID uint   `json:"user_id"`
@@ -35,7 +43,9 @@ func SignToken(userID uint, role string) (string, error) {
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return t.SignedString(JwtSecret)
+
+	// ✅ เรียกใช้ getJwtSecret()
+	return t.SignedString(getJwtSecret())
 }
 
 func ParseToken(tokenStr string) (*Claims, error) {
@@ -47,7 +57,8 @@ func ParseToken(tokenStr string) (*Claims, error) {
 		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, errors.New("unexpected signing method")
 		}
-		return JwtSecret, nil
+		// ✅ เรียกใช้ getJwtSecret()
+		return getJwtSecret(), nil
 	})
 	if err != nil {
 		return nil, err
@@ -73,7 +84,6 @@ type ResetClaims struct {
 	jwt.RegisteredClaims
 }
 
-// อายุสั้น (10 นาที)
 func SignResetToken(userID uint) (string, error) {
 	if userID == 0 {
 		return "", errors.New("userID is required")
@@ -89,7 +99,8 @@ func SignResetToken(userID uint) (string, error) {
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return t.SignedString(JwtSecret)
+	// ✅ เรียกใช้ getJwtSecret()
+	return t.SignedString(getJwtSecret())
 }
 
 func ParseResetToken(tokenStr string) (*ResetClaims, error) {
@@ -101,7 +112,8 @@ func ParseResetToken(tokenStr string) (*ResetClaims, error) {
 		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, errors.New("unexpected signing method")
 		}
-		return JwtSecret, nil
+		// ✅ เรียกใช้ getJwtSecret()
+		return getJwtSecret(), nil
 	})
 	if err != nil {
 		return nil, err

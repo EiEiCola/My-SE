@@ -66,7 +66,7 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Connected to database")
 
-	//s.ResetDatabaseByDROP(db) // Reset here
+	// s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
 

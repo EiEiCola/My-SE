@@ -1,53 +1,36 @@
 package websocket
 
 import (
-	// "encoding/json"
-	"log"
 	"sync"
-	// "time"
-
-	// "github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"github.com/sut68/team12/backend/internal/entity"
-	"gorm.io/gorm"
 )
 
-// Event Types
-const (
-	EventMessage      = "message"
-	EventStatusChange = "status_change"
-	EventTyping       = "typing"
-)
-
+// Message struct สำหรับสื่อสารภายใน WS
 type WSMessage struct {
-    Type    string      `json:"type"`
-    Payload interface{} `json:"payload"`
-    RoomID  uint        `json:"room_id"` // ต้องมีอันนี้ไว้กรองคนรับ
+	Type     string      `json:"type"`                // เช่น "new_message", "online_users", "user_online", "user_offline"
+	Payload  interface{} `json:"payload"`             // ข้อมูลจริง
+	RoomID   uint        `json:"room_id,omitempty"`   // ระบุห้อง (ถ้ามี)
+	SenderID uint        `json:"sender_id,omitempty"` // ใครเป็นคนส่ง
+	TargetID uint        `json:"target_id,omitempty"` // ส่งหาใคร (กรณี Private Noti)
 }
 
 type Hub struct {
-	// Map เก็บ UserID -> Connection (1 คนอาจเข้าหลายเครื่องได้ ถ้าจะเอาละเอียดต้องเป็น list)
-	Clients    map[uint]*websocket.Conn
+	Clients    map[*Client]bool
 	Register   chan *Client
 	Unregister chan *Client
 	Broadcast  chan WSMessage
-	Mutex      sync.RWMutex
-	DB         *gorm.DB
+
+	// เก็บสถานะ Online: UserID -> จำนวน Device ที่ต่ออยู่
+	OnlineUsers map[uint]int
+	mu          sync.RWMutex
 }
 
-type Client struct {
-	UserID uint
-	Conn   *websocket.Conn
-	Hub    *Hub
-}
-
-func NewHub(db *gorm.DB) *Hub {
+func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[uint]*websocket.Conn),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Broadcast:  make(chan WSMessage),
-		DB:         db,
+		Register:    make(chan *Client),
+		Unregister:  make(chan *Client),
+		Clients:     make(map[*Client]bool),
+		Broadcast:   make(chan WSMessage),
+		OnlineUsers: make(map[uint]int),
 	}
 }
 
@@ -55,46 +38,104 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
-			h.Mutex.Lock()
-			h.Clients[client.UserID] = client.Conn
-			
-			// ✅ Update Active Status -> Online (ID 1 = Online สมมติ)
-			h.DB.Model(&entity.Member{}).Where("id = ?", client.UserID).Update("active_status_id", 1)
-			
-			// แจ้งเพื่อนๆ ว่า online (ต้องเขียน Logic หาเพื่อนเพิ่ม)
-			log.Printf("User %d Connected", client.UserID)
-			h.Mutex.Unlock()
-
+			h.register(client)
 		case client := <-h.Unregister:
-			h.Mutex.Lock()
-			if _, ok := h.Clients[client.UserID]; ok {
-				delete(h.Clients, client.UserID)
-				client.Conn.Close()
-				
-				// ✅ Update Active Status -> Offline (ID 2 = Offline)
-				h.DB.Model(&entity.Member{}).Where("id = ?", client.UserID).Update("active_status_id", 2)
-			}
-			h.Mutex.Unlock()
-
+			h.unregister(client)
 		case msg := <-h.Broadcast:
-			// Logic การส่งข้อความหาคนในห้อง
-			h.broadcastToRoom(msg)
+			h.broadcast(msg)
 		}
 	}
 }
 
-func (h *Hub) broadcastToRoom(msg WSMessage) {
-	// 1. หาว่าใครอยู่ในห้องบ้างจาก DB
-	var memberIDs []uint
-	h.DB.Table("room_members").Where("room_id = ?", msg.RoomID).Pluck("member_id", &memberIDs)
+func (h *Hub) register(client *Client) {
+	h.Clients[client] = true
 
-	h.Mutex.RLock()
-	defer h.Mutex.RUnlock()
+	h.mu.Lock()
+	h.OnlineUsers[client.UserID]++
+	h.mu.Unlock()
 
-	for _, memberID := range memberIDs {
-		// ส่งให้ทุกคนในห้องที่ Online อยู่ (รวมถึงคนส่งด้วย เพื่ออัปเดต UI)
-		if conn, ok := h.Clients[memberID]; ok {
-			conn.WriteJSON(msg)
+	// 1. บอกคนมาใหม่ว่าใครออนไลน์บ้าง
+	h.sendOnlineListTo(client)
+
+	// 2. บอกคนอื่นว่า user นี้ออนไลน์แล้ว (Broadcast ทุกคน)
+	h.broadcastToAll(WSMessage{
+		Type:    "user_online",
+		Payload: client.UserID,
+	})
+}
+
+func (h *Hub) unregister(client *Client) {
+	if _, ok := h.Clients[client]; ok {
+		delete(h.Clients, client)
+		close(client.Send)
+
+		h.mu.Lock()
+		h.OnlineUsers[client.UserID]--
+		if h.OnlineUsers[client.UserID] <= 0 {
+			delete(h.OnlineUsers, client.UserID)
+		}
+		h.mu.Unlock()
+
+		// ถ้าออฟไลน์จริง (ไม่เหลือ Device) ให้บอกคนอื่น
+		h.mu.RLock()
+		if _, stillOn := h.OnlineUsers[client.UserID]; !stillOn {
+			h.broadcastToAll(WSMessage{
+				Type:    "user_offline",
+				Payload: client.UserID,
+			})
+		}
+		h.mu.RUnlock()
+	}
+}
+
+// Broadcast หา User ทุกคน (ที่อยู่ใน Clients)
+func (h *Hub) broadcast(msg WSMessage) {
+	for client := range h.Clients {
+		// Logic กรองห้อง: ถ้า msg มี RoomID อาจจะกรองส่งเฉพาะคนในห้อง
+		// แต่ในที่นี้ส่งให้ Frontend กรองต่อเอง หรือถ้าต้องการ Performance สูงๆ ค่อยมาเขียน Logic เช็ค RoomID ตรงนี้
+		select {
+		case client.Send <- msg:
+		default:
+			close(client.Send)
+			delete(h.Clients, client)
+		}
+	}
+}
+
+// ส่ง List คนออนไลน์หาคนคนเดียว (คนที่เพิ่งเข้ามา)
+func (h *Hub) sendOnlineListTo(client *Client) {
+	h.mu.RLock()
+	keys := make([]uint, 0, len(h.OnlineUsers))
+	for k := range h.OnlineUsers {
+		keys = append(keys, k)
+	}
+	h.mu.RUnlock()
+
+	client.Send <- WSMessage{Type: "online_users", Payload: keys}
+}
+
+// Helper: ส่งหาทุกคน
+func (h *Hub) broadcastToAll(msg WSMessage) {
+	for client := range h.Clients {
+		select {
+		case client.Send <- msg:
+		default:
+			close(client.Send)
+			delete(h.Clients, client)
+		}
+	}
+}
+
+// Helper: ส่งหา User ระบุคน (เช่น แจ้งเตือนแชทเข้า)
+func (h *Hub) SendToUser(userID uint, msg WSMessage) {
+	for client := range h.Clients {
+		if client.UserID == userID {
+			select {
+			case client.Send <- msg:
+			default:
+				close(client.Send)
+				delete(h.Clients, client)
+			}
 		}
 	}
 }
