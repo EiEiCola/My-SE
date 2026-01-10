@@ -14,6 +14,7 @@ func SetupRoutes(
 	adminProfileController *adminCtl.AdminProfileController,
 	adminUserController *adminCtl.AdminUserController,
 	adminCategoryController *adminCtl.AdminCategoryController,
+	adminReviewController *adminCtl.AdminReviewController,
 ) {
 	// static files
 	r.Static("/uploads", "./uploads")
@@ -45,9 +46,9 @@ func SetupRoutes(
 		SetupRewardRoutes(api)
 		//revirew
 		SetupReviewRoutes(api)
-
 		// Report System
 		SetupReportRoutes(api)
+
 	}
 
 	// =========================
@@ -61,8 +62,10 @@ func SetupRoutes(
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
+		SetupAdminReviewRoutes(adminAPI, adminReviewController)
 
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
+
 	}
 
 	// ✅ member protected routes (อยู่ใต้ memberAPI)
@@ -70,7 +73,11 @@ func SetupRoutes(
 		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
+		SetupMemberPostRoutes(memberAPI)
+		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
+		SetupReviewRoutes(memberAPI)
 		// SetupChatRoutes(memberAPI)
+
 	}
 
 	// routes ที่ไม่ได้อยู่ใต้ /api (คงเดิม)

@@ -123,6 +123,13 @@ func (ctl *AdminPollController) Close(c *gin.Context) {
 	}
 	pollID := uint(pollID64)
 
+	// ✅ Parse reason from request body
+	var req dto.ClosePollRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required", "detail": err.Error()})
+		return
+	}
+
 	adminAny, ok := c.Get("admin_id")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "admin_id not found"})
@@ -140,10 +147,81 @@ func (ctl *AdminPollController) Close(c *gin.Context) {
 		return
 	}
 
-	res, err := ctl.pollService.Close(adminID, pollID)
+	res, err := ctl.pollService.Close(adminID, pollID, req.Reason)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	c.JSON(http.StatusOK, res)
+}
+
+// ✅ NEW: GET /api/admin/polls/:id
+// =========================
+func (ctl *AdminPollController) GetByID(c *gin.Context) {
+	pollID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
+		return
+	}
+	pollID := uint(pollID64)
+
+	// (optional) ถ้าจะบังคับว่าเป็น admin จริง ๆ ก็เช็ค admin_id เหมือนตัวอื่นได้
+	// แต่ใน routes ของหนูมี middleware แล้ว เลยไม่จำเป็นก็ได้
+	_, ok := c.Get("admin_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "admin_id not found"})
+		return
+	}
+
+	res, err := ctl.pollService.GetByIDForAdmin(pollID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+// =========================
+// ✅ DELETE /api/admin/polls/:id (with reason)
+// =========================
+func (ctl *AdminPollController) Delete(c *gin.Context) {
+	pollID64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid poll id"})
+		return
+	}
+	pollID := uint(pollID64)
+
+	// ✅ Parse reason from request body
+	var req dto.DeletePollRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required", "detail": err.Error()})
+		return
+	}
+
+	adminAny, ok := c.Get("admin_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "admin_id not found"})
+		return
+	}
+
+	var adminID uint
+	switch v := adminAny.(type) {
+	case uint:
+		adminID = v
+	case int:
+		adminID = uint(v)
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid admin_id type"})
+		return
+	}
+
+	res, err := ctl.pollService.DeleteForAdmin(adminID, pollID, req.Reason)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, res)
 }

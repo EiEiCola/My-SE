@@ -85,8 +85,12 @@ func main() {
 	categorySvc := services.NewCategoryService(db, mainCatRepo, sub1CatRepo, sub2CatRepo)
 	categoryCtl := controller.NewAdminCategoryController(categorySvc)
 
+	// ---- Reviews ----
+	reviewRepo := repository.NewReviewRepository(db)
+	adminReviewCtl := controller.NewAdminReviewController(reviewRepo)
+
 	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, adminReviewCtl)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{
