@@ -275,6 +275,14 @@ func (rc *ReviewController) VoteReview(c *gin.Context) {
 
 	resp, err := rc.reviewService.VoteReview(reviewID, memberID, req.VoteType)
 	if err != nil {
+		if err.Error() == "owner_cannot_vote" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "owner_cannot_vote"})
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "review_not_found"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "vote failed", "detail": err.Error()})
 		return
 	}
@@ -283,4 +291,67 @@ func (rc *ReviewController) VoteReview(c *gin.Context) {
 		"message": "vote updated",
 		"data":    resp,
 	})
+}
+
+// GET /api/member/reviews/my?main_category_id=1
+func (rc *ReviewController) ListMyReviews(c *gin.Context) {
+	// member_id จาก middleware
+	v, ok := c.Get("member_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
+		return
+	}
+
+	var memberID uint
+	switch x := v.(type) {
+	case uint:
+		memberID = x
+	case int:
+		if x < 0 {
+			c.JSON(401, gin.H{"error": "invalid member_id"})
+			return
+		}
+		memberID = uint(x)
+	case float64:
+		if x < 0 {
+			c.JSON(401, gin.H{"error": "invalid member_id"})
+			return
+		}
+		memberID = uint(x)
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+		return
+	}
+
+	// optional category filter
+	var mainCatID *uint
+	if q := c.Query("main_category_id"); q != "" {
+		parsed, err := strconv.ParseUint(q, 10, 64)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "main_category_id invalid"})
+			return
+		}
+		id := uint(parsed)
+		mainCatID = &id
+	}
+
+	reviews, err := rc.reviewService.ListMyReviews(memberID, mainCatID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to list my reviews", "detail": err.Error()})
+		return
+	}
+
+	// ✅ Fix old reviews: if deleted but deleted_by_type is empty, set to OWNER
+	for i := range reviews {
+		if reviews[i].DeletedAt.Valid && reviews[i].DeletedByType == "" {
+			// Old review deleted before we added deleted_by_type field
+			if reviews[i].AdminDeleteReason != "" {
+				reviews[i].DeletedByType = "ADMIN"
+			} else {
+				reviews[i].DeletedByType = "OWNER"
+			}
+		}
+	}
+
+	c.JSON(200, gin.H{"data": reviews})
 }

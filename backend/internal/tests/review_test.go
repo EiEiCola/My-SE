@@ -7,18 +7,19 @@ import (
 	"github.com/sut68/team12/backend/internal/entity"
 )
 
+func uPtr(v uint) *uint { return &v }
 func TestReviewValidation(t *testing.T) {
 
 	t.Run("Positive: valid review", func(t *testing.T) {
 		g := NewGomegaWithT(t)
 
 		r := entity.Review{
-			Title:          "หัวข้อ",
-			Content:        "เนื้อหา",
-			Rating:         5,
-			MemberID:       1,
-			MainCategoryID: uPtr(1),
-			HelpfulCount:   0,
+			Title:           "หัวข้อ",
+			Content:         "เนื้อหา",
+			Rating:          5,
+			MemberID:        1,
+			MainCategoryID:  uPtr(1),
+			HelpfulCount:    0,
 			NotHelpfulCount: 0,
 		}
 
@@ -240,11 +241,11 @@ func TestReviewValidation(t *testing.T) {
 		g := NewGomegaWithT(t)
 
 		r := entity.Review{
-			Title:          "ok",
-			Content:        "ok",
-			Rating:         5,
-			MemberID:       1,
-			MainCategoryID: uPtr(1),
+			Title:           "ok",
+			Content:         "ok",
+			Rating:          5,
+			MemberID:        1,
+			MainCategoryID:  uPtr(1),
 			SubCategoryL2ID: uPtr(99),
 			// SubCategoryL1ID nil
 		}

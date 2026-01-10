@@ -16,6 +16,8 @@ type ReviewService interface {
 	ListReviews(mainCategoryID *uint) ([]entity.Review, error)
 	DeleteReview(reviewID uint, memberID uint) error
 
+	ListMyReviews(memberID uint, mainCategoryID *uint) ([]entity.Review, error)
+
 	// ✅ upload images metadata to DB
 	AddReviewImages(reviewID uint, memberID uint, images []dto.ReviewImageRequest) error
 
@@ -37,7 +39,7 @@ func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
 
 // รองรับ hashtag ทุกภาษา + ตัวเลข + _ + -
 // เช่น #เงินดี #SUT2025 #work-hard #หอA1
-var hashtagRe = regexp.MustCompile(`#([\p{L}\p{N}_-]+)`)
+var hashtagRe = regexp.MustCompile(`#([\p{L}\p{M}\p{N}_-]+)`)
 
 func extractHashtags(text string) []string {
 	matches := hashtagRe.FindAllStringSubmatch(text, -1)
@@ -100,10 +102,17 @@ func isUniqueConstraintError(err error) bool {
 }
 
 func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Review, error) {
-	if req.MainCategoryID == nil {
-		return nil, errors.New("main_category_id is required")
-	}
+	if req.MainCategoryID == nil || *req.MainCategoryID == 0 {
+	return nil, errors.New("main_category_id is required")
+}
 
+// ✅ Sub1/Sub2 เป็น optional
+// แต่ถ้าเลือก Sub2 ต้องมี Sub1 ด้วย (กัน payload แปลก)
+if req.SubCategoryL2ID != nil && *req.SubCategoryL2ID != 0 {
+	if req.SubCategoryL1ID == nil || *req.SubCategoryL1ID == 0 {
+		return nil, errors.New("sub_category_l1_id is required when sub_category_l2_id is provided")
+	}
+}
 	review := &entity.Review{
 		Title:       req.Title,
 		Content:     req.Content,
@@ -237,6 +246,14 @@ func (s *reviewService) DeleteReview(reviewID uint, memberID uint) error {
 
 // VoteReview จะจัดการโหวตรีวิวทุกเคส
 func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string) (*dto.VoteReviewResponse, error) {
+	// ✅ ถ้าเป็นเจ้าของรีวิว -> ห้ามโหวต
+	if err := s.reviewRepo.CheckReviewOwner(reviewID, memberID); err == nil {
+		return nil, errors.New("owner_cannot_vote")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// ถ้า error อื่นๆ ไม่ใช่ not found
+		return nil, err
+	}
+
 	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)
 	if err != nil {
 		return nil, err
@@ -249,4 +266,10 @@ func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string
 		MyVoteType:      myVote,
 		Action:          action,
 	}, nil
+}
+
+
+
+func (s *reviewService) ListMyReviews(memberID uint, mainCategoryID *uint) ([]entity.Review, error) {
+	return s.reviewRepo.ListMyReviews(memberID, mainCategoryID)
 }

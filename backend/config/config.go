@@ -70,6 +70,7 @@ func Connect() *gorm.DB {
 
 	DB = db
 
+	
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(
@@ -143,6 +144,7 @@ func Connect() *gorm.DB {
 		// --- 10. ตาราง Poll (ต้องอยู่ท้ายสุดเพราะอ้างอิงหลายตาราง) ---
 		&entity.PollOption{},
 		&entity.PollVote{},
+		&entity.PollVoteOption{}, 
 		&entity.PollHistory{}, // <--- อ้างอิง Admin, Poll, PollStatus (ควรอยู่ท้ายสุด)
 
 		// --- 11. ตาราง Bookmark และ PostStar ---
@@ -174,8 +176,11 @@ func Connect() *gorm.DB {
 	// Data seeding
 	s.SeedStatusData(db)
 	// s.SeedPRSystem(db)
+	s.SeedReviewSystem(db)
+	s.SeedPollSystem(db)
+
 
 	log.Println("Master data seeding completed.")
-
+	//hello
 	return db
 }

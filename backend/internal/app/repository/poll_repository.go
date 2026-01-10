@@ -1,21 +1,49 @@
 package repository
 
 import (
-	"gorm.io/gorm"
+	"time"
 
 	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
 type PollRepository interface {
+	// Poll
 	CreatePoll(poll *entity.Poll) error
 	GetPollByID(id uint) (*entity.Poll, error)
 	ListPolls(statusID *uint, search *string) ([]entity.Poll, error)
+	ListActivePolls(statusID *uint, search *string) ([]entity.Poll, error) // ✅ For Public Feed (No Deleted)
+	ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error)
 	UpdatePoll(poll *entity.Poll) error
+	DeletePoll(pollID uint) error
+	GetMyVotesForPolls(pollIDs []uint, memberID uint) (map[uint][]uint, error)
+	UpdatePublishedAt(pollID uint, publishedAt time.Time) error
 
+	// Admin (robust)
+	ListPendingForAdmin() ([]entity.Poll, error)
+	// ✅ เก็บโค้ด robust join เดิมของหนูไว้ (ไม่ตัด) แต่เปลี่ยนชื่อให้ไม่ชน ListPolls
+	ListPollsPendingByName(search *string) ([]entity.Poll, error)
+
+	// Voting
 	HasVoted(pollID uint, memberID uint) (bool, error)
-	CreateVotes(votes []entity.PollVote) error
+	CountValidOptions(pollID uint, optionIDs []uint) (int64, error)
+	CreateVoteWithOptions(pollID uint, memberID uint, optionIDs []uint) (*entity.PollVote, error)
 
+	// Results
 	CountVotesByOption(pollID uint) ([]PollResultRow, error)
+	CountTotalVoters(pollID uint) (int64, error)
+	CountTotalVotersByPollIDs(pollIDs []uint) (map[uint]int64, error)
+
+	// History
+	CreateHistory(history *entity.PollHistory) error
+
+	// Status
+	UpdatePollStatus(pollID uint, statusID uint) error
+
+	// Options
+	ReplacePollOptions(pollID uint, options []entity.PollOption) error
+
+	RejectPoll(pollID uint, statusID uint, reason string) error
 }
 
 type pollRepository struct {
@@ -36,10 +64,20 @@ func (r *pollRepository) CreatePoll(poll *entity.Poll) error {
 
 func (r *pollRepository) GetPollByID(id uint) (*entity.Poll, error) {
 	var poll entity.Poll
+	// ✅ ใช้ Unscoped เพื่อให้ member เห็น detail ของโพลที่ถูก admin ลบได้
 	err := r.db.
-		Preload("Options").
+		Unscoped(). // ✅ รวม soft-deleted polls
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Preload("PollStatus").
+		Preload("Member"). // ✅ เพิ่ม
+		// Preload("Member.MemberAccount"). // ✅ ถ้ามีจริงค่อยเปิด
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
 		First(&poll, id).Error
+
 	if err != nil {
 		return nil, err
 	}
@@ -50,16 +88,80 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 	var polls []entity.Poll
 
 	query := r.db.
-		Preload("Options").
+		Unscoped(). // ✅ รวม soft-deleted polls สำหรับ admin
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Preload("PollStatus").
+		Preload("Member"). // ✅ เพิ่ม
+		// Preload("Member.MemberAccount"). // ✅ ถ้ามี
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
 		Model(&entity.Poll{})
 
 	if statusID != nil {
 		query = query.Where("poll_status_id = ?", *statusID)
 	}
+	if search != nil && *search != "" {
+		// Postgres แนะนำ ILIKE (case-insensitive)
+		query = query.Where("question ILIKE ?", "%"+*search+"%")
+	}
+
+	err := query.Order("created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+// ListActivePolls: สำหรับ Public Feed (ห้ามเห็น Deleted)
+func (r *pollRepository) ListActivePolls(statusID *uint, search *string) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	// ❌ NO Unscoped() here -> Only active (non-deleted) polls
+	query := r.db.
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("PollStatus").
+		Preload("Member").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Model(&entity.Poll{})
+
+	if statusID != nil {
+		query = query.Where("poll_status_id = ?", *statusID)
+	} else {
+		// ✅ Default for Public Feed: Include PUBLISHED (3) and CLOSED (5)
+		query = query.Where("poll_status_id IN ?", []uint{3, 5})
+	}
 
 	if search != nil && *search != "" {
-		query = query.Where("question LIKE ?", "%"+*search+"%")
+		query = query.Where("question ILIKE ?", "%"+*search+"%")
+	}
+
+	err := query.Order("created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+func (r *pollRepository) ListPollsByMember(memberID uint, statusID *uint) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	// ✅ ใช้ Unscoped() เพื่อดึงโพลที่ถูก soft delete ด้วย (member ต้องเห็นโพลที่ admin ลบ)
+	query := r.db.
+		Unscoped(). // ✅ รวม soft-deleted polls
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("PollStatus").
+		Preload("Member").        // ✅ เพิ่ม
+		Preload("MainCategory").  // ✅ เพิ่ม
+		Preload("SubCategoryL1"). // ✅ เพิ่ม
+		Preload("SubCategoryL2").
+		Model(&entity.Poll{}).
+		Where("member_id = ?", memberID)
+
+	if statusID != nil {
+		query = query.Where("poll_status_id = ?", *statusID)
 	}
 
 	err := query.Order("created_at DESC").Find(&polls).Error
@@ -67,7 +169,48 @@ func (r *pollRepository) ListPolls(statusID *uint, search *string) ([]entity.Pol
 }
 
 func (r *pollRepository) UpdatePoll(poll *entity.Poll) error {
-	return r.db.Save(poll).Error
+	return r.db.Omit("Options").Save(poll).Error
+}
+
+func (r *pollRepository) DeletePoll(pollID uint) error {
+	return r.db.Delete(&entity.Poll{}, pollID).Error
+}
+
+/* =========================
+   ADMIN (ROBUST)
+========================= */
+
+// ✅ โค้ด robust join เดิมของหนู (เก็บไว้ครบ) แค่เปลี่ยนชื่อไม่ให้ชน ListPolls
+func (r *pollRepository) ListPollsPendingByName(search *string) ([]entity.Poll, error) {
+	var polls []entity.Poll
+
+	query := r.db.
+		Preload("Options", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("PollStatus").
+		Preload("Member").       // ✅ เพิ่ม
+		Preload("MainCategory"). // ✅ เพิ่ม (ถ้าต้องโชว์หมวด)
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Model(&entity.Poll{})
+
+	// robust: filter ด้วยชื่อ
+	query = query.
+		Joins("JOIN poll_statuses ps ON ps.id = polls.poll_status_id").
+		Where("ps.name = ?", "PENDING_REVIEW")
+
+	if search != nil && *search != "" {
+		query = query.Where("polls.question ILIKE ?", "%"+*search+"%")
+	}
+
+	err := query.Order("polls.created_at DESC").Find(&polls).Error
+	return polls, err
+}
+
+func (r *pollRepository) ListPendingForAdmin() ([]entity.Poll, error) {
+	// ✅ reuse robust function
+	return r.ListPollsPendingByName(nil)
 }
 
 /* =========================
@@ -82,36 +225,234 @@ func (r *pollRepository) HasVoted(pollID uint, memberID uint) (bool, error) {
 	return count > 0, err
 }
 
-func (r *pollRepository) CreateVotes(votes []entity.PollVote) error {
-	return r.db.Create(&votes).Error
+func (r *pollRepository) CountValidOptions(pollID uint, optionIDs []uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&entity.PollOption{}).
+		Where("poll_id = ? AND id IN ?", pollID, optionIDs).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *pollRepository) CreateVoteWithOptions(pollID uint, memberID uint, optionIDs []uint) (*entity.PollVote, error) {
+	var created entity.PollVote
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		created = entity.PollVote{
+			PollID:   pollID,
+			MemberID: memberID,
+		}
+		if err := tx.Create(&created).Error; err != nil {
+			return err
+		}
+
+		rows := make([]entity.PollVoteOption, 0, len(optionIDs))
+		for _, oid := range optionIDs {
+			rows = append(rows, entity.PollVoteOption{
+				PollVoteID:   created.ID,
+				PollOptionID: oid,
+			})
+		}
+		if err := tx.Create(&rows).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &created, nil
 }
 
 /* =========================
-   RESULTS
+   RESULTS (✅ แบบ B: นับจำนวนคน)
 ========================= */
 
 type PollResultRow struct {
 	OptionID uint
 	Label    string
 	ImgURL   string
-	Count    int64
+	Count    int64 // ✅ จำนวน “คน” ที่เลือก option นี้
 }
 
+func (r *pollRepository) CountTotalVoters(pollID uint) (int64, error) {
+	var total int64
+	err := r.db.Model(&entity.PollVote{}).
+		Where("poll_id = ?", pollID).
+		Count(&total).Error
+	return total, err
+}
+
+// ✅ return ทุก option (รวม 0 คะแนน) + นับจาก poll_vote_options
 func (r *pollRepository) CountVotesByOption(pollID uint) ([]PollResultRow, error) {
 	var results []PollResultRow
 
 	err := r.db.
-		Table("poll_votes").
+		Table("poll_options po").
 		Select(`
-			poll_options.id AS option_id,
-			poll_options.label AS label,
-			poll_options.img_url AS img_url,
-			COUNT(poll_votes.id) AS count
+			po.id AS option_id,
+			po.label AS label,
+			po.img_url AS img_url,
+			COALESCE(COUNT(DISTINCT pv.id), 0) AS count
 		`).
-		Joins("JOIN poll_options ON poll_votes.poll_option_id = poll_options.id").
-		Where("poll_votes.poll_id = ?", pollID).
-		Group("poll_options.id, poll_options.label, poll_options.img_url").
+		Joins("LEFT JOIN poll_vote_options pvo ON pvo.poll_option_id = po.id").
+		Joins("LEFT JOIN poll_votes pv ON pv.id = pvo.poll_vote_id AND pv.poll_id = ?", pollID).
+		Where("po.poll_id = ?", pollID).
+		Group("po.id, po.label, po.img_url, po.sort_order").
+		Order("po.sort_order ASC, po.id ASC").
 		Scan(&results).Error
 
 	return results, err
+}
+
+func (r *pollRepository) CountTotalVotersByPollIDs(pollIDs []uint) (map[uint]int64, error) {
+	out := make(map[uint]int64)
+	if len(pollIDs) == 0 {
+		return out, nil
+	}
+
+	type row struct {
+		PollID uint  `gorm:"column:poll_id"`
+		Total  int64 `gorm:"column:total"`
+	}
+
+	var rows []row
+	err := r.db.
+		Table("poll_votes").
+		Select("poll_id, COUNT(*) AS total").
+		Where("poll_id IN ?", pollIDs).
+		Group("poll_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rrow := range rows {
+		out[rrow.PollID] = rrow.Total
+	}
+	return out, nil
+}
+
+/* =========================
+   HISTORY
+========================= */
+
+func (r *pollRepository) CreateHistory(history *entity.PollHistory) error {
+	return r.db.Create(history).Error
+}
+
+/*
+	=========================
+	  UPDATE POLL STATUS
+
+=========================
+*/
+func (r *pollRepository) UpdatePollStatus(pollID uint, statusID uint) error {
+	tx := r.db.Model(&entity.Poll{}).
+		Where("id = ?", pollID).
+		Update("poll_status_id", statusID)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound // ✅ จะทำให้ controller ตอบ error ออกมา
+	}
+	return nil
+}
+
+func (r *pollRepository) RejectPoll(pollID uint, statusID uint, reason string) error {
+	tx := r.db.Model(&entity.Poll{}).
+		Where("id = ?", pollID).
+		Updates(map[string]any{
+			"poll_status_id":     statusID,
+			"last_reject_reason": reason,
+		})
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+/* =========================
+   REPLACE OPTIONS
+========================= */
+
+func (r *pollRepository) ReplacePollOptions(pollID uint, options []entity.PollOption) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1) ลบ options เก่าทิ้งก่อน
+		if err := tx.Unscoped().
+			Where("poll_id = ?", pollID).
+			Delete(&entity.PollOption{}).Error; err != nil {
+			return err
+		}
+
+		// 2) ใส่ options ใหม่ (ถ้าไม่มี ก็จบ)
+		if len(options) == 0 {
+			return nil
+		}
+
+		// กันพลาด: ensure poll_id/sort_order
+		for i := range options {
+			options[i].ID = 0 // ✅ บังคับให้เป็น record ใหม่เสมอ
+			options[i].PollID = pollID
+			if options[i].SortOrder == 0 { // ถ้าไม่ได้ส่งมา
+				options[i].SortOrder = i + 1
+			}
+		}
+
+		if err := tx.Create(&options).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+type myVoteRow struct {
+	PollID       uint `gorm:"column:poll_id"`
+	PollOptionID uint `gorm:"column:poll_option_id"`
+}
+
+func (r *pollRepository) GetMyVotesForPolls(pollIDs []uint, memberID uint) (map[uint][]uint, error) {
+	out := make(map[uint][]uint)
+	if len(pollIDs) == 0 {
+		return out, nil
+	}
+
+	var rows []myVoteRow
+	err := r.db.
+		Table("poll_votes pv").
+		Select("pv.poll_id, pvo.poll_option_id").
+		Joins("JOIN poll_vote_options pvo ON pvo.poll_vote_id = pv.id").
+		Where("pv.member_id = ? AND pv.poll_id IN ?", memberID, pollIDs).
+		Order("pv.poll_id ASC, pvo.poll_option_id ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rrow := range rows {
+		out[rrow.PollID] = append(out[rrow.PollID], rrow.PollOptionID)
+	}
+	return out, nil
+}
+
+func (r *pollRepository) UpdatePublishedAt(pollID uint, publishedAt time.Time) error {
+	tx := r.db.Model(&entity.Poll{}).
+		Where("id = ?", pollID).
+		Update("published_at", publishedAt)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

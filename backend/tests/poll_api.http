@@ -1,0 +1,95 @@
+@baseUrl = http://localhost:8080/api
+@memberToken = <PLACEHOLDER_TOKEN_IF_NEEDED> 
+# Note: Since we use Mock Auth, tokens might not be needed or are handled by mock middleware.
+
+### ==========================================
+### 1. MEMBER: DRAFT & MANAGEMENT
+### ==========================================
+
+### 1.1 Create Draft Poll
+# คาดหวัง: Status = 1 (DRAFT)
+POST {{baseUrl}}/members/polls/draft
+Content-Type: application/json
+
+{
+  "question": "TEST DRAFT: ควรจัดงานเลี้ยงที่ไหน?",
+  "allow_multiple": false,
+  "options": [
+    { "label": "ร้านหมูกระทะ" },
+    { "label": "ร้านอาหารญี่ปุ่น" },
+    { "label": "โรงแรม" }
+  ]
+}
+
+### 1.2 Get My Polls
+# ดูรายการโพลของตัวเอง
+GET {{baseUrl}}/members/polls/my
+
+### 1.3 Update Draft (Replace :id with ID from 1.1)
+# แก้ไขคำถามและตัวเลือก (แก้ได้เฉพาะ DRAFT/REJECTED)
+PUT {{baseUrl}}/members/polls/1
+Content-Type: application/json
+
+{
+  "question": "TEST UPDATED: ควรจัดงานเลี้ยงที่ไหนดีนะ?",
+  "allow_multiple": true,
+  "max_choice": 2,
+  "options": [
+    { "label": "หมูกระทะ (Updated)" },
+    { "label": "Sushi" },
+    { "label": "Pizza" }
+  ]
+}
+
+### 1.4 Submit for Review (Replace :id)
+# ส่งให้แอดมินตรวจ (Status -> 2 PENDING_REVIEW)
+POST {{baseUrl}}/members/polls/1/submit
+
+### ==========================================
+### 2. ADMIN: REVIEW
+### ==========================================
+
+### 2.1 List Pending Polls
+# ดูโพลที่รออนุมัติ (Status = 2)
+GET {{baseUrl}}/admin/polls?status_id=2
+
+### 2.2 Approve Poll (Replace :id)
+# อนุมัติ (Status -> 3 PUBLISHED)
+POST {{baseUrl}}/admin/polls/1/approve
+
+### 2.3 Reject Poll (Alternative)
+# ปฏิเสธ (Status -> 4 REJECTED)
+# POST {{baseUrl}}/admin/polls/1/reject
+# Content-Type: application/json
+# { "reason": "คำถามไม่เหมาะสม" }
+
+### ==========================================
+### 3. MEMBER: VOTING
+### ==========================================
+
+### 3.1 List Published Polls
+# ดูโพลที่เปิดโหวตอยู่
+GET {{baseUrl}}/members/polls
+
+### 3.2 Vote
+# โหวต (ใส่ option_id ที่ถูกต้องจากผลลัพธ์ข้อ 3.1)
+POST {{baseUrl}}/members/polls/1/vote
+Content-Type: application/json
+
+{
+  "option_ids": [1] 
+}
+
+### 3.3 Check Results
+# ดูผลโหวต
+GET {{baseUrl}}/members/polls/1/results
+
+### ==========================================
+### 4. CLEANUP (Optional)
+### ==========================================
+
+### 4.1 Cancel Request (Only if PENDING)
+# POST {{baseUrl}}/members/polls/1/cancel
+
+### 4.2 Delete Poll (Only if DRAFT/REJECTED)
+# DELETE {{baseUrl}}/members/polls/1

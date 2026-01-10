@@ -23,6 +23,24 @@ type CreatePollRequest struct {
 	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
 	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
 
+	IsAnonymous bool `json:"is_anonymous"`
+
+	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
+}
+
+// สำหรับอัปเดตโพล (DRAFT หรือ REJECTED เท่านั้น)
+type UpdatePollRequest struct {
+	Question      string     `json:"question" binding:"required"`
+	AllowMultiple bool       `json:"allow_multiple"`
+	MaxChoice     *int       `json:"max_choice"`
+	StartAt       *time.Time `json:"start_at"`
+	EndAt         *time.Time `json:"end_at"`
+
+	MainCategoryID  *uint `json:"main_category_id"`
+	SubCategoryL1ID *uint `json:"sub_category_l1_id"`
+	SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+	IsAnonymous     bool  `json:"is_anonymous"`
+
 	Options []CreatePollOptionDTO `json:"options" binding:"required,min=2,dive"`
 }
 
@@ -35,24 +53,83 @@ type PollOptionResponse struct {
 	Label     string `json:"label"`
 	ImgURL    string `json:"img_url"`
 	SortOrder int    `json:"sort_order"`
+
+	VoteCount int64   `json:"vote_count,omitempty"`
+	Percent   float64 `json:"percent,omitempty"`
+}
+
+type CategoryBrief struct {
+	ID    uint   `json:"id"`
+	Title string `json:"title"`
 }
 
 type PollResponse struct {
-	ID       uint   `json:"id"`
-	Question string `json:"question"`
-
-	StatusID uint `json:"poll_status_id"`
-	MemberID uint `json:"member_id"`
-
+	ID            uint       `json:"id"`
+	Question      string     `json:"question"`
+	StatusID      uint       `json:"poll_status_id"`
+	MemberID      uint       `json:"member_id"`
+	AuthorName    string     `json:"author_name,omitempty"`
 	AllowMultiple bool       `json:"allow_multiple"`
 	MaxChoice     *int       `json:"max_choice"`
 	StartAt       *time.Time `json:"start_at"`
 	EndAt         *time.Time `json:"end_at"`
 
+	MainCategoryID  *uint `json:"main_category_id,omitempty"`
+	SubCategoryL1ID *uint `json:"sub_category_l1_id,omitempty"`
+	SubCategoryL2ID *uint `json:"sub_category_l2_id,omitempty"`
+
+	// ✅ category objects (ใหม่) — ตัวนี้แหละที่ PollDetail จะใช้โชว์สวย ๆ
+	MainCategory  *CategoryBrief `json:"main_category,omitempty"`
+	SubCategoryL1 *CategoryBrief `json:"sub_category_l1,omitempty"`
+	SubCategoryL2 *CategoryBrief `json:"sub_category_l2,omitempty"`
+
+	PublishedAt      *time.Time `json:"published_at,omitempty"`       //“เผยแพร่จริง” ตอนแอดมินกด Approve/Publish
+	EffectiveStartAt *time.Time `json:"effective_start_at,omitempty"` // เวลาเริ่มโหวตที่แท้จริง (หลังจาก publish) แบบstart_at=10:10, published_at=10:20 → effective_start_at=10:20
+	ComputedStatus   string     `json:"computed_status"`              // "UPCOMING" | "OPEN" | "CLOSED" คือสถานะที่ backend คำนวณให้จากเวลา (ไม่ใช่ status ในdb)
+
 	LastRejectReason string `json:"last_reject_reason,omitempty"`
 
 	Options   []PollOptionResponse `json:"options"`
 	CreatedAt time.Time            `json:"created_at"`
+	UpdatedAt time.Time            `json:"updated_at"` // ✅ เวลาที่แก้ไขล่าสุด (ใช้สำหรับแสดงเวลาที่ admin ปิดโพล)
+
+	StatusName string `json:"status_name"`
+
+	HasVoted    bool   `json:"has_voted"`
+	MyOptionIDs []uint `json:"my_option_ids"`
+
+	TotalVoters     *int64 `json:"total_voters,omitempty"` // ✅ จำนวน "คน" ที่โหวต (COUNT poll_votes)
+	IsAnonymous     bool   `json:"is_anonymous"`
+	AuthorUsername  string `json:"author_username,omitempty"`
+	AuthorAvatarURL string `json:"author_avatar_url,omitempty"` // ✅ รูปโปรไฟล์ของผู้สร้างโพล
+
+	// ✅ Admin moderation fields
+	AdminCloseReason  *string    `json:"admin_close_reason,omitempty"`
+	AdminDeleteReason *string    `json:"admin_delete_reason,omitempty"`
+	DeletedByType     *string    `json:"deleted_by_type,omitempty"` // "OWNER" or "ADMIN"
+	DeletedAt         *time.Time `json:"deleted_at,omitempty"`      // ✅ เพิ่ม
+}
+
+// สำหรับรายการโพลของสมาชิก (My Polls)
+type MyPollsResponse struct {
+	ID               uint       `json:"id"`
+	Question         string     `json:"question"`
+	StatusID         uint       `json:"status_id"`
+	StatusName       string     `json:"status_name"`
+	LastRejectReason string     `json:"last_reject_reason,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"` // ✅ เวลาที่แก้ไขล่าสุด
+	StartAt          *time.Time `json:"start_at"`
+	EndAt            *time.Time `json:"end_at"`
+	MainCategoryID   *uint      `json:"main_category_id,omitempty"`
+	SubCategoryL1ID  *uint      `json:"sub_category_l1_id,omitempty"`
+	SubCategoryL2ID  *uint      `json:"sub_category_l2_id,omitempty"`
+
+	// ✅ Admin moderation fields
+	DeletedAt         *time.Time `json:"deleted_at,omitempty"` // soft delete timestamp
+	AdminCloseReason  *string    `json:"admin_close_reason,omitempty"`
+	AdminDeleteReason *string    `json:"admin_delete_reason,omitempty"`
+	DeletedByType     *string    `json:"deleted_by_type,omitempty"` // "OWNER" or "ADMIN"
 }
 
 /* =========================
@@ -68,6 +145,8 @@ type VotePollResponse struct {
 	MemberID  uint   `json:"member_id"`
 	OptionIDs []uint `json:"option_ids"`
 	Message   string `json:"message"`
+
+	Results *PollResultsResponse `json:"results,omitempty"`
 }
 
 /* =========================
@@ -75,6 +154,14 @@ type VotePollResponse struct {
 ========================= */
 
 type RejectPollRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+type ClosePollRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+type DeletePollRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
@@ -95,4 +182,9 @@ type PollResultsResponse struct {
 	Question string           `json:"question"`
 	Total    int64            `json:"total_votes"`
 	Items    []PollResultItem `json:"items"`
+}
+
+type MyVoteResponse struct {
+	HasVoted  bool   `json:"has_voted"`
+	OptionIDs []uint `json:"option_ids"`
 }
