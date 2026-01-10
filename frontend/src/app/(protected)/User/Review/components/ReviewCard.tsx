@@ -47,7 +47,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   review,
   onReport,
   currentMemberId,
-  isMine = false, 
+  isMine = false,
   canDelete = false,
   onDelete,
   canReport = true,
@@ -192,79 +192,77 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   return (
     <>
       <article className="rc-card">
-        {/* Top-right */}
-        <div className="rc-topRight">
-          <span className="rc-chip">{review.category}</span>
-
-          {canDelete && (
-            <button
-              type="button"
-              className="rc-del"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.();
-              }}
-              title="ลบรีวิว"
-              aria-label="delete"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="rc-delIcon"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9 3.75A2.25 2.25 0 0 1 11.25 1.5h1.5A2.25 2.25 0 0 1 15 3.75V5.25h4.5a.75.75 0 0 1 0 1.5h-.69l-1.02 13.2A2.25 2.25 0 0 1 15.55 22.5H8.45a2.25 2.25 0 0 1-2.24-2.55L5.19 6.75H4.5a.75.75 0 0 1 0-1.5H9V3.75Zm1.5 1.5h3V3.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v1.5ZM7.7 6.75l.99 12.9a.75.75 0 0 0 .75.7h5.12a.75.75 0 0 0 .75-.7l.99-12.9H7.7Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-
         {/* Header */}
         <div className="rc-head">
-          <div className="rc-avatar">
-            <div className="rc-ring">
-              {review.isAnonymous ||
-                review.username === "ไม่เปิดเผยชื่อ" ||
-                review.username === "ไม่ระบุตัวตน" ? (
-                <img className="rc-avatarImg" src={ANON_AVATAR} alt="anonymous" />
-              ) : review.avatarUrl ? (
-                <img className="rc-avatarImg" src={review.avatarUrl} alt="avatar" />
-              ) : (
-                <div className="rc-letter">
-                  {(review.username || "U").charAt(0).toUpperCase()}
-                </div>
-              )}
+          <div className="rc-left">
+            <div className="rc-avatar">
+              <div className="rc-ring">
+                {review.isAnonymous ||
+                  review.username === "ไม่เปิดเผยชื่อ" ||
+                  review.username === "ไม่ระบุตัวตน" ? (
+                  <img className="rc-avatarImg" src={ANON_AVATAR} alt="anonymous" />
+                ) : review.avatarUrl ? (
+                  <img className="rc-avatarImg" src={review.avatarUrl} alt="avatar" />
+                ) : (
+                  <div className="rc-letter">
+                    {(review.username || "U").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* ถ้าคุณ “ไม่อยากมีจุดเขียว” แล้ว ให้ลบบรรทัดนี้ทิ้งได้ */}
-            <span className="rc-online" />
+            <div className="rc-user">
+              {!review.isAnonymous && review.memberId ? (
+                <div
+                  className="rc-name clickable"
+                  onClick={handleUsernameClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleUsernameClick();
+                    }
+                  }}
+                >
+                  {review.username}
+                </div>
+              ) : (
+                <div className="rc-name">{review.username}</div>
+              )}
+              <div className="rc-date">โพสต์เมื่อ {review.date}</div>
+            </div>
           </div>
 
+          {/* Top-right (Category & Actions) moved here */}
+          <div className="rc-topRight">
+            <span className="rc-chip">{review.category}</span>
 
-          <div className="rc-user">
-            {!review.isAnonymous && review.memberId ? (
-              <div
-                className="rc-name clickable"
-                onClick={handleUsernameClick}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleUsernameClick();
-                  }
+            {canDelete && (
+              <button
+                type="button"
+                className="rc-del"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.();
                 }}
+                title="ลบรีวิว"
+                aria-label="delete"
               >
-                {review.username}
-              </div>
-            ) : (
-              <div className="rc-name">{review.username}</div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="rc-delIcon"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M9 3.75A2.25 2.25 0 0 1 11.25 1.5h1.5A2.25 2.25 0 0 1 15 3.75V5.25h4.5a.75.75 0 0 1 0 1.5h-.69l-1.02 13.2A2.25 2.25 0 0 1 15.55 22.5H8.45a2.25 2.25 0 0 1-2.24-2.55L5.19 6.75H4.5a.75.75 0 0 1 0-1.5H9V3.75Zm1.5 1.5h3V3.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v1.5ZM7.7 6.75l.99 12.9a.75.75 0 0 0 .75.7h5.12a.75.75 0 0 0 .75-.7l.99-12.9H7.7Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
             )}
-            <div className="rc-date">โพสต์เมื่อ {review.date}</div>
           </div>
         </div>
 

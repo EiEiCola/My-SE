@@ -165,6 +165,13 @@ const MyReviews: React.FC = () => {
 
     return (
         <div className="my-polls-page">
+            {/* Back Button */}
+            <div style={{ marginBottom: 16 }}>
+                <button className="my-back-btn" onClick={() => navigate("/User/Review")}>
+                    ← กลับ
+                </button>
+            </div>
+
             {/* HEADER & DASHBOARD */}
             <div className="my-hero">
                 <div>
@@ -321,19 +328,12 @@ const MyReviews: React.FC = () => {
                                         <td className="muted">{r.date}</td>
                                         <td style={{ textAlign: "right" }}>
                                             <div className="actions">
-                                                <button
-                                                    className="btn btn-outline"
-                                                    onClick={() => {
-                                                        setSelectedReview(r);
-                                                        setDetailOpen(true);
-                                                    }}
-                                                >
-                                                    👁
-                                                </button>
+
                                                 {!r.deletedAt && (
                                                     <button
                                                         className="btn btn-ghost-danger"
-                                                        onClick={() => {
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // prevent row click
                                                             setSelectedReviewIdForDelete(r.id);
                                                             setIsDeleteModalOpen(true);
                                                         }}
@@ -508,7 +508,7 @@ const MyReviews: React.FC = () => {
                     <div className="rl-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="rl-modalIcon">🗑️</div>
                         <h3 className="rl-modalTitle">ลบรีวิวนี้ใช่ไหม?</h3>
-                        <p className="rl-modalDesc">รีวิวนี้จะถูกลบออกจากระบบถาวร</p>
+                        <p className="rl-modalDesc">รีวิวนี้จะถูกลบออกจากรีวิวของคุณ</p>
                         <div className="rl-modalActions">
                             <button className="rl-btn rl-btnDanger" onClick={handleDeleteConfirm}>
                                 ลบรีวิว

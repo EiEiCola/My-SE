@@ -11,18 +11,26 @@
 }
 
 .pcx-page {
-  padding: 24px;
+  padding: 28px;
   max-width: 1040px;
   margin: 0 auto;
+  background: #fff4e6;
+  min-height: 100vh;
+  border-radius: 24px;
 }
 
 .pcx-card {
-  margin-top: 14px;
-  background: var(--pcx-card);
-  border-radius: 22px;
-  border: 1px solid var(--pcx-border);
-  box-shadow: var(--pcx-shadow);
-  padding: 18px;
+  margin-top: 20px;
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 122, 24, 0.12);
+  box-shadow: 0 8px 32px rgba(255, 122, 24, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 32px;
+  transition: box-shadow 0.3s ease;
+}
+
+.pcx-card:hover {
+  box-shadow: 0 12px 48px rgba(255, 122, 24, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .pcx-header {
@@ -52,16 +60,19 @@
 }
 
 .pcx-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   color: var(--pcx-text);
-  letter-spacing: -0.4px;
-  line-height: 1.1;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .pcx-subtitle {
   color: var(--pcx-muted);
   font-weight: 500;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .pcx-status {
@@ -80,6 +91,7 @@
 
 .pcx-section {
   margin-bottom: 16px;
+  margin-top: 32px;
 }
 
 .pcx-sectionTop {
@@ -102,15 +114,17 @@
 }
 
 .pcx-sectionTitle {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--pcx-text);
-  font-size: 15px;
+  font-size: 16px;
+  margin-bottom: 2px;
 }
 
 .pcx-sectionHint {
   color: var(--pcx-muted);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .pcx-grid2 {
@@ -195,25 +209,31 @@
 
 .pcx-input {
   width: 100%;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 122, 24, 0.15);
   outline: none;
   font-weight: 500;
+  font-size: 15px;
   color: var(--pcx-text);
-  background: #fff;
-  transition: box-shadow .15s ease, border-color .15s ease, transform .05s ease;
+  background: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .pcx-inputLg {
-  padding: 14px 14px;
-  font-size: 14px;
+  padding: 16px 18px;
+  font-size: 16px;
   font-weight: 500;
 }
 
+.pcx-input:hover {
+  border-color: rgba(255, 122, 24, 0.3);
+}
+
 .pcx-input:focus {
-  border-color: rgba(255, 122, 24, 0.55);
-  box-shadow: 0 0 0 5px rgba(255, 122, 24, 0.10);
+  border-color: rgba(255, 122, 24, 0.6);
+  box-shadow: 0 0 0 4px rgba(255, 122, 24, 0.08);
+  transform: translateY(-1px);
 }
 
 .pcx-subsection {
@@ -384,29 +404,37 @@
 
 /* Options */
 .pcx-optionsGrid {
-  margin-top: 12px;
+  margin-top: 20px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 20px;
 }
 
 .pcx-optCard {
-  border: 1px solid rgba(255, 122, 24, 0.22);
-  border-radius: 18px;
-  padding: 14px;
-  background: linear-gradient(180deg, rgba(255, 122, 24, 0.08), rgba(255, 255, 255, 0.9));
+  border: 2px solid rgba(255, 122, 24, 0.18);
+  border-radius: 20px;
+  padding: 24px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(255, 122, 24, 0.06);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
+
+
 
 .pcx-optHead {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 122, 24, 0.12);
 }
 
 .pcx-optTitle {
-  font-weight: 600;
-  color: var(--pcx-text);
+  font-weight: 700;
+  font-size: 16px;
+  color: #c2410c;
 }
 
 .pcx-optActions {
@@ -568,4 +596,101 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
+}
+
+/* ✅ Success Modal */
+.pcx-modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.pcx-modal {
+  background: #fff;
+  width: min(400px, 90vw);
+  border-radius: 24px;
+  padding: 32px 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9) translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.pcx-modalIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  animation: bounce 0.6s infinite alternate;
+}
+
+@keyframes bounce {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+.pcx-modalTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.pcx-modalDesc {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* ✅ Category Card - Special styling */
+.pcx-categoryCard {
+  background: linear-gradient(135deg, #fff9f5 0%, #fff3eb 100%);
+  border: 2px solid rgba(255, 122, 24, 0.2);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(255, 122, 24, 0.08);
+}
+
+.pcx-categoryCard .pcx-sectionTitle {
+  font-size: 18px;
+  color: #c2410c;
+}
+
+.pcx-categoryCard .pcx-sectionHint {
+  color: #9a3412;
 }

@@ -685,7 +685,7 @@ const AdminPollList: React.FC = () => {
                       <td style={{ textAlign: "right" }}>
                         <div className="actions">
                           <button className="btn btn-outline" onClick={() => openDetail(p)} type="button">
-                            👁 ดูรายละเอียด
+                            ดูรายละเอียด
                           </button>
 
                           {!isDel && canApproveReject(p) && (

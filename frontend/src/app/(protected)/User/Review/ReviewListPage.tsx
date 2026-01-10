@@ -366,83 +366,80 @@ const ReviewListPage: React.FC = () => {
           </div>
 
 
-          <div className="rl-search">
-            <span className="rl-searchIcon">🔎</span>
-            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="ค้นหารีวิว..." />
-          </div>
-
-          <div className="rl-filters">
-            {/* 3 dropdown แบบหน้า CreateReview (ไม่บังคับครบ 3 ชั้น) */}
-            <div className="rl-selectWrap" style={{ display: "flex", gap: 12 }}>
-              {/* Main */}
-              <select
-                className="rl-categorySelect"
-                value={selectedMainId ?? ""}
-                onChange={(e) => setSelectedMainId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">หมวดหมู่ทั้งหมด</option>
-                {mainCats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-
-              {/* Sub1 */}
-              <select
-                className="rl-categorySelect"
-                value={selectedL1Id ?? ""}
-                onChange={(e) => setSelectedL1Id(e.target.value ? Number(e.target.value) : null)}
-                disabled={!selectedMainId}
-              >
-                <option value="">{selectedMainId ? "ประเภท" : "เลือกหมวดหมู่หลักก่อน"}</option>
-                {l1Cats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-
-              {/* Sub2 */}
-              <select
-                className="rl-categorySelect"
-                value={selectedL2Id ?? ""}
-                onChange={(e) => setSelectedL2Id(e.target.value ? Number(e.target.value) : null)}
-                disabled={!selectedL1Id}
-              >
-                <option value="">{selectedL1Id ? "รายละเอียด" : "เลือกประเภทก่อน"}</option>
-                {l2Cats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
+          <div className="rl-toolbar">
+            <div className="rl-search">
+              <span className="rl-searchIcon">🔎</span>
+              <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="ค้นหารีวิว..." />
             </div>
 
-            <div className="rl-tabs">
-              <button className={`rl-tab ${filterBy === "all" ? "is-active" : ""}`} onClick={() => setFilterBy("all")}>
-                รีวิวทั้งหมด 🌐
-              </button>
-              <button className={`rl-tab ${filterBy === "my" ? "is-active" : ""}`} onClick={() => setFilterBy("my")}>
-                รีวิวของฉัน 👤
-              </button>
-              <button className={`rl-tab ${sortBy === "latest" ? "is-active" : ""}`} onClick={() => setSortBy("latest")}>
-                ล่าสุด ✨
-              </button>
-              <button className={`rl-tab ${sortBy === "popular" ? "is-active" : ""}`} onClick={() => setSortBy("popular")}>
-                ยอดนิยม 🔥
-              </button>
+            <div className="rl-filters">
+              {/* 3 dropdown แบบหน้า CreateReview (ไม่บังคับครบ 3 ชั้น) */}
+              <div className="rl-selectWrap" style={{ display: "flex", gap: 12 }}>
+                {/* Main */}
+                <select
+                  className="rl-categorySelect"
+                  value={selectedMainId ?? ""}
+                  onChange={(e) => setSelectedMainId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">หมวดหมู่ทั้งหมด</option>
+                  {mainCats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
 
-              {/* ✅ NEW: Reset (สไตล์เดียวกับปุ่มอื่น) */}
-              <button className="rl-tab" onClick={handleResetFilters} type="button">
-                รีเซ็ต ♻️
-              </button>
+                {/* Sub1 */}
+                <select
+                  className="rl-categorySelect"
+                  value={selectedL1Id ?? ""}
+                  onChange={(e) => setSelectedL1Id(e.target.value ? Number(e.target.value) : null)}
+                  disabled={!selectedMainId}
+                >
+                  <option value="">{selectedMainId ? "ประเภท" : "เลือกหมวดหมู่หลักก่อน"}</option>
+                  {l1Cats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
 
+                {/* Sub2 */}
+                <select
+                  className="rl-categorySelect"
+                  value={selectedL2Id ?? ""}
+                  onChange={(e) => setSelectedL2Id(e.target.value ? Number(e.target.value) : null)}
+                  disabled={!selectedL1Id}
+                >
+                  <option value="">{selectedL1Id ? "รายละเอียด" : "เลือกประเภทก่อน"}</option>
+                  {l2Cats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
+              <div className="rl-tabs">
+                <button className={`rl-tab ${filterBy === "all" ? "is-active" : ""}`} onClick={() => setFilterBy("all")}>
+                  รีวิวทั้งหมด 🌐
+                </button>
+                <button className={`rl-tab ${filterBy === "my" ? "is-active" : ""}`} onClick={() => setFilterBy("my")}>
+                  รีวิวของฉัน 👤
+                </button>
+                <button className={`rl-tab ${sortBy === "latest" ? "is-active" : ""}`} onClick={() => setSortBy("latest")}>
+                  ล่าสุด ✨
+                </button>
+                <button className={`rl-tab ${sortBy === "popular" ? "is-active" : ""}`} onClick={() => setSortBy("popular")}>
+                  ยอดนิยม 🔥
+                </button>
 
-
+                {/* ✅ NEW: Reset (สไตล์เดียวกับปุ่มอื่น) */}
+                <button className="rl-tab" onClick={handleResetFilters} type="button">
+                  รีเซ็ต ♻️
+                </button>
+              </div>
             </div>
-
           </div>
 
         </div>
@@ -490,8 +487,8 @@ const ReviewListPage: React.FC = () => {
 
 
         <button className="rl-fab" onClick={() => navigate("/User/Review/createreview")}>
-  <span className="rl-fabPlus">＋</span>สร้างรีวิว
-</button>
+          <span className="rl-fabPlus">＋</span>สร้างรีวิว
+        </button>
       </div>
 
       <ReportReviewModal
@@ -547,7 +544,7 @@ const ReviewListPage: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteConfirm}
         title="ลบรีวิวนี้ใช่ไหม?"
-        description="รีวิวนี้จะถูกลบออกจากระบบถาวร"
+        description="รีวิวนี้จะถูกลบออกจากรีวิวของคุณ"
       />
     </div>
   );
@@ -563,16 +560,29 @@ const DeleteConfirmModal: React.FC<{
 }> = ({ open, title, description, onClose, onConfirm }) => {
   if (!open) return null;
   return (
-    <div className="rl-modalOverlay" onClick={onClose}>
-      <div className="rl-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="rl-modalIcon">🗑️</div>
-        <h3 className="rl-modalTitle">{title}</h3>
-        <p className="rl-modalDesc">{description}</p>
-        <div className="rl-modalActions">
-          <button className="rl-btn rl-btnDanger" onClick={onConfirm}>
+    <div className="delete-modal-backdrop" onClick={onClose}>
+      <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="delete-modal-icon">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="delete-icon-svg"
+          >
+            <path
+              fillRule="evenodd"
+              d="M9 3.75A2.25 2.25 0 0 1 11.25 1.5h1.5A2.25 2.25 0 0 1 15 3.75V5.25h4.5a.75.75 0 0 1 0 1.5h-.69l-1.02 13.2A2.25 2.25 0 0 1 15.55 22.5H8.45a2.25 2.25 0 0 1-2.24-2.55L5.19 6.75H4.5a.75.75 0 0 1 0-1.5H9V3.75Zm1.5 1.5h3V3.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v1.5ZM7.7 6.75l.99 12.9a.75.75 0 0 0 .75.7h5.12a.75.75 0 0 0 .75-.7l.99-12.9H7.7Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+        <div className="delete-modal-title">{title}</div>
+        <div className="delete-modal-desc">{description}</div>
+        <div className="delete-modal-actions">
+          <button className="delete-modal-btn delete-modal-btn-danger" onClick={onConfirm}>
             ลบรีวิว
           </button>
-          <button className="rl-btn rl-btnGhost" onClick={onClose}>
+          <button className="delete-modal-btn delete-modal-btn-cancel" onClick={onClose}>
             ยกเลิก
           </button>
         </div>
@@ -580,5 +590,6 @@ const DeleteConfirmModal: React.FC<{
     </div>
   );
 };
+
 
 export default ReviewListPage;

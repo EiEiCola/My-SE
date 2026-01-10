@@ -34,12 +34,12 @@ const getCurrentMemberId = () => {
     // ✅ สำคัญ: ของเธอน่าจะใช้ user_id (ดูจากรูป)
     const id = Number(
       payload?.member_id ??
-        payload?.memberId ??
-        payload?.user_id ??        // ✅ เพิ่มตัวนี้
-        payload?.userId ??
-        payload?.id ??
-        payload?.sub ??
-        0
+      payload?.memberId ??
+      payload?.user_id ??        // ✅ เพิ่มตัวนี้
+      payload?.userId ??
+      payload?.id ??
+      payload?.sub ??
+      0
     );
 
     return Number.isFinite(id) ? id : 0;
@@ -90,6 +90,10 @@ const PollList: React.FC = () => {
   const [mainOpts, setMainOpts] = useState<any[]>([]);
   const [sub1Opts, setSub1Opts] = useState<any[]>([]);
   const [sub2Opts, setSub2Opts] = useState<any[]>([]);
+
+  // ✅ Delete confirmation modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [pollToDelete, setPollToDelete] = useState<number | null>(null);
 
   const mainNameById = useMemo<Record<number, string>>(() => {
     const out: Record<number, string> = {};
@@ -144,13 +148,13 @@ const PollList: React.FC = () => {
   const optionLabel = (opt: any) =>
     clampStr(
       opt?.text ??
-        opt?.title ??
-        opt?.option_text ??
-        opt?.optionText ??
-        opt?.OptionText ??
-        opt?.name ??
-        opt?.label ??
-        opt?.Label
+      opt?.title ??
+      opt?.option_text ??
+      opt?.optionText ??
+      opt?.OptionText ??
+      opt?.name ??
+      opt?.label ??
+      opt?.Label
     );
 
   const optionVotes = (opt: any) => {
@@ -163,55 +167,55 @@ const PollList: React.FC = () => {
   const getCategoryTitle = (p: Poll) =>
     clampStr(
       (p as any)?.main_category?.title ??
-        (p as any)?.MainCategory?.Title ??
-        (p as any)?.mainCategory?.title ??
-        (p as any)?.category?.title ??
-        (p as any)?.Category?.Title
+      (p as any)?.MainCategory?.Title ??
+      (p as any)?.mainCategory?.title ??
+      (p as any)?.category?.title ??
+      (p as any)?.Category?.Title
     ) || "";
 
   const getAuthorName = (p: Poll) =>
     clampStr(
       (p as any)?.author_name ?? // ✅ ตัวนี้คือของจริงจาก backend
-        (p as any)?.authorName ??
-        (p as any)?.creator?.display_name ??
-        (p as any)?.creator?.name ??
-        (p as any)?.member?.display_name ??
-        (p as any)?.member?.username ??
-        (p as any)?.member_user?.display_name ??
-        (p as any)?.member_user?.username ??
-        (p as any)?.created_by_name ??
-        (p as any)?.createdByName ??
-        (p as any)?.owner_name ??
-        (p as any)?.ownerName ??
-        ""
+      (p as any)?.authorName ??
+      (p as any)?.creator?.display_name ??
+      (p as any)?.creator?.name ??
+      (p as any)?.member?.display_name ??
+      (p as any)?.member?.username ??
+      (p as any)?.member_user?.display_name ??
+      (p as any)?.member_user?.username ??
+      (p as any)?.created_by_name ??
+      (p as any)?.createdByName ??
+      (p as any)?.owner_name ??
+      (p as any)?.ownerName ??
+      ""
     );
 
   // ✅ category id helpers (กัน field ไม่ตรง)
   const getMainCategoryId = (p: Poll) =>
     Number(
       (p as any)?.main_category_id ??
-        (p as any)?.MainCategoryID ??
-        (p as any)?.mainCategoryID ??
-        (p as any)?.main_category?.id ??
-        0
+      (p as any)?.MainCategoryID ??
+      (p as any)?.mainCategoryID ??
+      (p as any)?.main_category?.id ??
+      0
     ) || 0;
 
   const getSubCategoryL1Id = (p: Poll) =>
     Number(
       (p as any)?.sub_category_l1_id ??
-        (p as any)?.SubCategoryL1ID ??
-        (p as any)?.subCategoryL1ID ??
-        (p as any)?.sub_category_l1?.id ??
-        0
+      (p as any)?.SubCategoryL1ID ??
+      (p as any)?.subCategoryL1ID ??
+      (p as any)?.sub_category_l1?.id ??
+      0
     ) || 0;
 
   const getSubCategoryL2Id = (p: Poll) =>
     Number(
       (p as any)?.sub_category_l2_id ??
-        (p as any)?.SubCategoryL2ID ??
-        (p as any)?.subCategoryL2ID ??
-        (p as any)?.sub_category_l2?.id ??
-        0
+      (p as any)?.SubCategoryL2ID ??
+      (p as any)?.subCategoryL2ID ??
+      (p as any)?.sub_category_l2?.id ??
+      0
     ) || 0;
 
   const getCatTextFromIds = (p: Poll) => {
@@ -532,88 +536,91 @@ const PollList: React.FC = () => {
   };
 
   // ✅ สำคัญ: ถ้าโหวต fail ต้อง throw ออกไปให้ PollCard รู้ว่า fail
-const confirmVote = async (pollId: number): Promise<boolean> => {
-  const optionIds = selectedByPoll[pollId] ?? [];
-  if (optionIds.length === 0) {
-    setToast(pollId, "กรุณาเลือกตัวเลือกก่อน");
-    return false;
-  }
+  const confirmVote = async (pollId: number): Promise<boolean> => {
+    const optionIds = selectedByPoll[pollId] ?? [];
+    if (optionIds.length === 0) {
+      setToast(pollId, "กรุณาเลือกตัวเลือกก่อน");
+      return false;
+    }
 
-  setSubmittingByPoll((p) => ({ ...p, [pollId]: true }));
+    setSubmittingByPoll((p) => ({ ...p, [pollId]: true }));
 
-  try {
-    await votePollAdapter(pollId, optionIds);
+    try {
+      await votePollAdapter(pollId, optionIds);
 
-    setToast(pollId, "โหวตสำเร็จ ✅");
-    setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
-    await load();
-    return true;
-  } catch (e: any) {
-    console.error(e);
-
-    // ✅ เอา error code จาก backend ก่อนเสมอ
-    const backendErr =
-      e?.response?.data?.error ??
-      e?.response?.data?.message ??
-      e?.response?.data?.detail ??
-      "";
-
-    // ✅ ค่อย fallback เป็น e.message ทีหลัง
-    const fallbackMsg = e?.message ?? "";
-
-    const raw = String(backendErr || fallbackMsg || "โหวตไม่สำเร็จ").trim();
-
-    const nice =
-      raw.includes("owner_cannot_vote")
-        ? "คุณไม่มีสิทธิ์โหวตโพลนี้ (เจ้าของโพล)"
-        : raw.includes("already_voted")
-        ? "คุณโหวตไปแล้ว"
-        : raw.includes("poll_not_started")
-        ? "โพลยังไม่เริ่ม"
-        : raw.includes("poll_closed") || raw.includes("poll_not_open")
-        ? "โพลปิดแล้ว / ยังไม่เปิดโหวต"
-        : raw.includes("403")
-        ? "คุณไม่มีสิทธิ์ทำรายการนี้"
-        : raw;
-
-    setToast(pollId, nice);
-    return false;
-  } finally {
-    setSubmittingByPoll((p) => ({ ...p, [pollId]: false }));
-  }
-};
-
-
-
-// ✅ toast ต่อ poll (id -> message)
-const [toastByPoll, setToastByPoll] = useState<Record<number, string>>({});
-
-// ✅ timeout ต่อ poll (กันทับกัน)
-const toastTimersRef = React.useRef<Record<number, number>>({});
-
-const setToast = (pollId: number, msg: string, ms = 2200) => {
-  setToastByPoll((p) => ({ ...p, [pollId]: msg }));
-
-  // clear timer เก่า
-  const prev = toastTimersRef.current[pollId];
-  if (prev) window.clearTimeout(prev);
-
-  // auto clear
-  toastTimersRef.current[pollId] = window.setTimeout(() => {
-    setToastByPoll((p) => {
-      const next = { ...p };
-      delete next[pollId];
-      return next;
-    });
-  }, ms);
-};
-
-// ✅ cleanup timers ตอน unmount
-useEffect(() => {
-  return () => {
-    Object.values(toastTimersRef.current).forEach((t) => window.clearTimeout(t));
+      setToast(pollId, "โหวตสำเร็จ ✅");
+      setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
+      await load();
+      return true;
+    } catch (error: any) {
+      console.error("โหวต failed:", error);
+      const raw = extractApiError(error);
+      const msg = prettyVoteError(raw);
+      setToast(pollId, msg);
+      return false;
+    } finally {
+      setSubmittingByPoll((p) => ({ ...p, [pollId]: false }));
+    }
   };
-}, []);
+
+  // ✅ Delete poll handler - open modal
+  const handleDeletePoll = (pollId: number) => {
+    setPollToDelete(pollId);
+    setDeleteModalOpen(true);
+  };
+
+  // ✅ Confirm delete from modal
+  const confirmDeletePoll = async () => {
+    if (!pollToDelete) return;
+
+    try {
+      await pollAPI.deletePoll(pollToDelete);
+      setDeleteModalOpen(false);
+      setPollToDelete(null);
+      await load();
+    } catch (error: any) {
+      console.error("Delete poll failed:", error);
+      alert("ไม่สามารถลบโพลได้");
+    }
+  };
+
+  // ✅ Cancel delete
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setPollToDelete(null);
+  };
+
+
+
+  // ✅ toast ต่อ poll (id -> message)
+  const [toastByPoll, setToastByPoll] = useState<Record<number, string>>({});
+
+  // ✅ timeout ต่อ poll (กันทับกัน)
+  const toastTimersRef = React.useRef<Record<number, number>>({});
+
+  const setToast = (pollId: number, msg: string, ms = 2200) => {
+    setToastByPoll((p) => ({ ...p, [pollId]: msg }));
+
+    // clear timer เก่า
+    const prev = toastTimersRef.current[pollId];
+    if (prev) window.clearTimeout(prev);
+
+    // auto clear
+    toastTimersRef.current[pollId] = window.setTimeout(() => {
+      setToastByPoll((p) => {
+        const next = { ...p };
+        delete next[pollId];
+        return next;
+      });
+    }, ms);
+  };
+
+  // ✅ cleanup timers ตอน unmount
+  useEffect(() => {
+    return () => {
+      Object.values(toastTimersRef.current).forEach((t) => window.clearTimeout(t));
+    };
+  }, []);
 
 
 
@@ -668,7 +675,7 @@ useEffect(() => {
             {/* <PollCategoryDropdown value={"ALL"} onChange={() => {}} options={categories} /> */}
             {/* ✅ keep legacy dropdown used (hidden) to avoid TS unused imports */}
             <div style={{ display: "none" }}>
-              <PollCategoryDropdown value={"ALL"} onChange={() => {}} options={categories} />
+              <PollCategoryDropdown value={"ALL"} onChange={() => { }} options={categories} />
             </div>
 
             {/* ✅ Category filter 3 levels */}
@@ -681,7 +688,7 @@ useEffect(() => {
                   const title = String(x?.title ?? x?.name ?? "").trim();
                   return (
                     <option key={id} value={id}>
-                      {title || `#${id}`}
+                      {title || `#${id} `}
                     </option>
                   );
                 })}
@@ -697,7 +704,7 @@ useEffect(() => {
                   const title = String(x?.title ?? x?.name ?? "").trim();
                   return (
                     <option key={id} value={id}>
-                      {title || `#${id}`}
+                      {title || `#${id} `}
                     </option>
                   );
                 })}
@@ -713,7 +720,7 @@ useEffect(() => {
                   const title = String(x?.title ?? x?.name ?? "").trim();
                   return (
                     <option key={id} value={id}>
-                      {title || `#${id}`}
+                      {title || `#${id} `}
                     </option>
                   );
                 })}
@@ -774,14 +781,14 @@ useEffect(() => {
               typeof (p as any)?.has_voted === "boolean"
                 ? (p as any).has_voted
                 : typeof (p as any)?.hasVoted === "boolean"
-                ? (p as any).hasVoted
-                : false;
+                  ? (p as any).hasVoted
+                  : false;
 
             const initialMyOptionIds: number[] = Array.isArray((p as any)?.my_option_ids)
               ? (p as any).my_option_ids
               : Array.isArray((p as any)?.myOptionIds)
-              ? (p as any).myOptionIds
-              : [];
+                ? (p as any).myOptionIds
+                : [];
 
             return (
               <PollCard
@@ -816,6 +823,8 @@ useEffect(() => {
                 initialHasVoted={initialHasVoted}
                 initialMyOptionIds={initialMyOptionIds}
                 toastMessage={toastByPoll[pid] ?? ""}
+                // ✅ NEW: delete handler for owners
+                onDelete={() => handleDeletePoll(pid)}
               />
             );
           })
@@ -823,19 +832,57 @@ useEffect(() => {
       </div>
 
       {/* Floating create */}
- {/* Floating create */}
-<button
-  className="pf-fab"
-  type="button"
-  title="สร้างโพล"
-  aria-label="สร้างโพล"
-  onClick={() => (window.location.href = "/User/Polls/create")}
->
-  <span className="pf-fab-ico">＋</span>
-  <span className="pf-fab-text">สร้างโพล</span>
-</button>
+      {/* Floating create */}
+      <button
+        className="pf-fab"
+        type="button"
+        title="สร้างโพล"
+        aria-label="สร้างโพล"
+        onClick={() => (window.location.href = "/User/Polls/create")}
+      >
+        <span className="pf-fab-ico">＋</span>
+        <span className="pf-fab-text">สร้างโพล</span>
+      </button>
 
 
+
+      {/* ✅ Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="delete-modal-backdrop" onClick={cancelDelete}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="delete-icon-svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9 3.75A2.25 2.25 0 0 1 11.25 1.5h1.5A2.25 2.25 0 0 1 15 3.75V5.25h4.5a.75.75 0 0 1 0 1.5h-.69l-1.02 13.2A2.25 2.25 0 0 1 15.55 22.5H8.45a2.25 2.25 0 0 1-2.24-2.55L5.19 6.75H4.5a.75.75 0 0 1 0-1.5H9V3.75Zm1.5 1.5h3V3.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v1.5ZM7.7 6.75l.99 12.9a.75.75 0 0 0 .75.7h5.12a.75.75 0 0 0 .75-.7l.99-12.9H7.7Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="delete-modal-title">ลบโพลนี้ใช่ไหม?</div>
+            <div className="delete-modal-desc">โพลนี้จะถูกลบออกจากฟีด</div>
+            <div className="delete-modal-actions">
+              <button
+                className="delete-modal-btn delete-modal-btn-danger"
+                onClick={confirmDeletePoll}
+              >
+                ลบโพล
+              </button>
+              <button
+                className="delete-modal-btn delete-modal-btn-cancel"
+                onClick={cancelDelete}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

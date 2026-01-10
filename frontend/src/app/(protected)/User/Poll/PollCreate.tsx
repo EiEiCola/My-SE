@@ -205,6 +205,24 @@ const PollCreate: React.FC = () => {
     }
   };
 
+  // ✅ Success Modal State
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successTitle, setSuccessTitle] = useState("");
+  const [successDesc, setSuccessDesc] = useState("");
+  const [successAction, setSuccessAction] = useState<(() => void) | null>(null);
+
+  const openSuccess = (title: string, desc: string, action: () => void) => {
+    setSuccessTitle(title);
+    setSuccessDesc(desc);
+    setSuccessAction(() => action);
+    setSuccessOpen(true);
+  };
+
+  const handleSuccessClose = () => {
+    setSuccessOpen(false);
+    if (successAction) successAction();
+  };
+
   const handleSaveDraft = async () => {
     setSubmitting(true);
     try {
@@ -218,8 +236,10 @@ const PollCreate: React.FC = () => {
       }
 
       const id = await saveDraft();
-      alert("บันทึกแบบร่างสำเร็จ");
-      if (!isEdit && id) navigate(`/User/Polls/edit/${id}`);
+      // alert("บันทึกแบบร่างสำเร็จ");
+      openSuccess("บันทึกแบบร่างสำเร็จ", "แบบร่างของคุณถูกบันทึกเรียบร้อยแล้ว", () => {
+        navigate("/User/Polls/my");
+      });
     } catch (err) {
       console.error(err);
       alert("บันทึกล้มเหลว");
@@ -246,8 +266,10 @@ const PollCreate: React.FC = () => {
 
       await (pollAPI as any).submitForReview(id);
 
-      alert("ส่งตรวจสอบสำเร็จ");
-      navigate("/User/Polls/my");
+      // alert("ส่งตรวจสอบสำเร็จ");
+      openSuccess("ส่งตรวจสอบสำเร็จ", "โพลของคุณถูกส่งให้แอดมินตรวจสอบแล้ว กรุณารอผลอนุมัติ", () => {
+        navigate("/User/Polls/my");
+      });
     } catch (err) {
       console.error(err);
       alert("ส่งตรวจสอบล้มเหลว");
@@ -383,6 +405,8 @@ const PollCreate: React.FC = () => {
   return (
     <div className="pcx-page">
       <div className="pcx-card">
+        {/* ... (existing content) ... */}
+
         {/* Header */}
         <div className="pcx-header">
           <div className="pcx-headerLeft">
@@ -421,8 +445,82 @@ const PollCreate: React.FC = () => {
             checked={form.is_anonymous}
             onChange={(e) => setField("is_anonymous", e.target.checked)}
           />
-          ไม่เปิดเผยชื่อ 
+          ไม่เปิดเผยชื่อ
         </label>
+
+        {/* Categories - MOVED TO TOP & REDESIGNED */}
+        <div className="pcx-section pcx-sectionTop">
+          <div className="pcx-categoryCard">
+            <div className="pcx-sectionHead">
+              <div className="pcx-sectionTitle">🏷️ หมวดหมู่</div>
+              <div className="pcx-sectionHint">เลือกหมวดหมู่เพื่อให้คนหาโพลเจอง่ายขึ้น (ไม่บังคับ)</div>
+            </div>
+
+            <div className="pcx-grid3">
+              <div>
+                <div className="pcx-label">หมวดหลัก</div>
+                <select
+                  className="pcx-input"
+                  value={form.main_category_id ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("main_category_id", v);
+                    setField("sub_category_l1_id", null);
+                    setField("sub_category_l2_id", null);
+                  }}
+                >
+                  <option value="">— เลือกหมวดหลัก —</option>
+                  {mainCats.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="pcx-label">หมวดย่อย 1</div>
+                <select
+                  className="pcx-input"
+                  value={form.sub_category_l1_id ?? ""}
+                  disabled={!form.main_category_id}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("sub_category_l1_id", v);
+                    setField("sub_category_l2_id", null);
+                  }}
+                >
+                  <option value="">{form.main_category_id ? "— เลือกหมวดย่อย 1 —" : "เลือกหมวดหลักก่อน"}</option>
+                  {sub1Cats.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="pcx-label">หมวดย่อย 2</div>
+                <select
+                  className="pcx-input"
+                  value={form.sub_category_l2_id ?? ""}
+                  disabled={!form.sub_category_l1_id}
+                  onChange={(e) => {
+                    const v = e.target.value ? Number(e.target.value) : null;
+                    setField("sub_category_l2_id", v);
+                  }}
+                >
+                  <option value="">{form.sub_category_l1_id ? "— เลือกหมวดย่อย 2 —" : "เลือกหมวดย่อย 1 ก่อน"}</option>
+                  {sub2Cats.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
 
 
         <div className="pcx-row pcx-rowBetween" style={{ marginTop: 10 }}>
@@ -533,252 +631,178 @@ const PollCreate: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Categories */}
-        <details className="pcx-details" open>
-          <summary className="pcx-summary">
-            <div>
-              <div className="pcx-summaryTitle">หมวดหมู่ (ไม่บังคับ)</div>
-              <div className="pcx-summaryHint">เลือกหมวดหมู่เพื่อให้คนหาโพลเจอง่ายขึ้น</div>
-            </div>
-            <span className="pcx-miniPill">{catLoading ? "กำลังโหลด..." : "พร้อม"}</span>
-          </summary>
-
-          <div className="pcx-panel pcx-panelSoft" style={{ borderRadius: 0, border: "none" }}>
-            <div className="pcx-grid3">
-              <div>
-                <div className="pcx-label">Main</div>
-                <select
-                  className="pcx-input"
-                  value={form.main_category_id ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value ? Number(e.target.value) : null;
-                    setField("main_category_id", v);
-                    // reset children
-                    setField("sub_category_l1_id", null);
-                    setField("sub_category_l2_id", null);
-                  }}
-                >
-                  <option value="">— เลือก Main —</option>
-                  {mainCats.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="pcx-label">Sub 1</div>
-                <select
-                  className="pcx-input"
-                  value={form.sub_category_l1_id ?? ""}
-                  disabled={!form.main_category_id}
-                  onChange={(e) => {
-                    const v = e.target.value ? Number(e.target.value) : null;
-                    setField("sub_category_l1_id", v);
-                    setField("sub_category_l2_id", null);
-                  }}
-                >
-                  <option value="">{form.main_category_id ? "— เลือก Sub 1 —" : "เลือก Main ก่อน"}</option>
-                  {sub1Cats.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="pcx-label">Sub 2</div>
-                <select
-                  className="pcx-input"
-                  value={form.sub_category_l2_id ?? ""}
-                  disabled={!form.sub_category_l1_id}
-                  onChange={(e) => {
-                    const v = e.target.value ? Number(e.target.value) : null;
-                    setField("sub_category_l2_id", v);
-                  }}
-                >
-                  <option value="">{form.sub_category_l1_id ? "— เลือก Sub 2 —" : "เลือก Sub 1 ก่อน"}</option>
-                  {sub2Cats.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="pcx-mono">
-              Selected IDs:{" "}
-              <span>
-                main={form.main_category_id ?? "-"} sub1={form.sub_category_l1_id ?? "-"} sub2={form.sub_category_l2_id ?? "-"}
-              </span>
-            </div>
-          </div>
-        </details>
-
-        {/* Options header */}
-        <div className="pcx-section">
-          <div className="pcx-sectionHead pcx-sectionHeadRow">
-            <div>
-              <div className="pcx-sectionTitle">ตัวเลือก</div>
-              <div className="pcx-sectionHint">อย่างน้อย 2 ตัวเลือก • ลากจัดลำดับด้วยปุ่ม ↑ ↓</div>
-            </div>
-
-            <button type="button" className="pcx-btn pcx-btnPrimary" onClick={addOption}>
-              ➕ เพิ่มตัวเลือก
-            </button>
+      {/* Options header */}
+      <div className="pcx-section">
+        <div className="pcx-sectionHead pcx-sectionHeadRow">
+          <div>
+            <div className="pcx-sectionTitle">ตัวเลือก</div>
+            <div className="pcx-sectionHint">อย่างน้อย 2 ตัวเลือก • ลากจัดลำดับด้วยปุ่ม ↑ ↓</div>
           </div>
 
-          <div className="pcx-optionsGrid">
-            {form.options.map((opt, idx) => (
-              <div className="pcx-optCard" key={idx}>
-                <div className="pcx-optHead">
-                  <div className="pcx-optTitle">ตัวเลือก #{idx + 1}</div>
+          <button type="button" className="pcx-btn pcx-btnPrimary" onClick={addOption}>
+            ➕ เพิ่มตัวเลือก
+          </button>
+        </div>
 
-                  <div className="pcx-optActions">
-                    <button
-                      type="button"
-                      className="pcx-iconBtn"
-                      onClick={() => moveOption(idx, idx - 1)}
-                      disabled={idx === 0}
-                      title="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="pcx-iconBtn"
-                      onClick={() => moveOption(idx, idx + 1)}
-                      disabled={idx === form.options.length - 1}
-                      title="Move down"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="pcx-iconBtn pcx-iconDanger"
-                      onClick={() => removeOption(idx)}
-                      disabled={form.options.length <= 2}
-                      title="Remove"
-                    >
-                      🗑
-                    </button>
-                  </div>
+        <div className="pcx-optionsGrid">
+          {form.options.map((opt, idx) => (
+            <div className="pcx-optCard" key={idx}>
+              <div className="pcx-optHead">
+                <div className="pcx-optTitle">ตัวเลือก {idx + 1}</div>
+
+                <div className="pcx-optActions">
+                  <button
+                    type="button"
+                    className="pcx-iconBtn"
+                    onClick={() => moveOption(idx, idx - 1)}
+                    disabled={idx === 0}
+                    title="Move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="pcx-iconBtn"
+                    onClick={() => moveOption(idx, idx + 1)}
+                    disabled={idx === form.options.length - 1}
+                    title="Move down"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="pcx-iconBtn pcx-iconDanger"
+                    onClick={() => removeOption(idx)}
+                    disabled={form.options.length <= 2}
+                    title="Remove"
+                  >
+                    🗑
+                  </button>
                 </div>
+              </div>
 
-                <div className="pcx-subsection">
-                  <div className="pcx-label">ข้อความ</div>
+              <div className="pcx-subsection">
+                <div className="pcx-label">ข้อความ</div>
+                <input
+                  className="pcx-input"
+                  value={opt.label}
+                  onChange={(e) => setOption(idx, { label: e.target.value })}
+                  placeholder="เช่น โหวตตัวเลือกนี้..."
+                />
+              </div>
+
+              <div className="pcx-subsection">
+                <label className="pcx-check">
                   <input
-                    className="pcx-input"
-                    value={opt.label}
-                    onChange={(e) => setOption(idx, { label: e.target.value })}
-                    placeholder="เช่น โหวตตัวเลือกนี้..."
+                    type="checkbox"
+                    checked={opt.hasImage}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setOption(idx, { hasImage: v, img_url: v ? opt.img_url : "" });
+                    }}
                   />
-                </div>
+                  เพิ่มรูปภาพ (ไม่บังคับ)
+                </label>
 
-                <div className="pcx-subsection">
-                  <label className="pcx-check">
-                    <input
-                      type="checkbox"
-                      checked={opt.hasImage}
-                      onChange={(e) => {
-                        const v = e.target.checked;
-                        setOption(idx, { hasImage: v, img_url: v ? opt.img_url : "" });
-                      }}
-                    />
-                    เพิ่มรูปภาพ (ไม่บังคับ)
-                  </label>
+                {opt.hasImage && (
+                  <div className="pcx-uploadBox">
+                    <div className="pcx-uploadRow">
+                      <input
+                        className="pcx-file"
+                        type="file"
+                        style={{ display: opt.img_url ? "none" : "block" }}
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
 
-                  {opt.hasImage && (
-                    <div className="pcx-uploadBox">
-                      <div className="pcx-uploadRow">
-                        <input
-                          className="pcx-file"
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
+                          try {
+                            const res = await (pollAPI as any).uploadOptionImage(file);
+                            const url = (res as any)?.data?.url ?? (res as any)?.data?.data?.url ?? "";
+                            if (!url) throw new Error("upload url missing");
+                            setOption(idx, { img_url: url, hasImage: true });
+                          } catch (err) {
+                            console.error(err);
+                            alert("Upload image failed");
+                            setOption(idx, { img_url: "" });
+                          } finally {
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                      />
 
-                            try {
-                              const res = await (pollAPI as any).uploadOptionImage(file);
-                              const url = (res as any)?.data?.url ?? (res as any)?.data?.data?.url ?? "";
-                              if (!url) throw new Error("upload url missing");
-                              setOption(idx, { img_url: url, hasImage: true });
-                            } catch (err) {
-                              console.error(err);
-                              alert("Upload image failed");
-                              setOption(idx, { img_url: "" });
-                            } finally {
-                              e.currentTarget.value = "";
-                            }
-                          }}
-                        />
+                      {opt.img_url ? (
+                        <div className="pcx-previewRow">
+                          <img className="pcx-previewImg" src={toFullUrl(opt.img_url)} alt={`option-${idx + 1}`} />
+                          <button type="button" className="pcx-btn pcx-btnGhost" onClick={() => setOption(idx, { img_url: "" })}>
+                            ลบรูป
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="pcx-help"></div>
+                      )}
 
-                        {opt.img_url ? (
-                          <div className="pcx-previewRow">
-                            <img className="pcx-previewImg" src={toFullUrl(opt.img_url)} alt={`option-${idx + 1}`} />
-                            <button type="button" className="pcx-btn pcx-btnGhost" onClick={() => setOption(idx, { img_url: "" })}>
-                              ลบรูป
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="pcx-help"></div>
-                        )}
 
-                        {opt.img_url && (
-                          <div className="pcx-mono">
-                            Saved URL: <span>{opt.img_url}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="pcx-messages">
-          {errors.length > 0 && (
-            <div className="pcx-alert pcx-alertError">
-              <div className="pcx-alertTitle">ข้อผิดพลาด</div>
-              <ul className="pcx-alertList">
-                {errors.map((x, i) => (
-                  <li key={i}>{x}</li>
-                ))}
-              </ul>
             </div>
-          )}
-
-          {draftWarnings.length > 0 && (
-            <div className="pcx-alert pcx-alertWarn">
-              <div className="pcx-alertTitle">ข้อแนะนำแบบร่าง</div>
-              <ul className="pcx-alertList">
-                {draftWarnings.map((x, i) => (
-                  <li key={i}>{x}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="pcx-actions">
-          <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
-            💾 บันทึกแบบร่าง
-          </button>
-
-          <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
-            📤 ส่งตรวจสอบ
-          </button>
+          ))}
         </div>
       </div>
+
+      {/* Messages */}
+      <div className="pcx-messages">
+        {errors.length > 0 && (
+          <div className="pcx-alert pcx-alertError">
+            <div className="pcx-alertTitle">ข้อผิดพลาด</div>
+            <ul className="pcx-alertList">
+              {errors.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {draftWarnings.length > 0 && (
+          <div className="pcx-alert pcx-alertWarn">
+            <div className="pcx-alertTitle">ข้อแนะนำแบบร่าง</div>
+            <ul className="pcx-alertList">
+              {draftWarnings.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="pcx-actions">
+        <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
+          💾 บันทึกแบบร่าง
+        </button>
+
+        <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
+          📤 ส่งตรวจสอบ
+        </button>
+      </div>
+
+      {/* ✅ Success Modal */}
+      {successOpen && (
+        <div className="pcx-modalBackdrop">
+          <div className="pcx-modal">
+            <div className="pcx-modalIcon">🎉</div>
+            <div className="pcx-modalTitle">{successTitle}</div>
+            <div className="pcx-modalDesc">{successDesc}</div>
+            <button className="pcx-btn pcx-btnPrimary" onClick={handleSuccessClose} style={{ width: "100%", marginTop: 20 }}>
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

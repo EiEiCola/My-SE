@@ -389,7 +389,7 @@ const ReportPage: React.FC = () => {
                         onClick={() => handleViewDetail(report)}
                         title="ดูรายละเอียด"
                       >
-                        👁️ ดู
+                        ดูรายละเอียด
                       </button>
                       {report.status_id === 1 && (
                         <>

@@ -60,6 +60,9 @@ type Props = {
 
   // ✅ NEW: toast จาก PollList ต่อการ์ด
   toastMessage?: string;
+
+  // ✅ NEW: delete function for poll owners
+  onDelete?: () => void;
 };
 
 const optionImg = (opt: any) =>
@@ -171,6 +174,11 @@ export const PollCard: React.FC<Props> = (props) => {
 
 
   const totalVotes = useMemo(() => {
+    // ✅ NEW: Prefer total_voters from backend (unique voters)
+    const tv = (p as any)?.total_voters ?? (p as any)?.totalVoters ?? (p as any)?.TotalVoters;
+    if (typeof tv === 'number') return tv;
+
+    // Fallback: sum of option votes (might count selections, not voters)
     let sum = 0;
     let hasAny = false;
     for (const o of options) {
@@ -181,7 +189,7 @@ export const PollCard: React.FC<Props> = (props) => {
       }
     }
     return hasAny ? sum : null;
-  }, [options, props]);
+  }, [options, props, p]);
 
   const timeHint = useMemo(() => {
     const startAt = props.getStartAt(p) ? dayjs(props.getStartAt(p)) : null;
@@ -361,11 +369,36 @@ export const PollCard: React.FC<Props> = (props) => {
           </div>
         </div>
 
-        {displayCategory ? (
-          <div className="pc-topRight" onClick={(e) => e.stopPropagation()}>
-            <span className="pc-catPill">{displayCategory}</span>
-          </div>
-        ) : null}
+        <div className="pc-topRight" onClick={(e) => e.stopPropagation()}>
+          {displayCategory && <span className="pc-catPill">{displayCategory}</span>}
+
+          {/* ✅ Delete button for poll owner */}
+          {isOwner && props.onDelete && (
+            <button
+              type="button"
+              className="pc-del"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onDelete?.();
+              }}
+              title="ลบโพล"
+              aria-label="delete poll"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="pc-delIcon"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9 3.75A2.25 2.25 0 0 1 11.25 1.5h1.5A2.25 2.25 0 0 1 15 3.75V5.25h4.5a.75.75 0 0 1 0 1.5h-.69l-1.02 13.2A2.25 2.25 0 0 1 15.55 22.5H8.45a2.25 2.25 0 0 1-2.24-2.55L5.19 6.75H4.5a.75.75 0 0 1 0-1.5H9V3.75Zm1.5 1.5h3V3.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75v1.5ZM7.7 6.75l.99 12.9a.75.75 0 0 0 .75.7h5.12a.75.75 0 0 0 .75-.7l.99-12.9H7.7Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="pc-question">{question}</div>

@@ -36,18 +36,32 @@ const optionImgUrl = (opt: any) =>
 
 // ====== StatusBadge ======
 const StatusBadge = ({ status }: { status: StatusName }) => {
-  const cls =
-    status === "PENDING_REVIEW"
-      ? "badge badge-pending"
-      : status === "PUBLISHED" || status === "OPEN" || status === "UPCOMING"
-        ? "badge badge-published"
-        : status === "REJECTED"
-          ? "badge badge-rejected"
-          : status === "CLOSED"
-            ? "badge badge-closed"
-            : status === "DRAFT"
-              ? "badge badge-draft"
-              : "badge";
+  let cls = "badge";
+  switch (status) {
+    case "PENDING_REVIEW":
+      cls = "badge badge-pending";
+      break;
+    case "OPEN":
+      cls = "badge badge-open";
+      break;
+    case "UPCOMING":
+      cls = "badge badge-upcoming";
+      break;
+    case "PUBLISHED":
+      cls = "badge badge-published";
+      break;
+    case "REJECTED":
+      cls = "badge badge-rejected";
+      break;
+    case "CLOSED":
+      cls = "badge badge-closed";
+      break;
+    case "DRAFT":
+      cls = "badge badge-draft";
+      break;
+    default:
+      cls = "badge";
+  }
 
   return <span className={cls}>{status}</span>;
 };
@@ -592,7 +606,7 @@ const MyPolls: React.FC = () => {
 
   // ---------- actions ----------
   const handleDelete = (id: number) => {
-    openConfirm("Delete this poll?", "This action cannot be undone.", true, async () => {
+    openConfirm("ลบโพลนี้ใช่หรือไม่?", "การกระทำนี้ไม่สามารถย้อนกลับได้", true, async () => {
       await pollAPI.deletePoll(id);
       await fetchPolls(undefined); // ✅ refresh ทั้งหมด
     });
@@ -600,8 +614,8 @@ const MyPolls: React.FC = () => {
 
   const handleSubmit = (id: number) => {
     openConfirm(
-      "Submit for Review?",
-      "You won't be able to edit this poll while it's pending review.",
+      "ส่งตรวจสอบหรือไม่?",
+      "คุณจะไม่สามารถแก้ไขโพลนี้ได้ในระหว่างที่รอการตรวจสอบ",
       false,
       async () => {
         await pollAPI.submitForReview(id);
@@ -624,8 +638,8 @@ const MyPolls: React.FC = () => {
 
   const handleClose = (id: number) => {
     openConfirm(
-      "Close this poll?",
-      "Once closed, this poll cannot be reopened. Voting will stop immediately.",
+      "ปิดโพลนี้ใช่หรือไม่?",
+      "เมื่อปิดแล้ว โพลนี้จะไม่สามารถเปิดใหม่ได้ การโหวตจะหยุดทันที",
       true,
       async () => {
         await pollAPI.closePoll(id);
@@ -689,6 +703,13 @@ const MyPolls: React.FC = () => {
 
   return (
     <div className="my-polls-page">
+      {/* Back Button */}
+      <div style={{ marginBottom: 16 }}>
+        <button className="my-back-btn" onClick={() => navigate("/User/Polls")}>
+          ← กลับ
+        </button>
+      </div>
+
       {/* HERO */}
       <div className="my-hero">
         <div>
@@ -815,7 +836,7 @@ const MyPolls: React.FC = () => {
                             </span>
                           )}
                           {!isDeleted && isClosedByAdmin(p) && (
-                            <span className="badge badge-closed" style={{ fontSize: "0.75rem", padding: "2px 6px" }}>
+                            <span className="badge badge-admin-closed" style={{ fontSize: "0.75rem", padding: "2px 8px" }}>
                               🔒 แอดมินปิด
                             </span>
                           )}
@@ -1204,7 +1225,7 @@ const MyPolls: React.FC = () => {
                   onClick={runConfirm}
                   type="button"
                 >
-                  Confirm
+                  ยืนยัน
                 </button>
               </div>
             </div>

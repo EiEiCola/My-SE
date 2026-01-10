@@ -34,6 +34,7 @@ import {
   deleteAdminReview,
   type AdminReviewItem,
 } from "../../../../services/http/admin_review_service";
+import { categoryAPI } from "../../../../services/http/poll";
 import "./ReviewManage.css";
 
 const { TextArea } = Input;
@@ -50,6 +51,8 @@ const ReviewManage: React.FC = () => {
   const [deletedCount, setDeletedCount] = useState(0);
   const [reportedCount, setReportedCount] = useState(0);
   const pageSize = 10;
+
+  const [allCategories, setAllCategories] = useState<{ id: number; title: string }[]>([]);
 
   // Delete Modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -82,6 +85,13 @@ const ReviewManage: React.FC = () => {
     loadReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm]);
+
+  useEffect(() => {
+    // Fetch actual categories from system
+    categoryAPI.listMain().then((res) => {
+      setAllCategories(res || []);
+    });
+  }, []);
 
   const handleDeleteClick = (record: AdminReviewItem) => {
     setSelectedReview(record);
@@ -142,13 +152,7 @@ const ReviewManage: React.FC = () => {
     });
   }, [reviews, searchTerm, statusFilter, categoryFilter]);
 
-  // Get unique categories for filter
-  const categories = useMemo(() => {
-    const cats = reviews
-      .map((r) => r.main_category?.title)
-      .filter((c): c is string => !!c);
-    return Array.from(new Set(cats));
-  }, [reviews]);
+
 
   const columns: ColumnsType<AdminReviewItem> = [
     {
@@ -331,9 +335,9 @@ const ReviewManage: React.FC = () => {
               placeholder="หมวดหมู่"
             >
               <Select.Option value="all">ทุกหมวดหมู่</Select.Option>
-              {categories.map((cat) => (
-                <Select.Option key={cat} value={cat}>
-                  {cat}
+              {allCategories.map((cat) => (
+                <Select.Option key={cat.id} value={cat.title}>
+                  {cat.title}
                 </Select.Option>
               ))}
             </Select>
