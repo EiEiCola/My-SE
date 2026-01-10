@@ -109,7 +109,7 @@ func main() {
 	adminReviewCtl := controller.NewAdminReviewController(reviewRepo)
 
 	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, adminReviewCtl, chatCtl)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{
