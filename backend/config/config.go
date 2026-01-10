@@ -181,8 +181,6 @@ func Connect() *gorm.DB {
 
 
 	log.Println("Master data seeding completed.")
-
-
-
+	//hello
 	return db
 }
