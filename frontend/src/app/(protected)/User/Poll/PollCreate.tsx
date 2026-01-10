@@ -121,6 +121,23 @@ const PollCreate: React.FC = () => {
     return e;
   }, [form, optionCount]);
 
+  const isValid = useMemo(() => {
+    // 1. Question not empty
+    if (!form.question.trim()) return false;
+    // 2. Main category selected
+    if (!form.main_category_id) return false;
+
+    // 3. Check options
+    // - Must have at least 2 options
+    if (form.options.length < 2) return false;
+
+    // - All options must have text (กรอกไม่ครบไม่ได้)
+    const allFilled = form.options.every((o) => o.label.trim() !== "");
+    if (!allFilled) return false;
+
+    return true;
+  }, [form]);
+
   const draftWarnings = useMemo(() => {
     const w: string[] = [];
     if (!form.question.trim()) w.push("แบบร่าง: ยังไม่มีคำถาม");
@@ -182,7 +199,7 @@ const PollCreate: React.FC = () => {
       sub_category_l1_id: form.sub_category_l1_id || null,
       sub_category_l2_id: form.sub_category_l2_id || null,
 
-      is_anonymous: form.is_anonymous, // ✅ เพิ่มตรงนี้
+      is_anonymous: form.is_anonymous,
       options: form.options.map((o, i) => ({
         label: o.label,
         img_url: o.hasImage ? (o.img_url || "") : "",
@@ -224,6 +241,15 @@ const PollCreate: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
+    // Note: Draft can be saved even if validity is incomplete in some designs, 
+    // but based on request, we might want to allow draft but maybe warn.
+    // However, user said "ถ้ายังไม่ครบ ให้ปุ่มมันจางและกดไม่ได้" implies strictness.
+    // Usually 'Draft' allows incomplete data, but 'Submit' requires full data.
+    // The user said "ถ้าเข้าเกณฑ์ก็ในกดยืนยัน หรือบันทึกแบบร่างได้" -> implies BOTH need validation?
+    // Let's assume BOTH need validation as per "ถ้ายังไม่ครบ ให้ปุ่ม ... กดไม่ได้"
+
+    if (!isValid) return;
+
     setSubmitting(true);
     try {
       if (draftWarnings.length) {
@@ -236,7 +262,6 @@ const PollCreate: React.FC = () => {
       }
 
       const id = await saveDraft();
-      // alert("บันทึกแบบร่างสำเร็จ");
       openSuccess("บันทึกแบบร่างสำเร็จ", "แบบร่างของคุณถูกบันทึกเรียบร้อยแล้ว", () => {
         navigate("/User/Polls/my");
       });
@@ -249,13 +274,10 @@ const PollCreate: React.FC = () => {
   };
 
   const handleSubmitForReview = async () => {
+    if (!isValid) return;
+
     if (errors.length) {
       alert(`ไม่สามารถส่งได้:\n\n- ${errors.join("\n- ")}`);
-      return;
-    }
-
-    if (!form.main_category_id) {
-      alert("กรุณาเลือกหมวดหมู่หลักก่อนส่ง");
       return;
     }
 
@@ -266,7 +288,6 @@ const PollCreate: React.FC = () => {
 
       await (pollAPI as any).submitForReview(id);
 
-      // alert("ส่งตรวจสอบสำเร็จ");
       openSuccess("ส่งตรวจสอบสำเร็จ", "โพลของคุณถูกส่งให้แอดมินตรวจสอบแล้ว กรุณารอผลอนุมัติ", () => {
         navigate("/User/Polls/my");
       });
@@ -781,11 +802,21 @@ const PollCreate: React.FC = () => {
 
       {/* Actions */}
       <div className="pcx-actions">
-        <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
+        <button
+          type="button"
+          className={`pcx-btn pcx-btnGhost ${!isValid ? "pcx-btnDried" : ""}`}
+          onClick={handleSaveDraft}
+          disabled={submitting || !isValid}
+        >
           💾 บันทึกแบบร่าง
         </button>
 
-        <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
+        <button
+          type="button"
+          className={`pcx-btn pcx-btnPrimary ${!isValid ? "pcx-btnDried" : ""}`}
+          onClick={handleSubmitForReview}
+          disabled={submitting || !isValid}
+        >
           📤 ส่งตรวจสอบ
         </button>
       </div>

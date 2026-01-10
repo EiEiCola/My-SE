@@ -124,11 +124,13 @@ func (c *AdminReviewController) ListReviews(ctx *gin.Context) {
 	// Count all deleted reviews
 	c.ReviewRepo.DB().Unscoped().Model(&entity.Review{}).Where("deleted_at IS NOT NULL").Count(&deletedCount)
 
-	// Count all reported reviews (that are not deleted)
+	// ✅ Count unique reviews that have at least one report (not deleted)
 	c.ReviewRepo.DB().Model(&entity.Review{}).
-		Joins("LEFT JOIN reports ON reports.target_id = reviews.id AND reports.target_type = 'Review'").
-		Group("reviews.id").
-		Having("COUNT(*) > 0").
+		Where("id IN (?)",
+			c.ReviewRepo.DB().Table("reports").
+				Select("DISTINCT target_id").
+				Where("target_type = ?", "Review"),
+		).
 		Count(&reportedCount)
 
 	ctx.JSON(http.StatusOK, gin.H{

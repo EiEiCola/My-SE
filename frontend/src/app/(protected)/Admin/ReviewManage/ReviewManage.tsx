@@ -44,7 +44,7 @@ const ReviewManage: React.FC = () => {
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // all, active, reported, admin_deleted, owner_deleted
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -137,11 +137,13 @@ const ReviewManage: React.FC = () => {
           ? true
           : statusFilter === "active"
             ? !r.deleted_at && (r.report_count || 0) === 0
-            : statusFilter === "deleted"
-              ? !!r.deleted_at
-              : statusFilter === "reported"
-                ? (r.report_count || 0) > 0 && !r.deleted_at
-                : true;
+            : statusFilter === "reported"
+              ? (r.report_count || 0) > 0 && !r.deleted_at
+              : statusFilter === "admin_deleted"
+                ? r.deleted_at && r.deleted_by_type === "ADMIN"
+                : statusFilter === "owner_deleted"
+                  ? r.deleted_at && r.deleted_by_type === "OWNER"
+                  : true;
 
       const matchCategory =
         categoryFilter === "all"
@@ -274,86 +276,71 @@ const ReviewManage: React.FC = () => {
         </div>
       </div>
 
-      <Row gutter={[24, 24]} className="stats-row">
-        <Col xs={24} md={8}>
-          <Card className="stat-card glass-card">
-            <div className="stat-icon total"><EyeOutlined /></div>
-            <div className="stat-content">
-              <h3>รีวิวทั้งหมด</h3>
-              <div className="stat-value">{stats.total}</div>
-            </div>
-          </Card>
-        </Col>
+      {/* STATS */}
+      <div className="stats" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+        <div className="stat">
+          <div className="k">รีวิวทั้งหมด</div>
+          <div className="v">{stats.total}</div>
+        </div>
+        <div className="stat">
+          <div className="k" style={{ color: "#f97316" }}>ถูกรายงาน</div>
+          <div className="v">{stats.reported}</div>
+        </div>
+        <div className="stat">
+          <div className="k">Total Deleted</div>
+          <div className="v">{stats.deleted}</div>
+        </div>
+      </div>
 
-        <Col xs={24} md={8}>
-          <Card className="stat-card glass-card">
-            <div className="stat-icon reported"><ExclamationCircleOutlined /></div>
-            <div className="stat-content">
-              <h3>ถูกรายงาน</h3>
-              <div className="stat-value">{stats.reported}</div>
-            </div>
-          </Card>
-        </Col>
+      {/* TOOLBAR */}
+      <div className="toolbar" style={{ marginBottom: 14 }}>
+        <div className="searchbox">
+          <span className="search-ico">⌕</span>
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="ค้นหาตามหัวข้อ, ชื่อผู้เขียน, หรือ แท็ก..."
+          />
+        </div>
 
-        <Col xs={24} md={8}>
-          <Card className="stat-card glass-card">
-            <div className="stat-icon deleted"><DeleteOutlined /></div>
-            <div className="stat-content">
-              <h3>ถูกลบ</h3>
-              <div className="stat-value">{stats.deleted}</div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+        <div className="filter">
+          <span>สถานะ</span>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">สถานะทั้งหมด</option>
+            <option value="active">ปกติ</option>
+            <option value="reported">ถูกรายงาน</option>
+            <option value="admin_deleted">Admin ลบ</option>
+            <option value="owner_deleted">Owner ลบ</option>
+          </select>
+        </div>
+
+        <div className="filter">
+          <span>หมวดหมู่</span>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="all">ทุกหมวดหมู่</option>
+            {allCategories.map((cat) => (
+              <option key={cat.id} value={cat.title}>
+                {cat.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setSearchTerm("");
+            setStatusFilter("all");
+            setCategoryFilter("all");
+            setPage(1);
+          }}
+          style={{ flexShrink: 0 }}
+        >
+          🔄 รีเซ็ต
+        </button>
+      </div>
 
       <Card className="table-card-premium">
-        <div className="table-toolbar">
-          <Space wrap size="middle">
-            <Input
-              placeholder="ค้นหาตามหัวข้อ, ชื่อผู้เขียน, หรือ แท็ก..."
-              prefix={<SearchOutlined />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: 300 }}
-              allowClear
-            />
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: 150 }}
-              placeholder="สถานะ"
-            >
-              <Option value="all">สถานะทั้งหมด</Option>
-              <Option value="active">ปกติ</Option>
-              <Option value="reported">ถูกรายงาน</Option>
-              <Option value="deleted">ถูกลบแล้ว</Option>
-            </Select>
-            <Select
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              style={{ width: 180 }}
-              placeholder="หมวดหมู่"
-            >
-              <Select.Option value="all">ทุกหมวดหมู่</Select.Option>
-              {allCategories.map((cat) => (
-                <Select.Option key={cat.id} value={cat.title}>
-                  {cat.title}
-                </Select.Option>
-              ))}
-            </Select>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("all");
-                setCategoryFilter("all");
-                setPage(1);
-              }}
-            >
-              รีเซ็ต
-            </Button>
-          </Space>
-        </div>
 
         <Table
           columns={columns}

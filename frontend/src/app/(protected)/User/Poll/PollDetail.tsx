@@ -464,7 +464,7 @@ const resultsMode = useMemo(() => {
 
           <div className="pd-actions">
             <button className="pd-btn pd-outline" onClick={() => nav(-1)} type="button">
-              ← Back
+              ← กลับ
             </button>
           </div>
         </div>

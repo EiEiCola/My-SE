@@ -329,7 +329,8 @@ func (r *reviewRepository) ListMyReviews(memberID uint, mainCategoryID *uint) ([
 		Unscoped().
 		Preload("Member").
 		Preload("Tags").
-		Preload("Reports").
+		// ✅ Fix: Explicitly preload Reports with polymorphic condition
+		Preload("Reports", "target_type = ?", "Review").
 		Preload("ReviewImages").
 		Preload("MainCategory").
 		Preload("SubCategoryL1").

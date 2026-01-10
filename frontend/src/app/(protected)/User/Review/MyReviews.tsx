@@ -96,6 +96,7 @@ const MyReviews: React.FC = () => {
 
                     const createdAt = r.created_at ?? r.CreatedAt ?? new Date().toISOString();
                     const deletedAt = r.deleted_at ?? r.DeletedAt ?? null;
+                    // ✅ Fix: Support both "Reports" (capital) and "reports" (lowercase) from backend
                     const reports = r.reports ?? r.Reports ?? [];
                     const deletedByTypeRaw = r.deleted_by_type ?? r.DeletedByType ?? "";
                     const deletedByType = String(deletedByTypeRaw || "").toUpperCase();
@@ -205,7 +206,7 @@ const MyReviews: React.FC = () => {
                         <div className="v">{reviews.reduce((a, b) => a + (b.reports?.length || 0), 0)}</div>
                     </div>
                     <div className="stat">
-                        <div className="k">Deleted</div>
+                        <div className="k">Admin Deleted</div>
                         <div className="v">{reviews.filter((r) => !!r.deletedAt).length}</div>
                     </div>
                 </div>
@@ -308,12 +309,7 @@ const MyReviews: React.FC = () => {
                                                     )}
                                                 </div>
                                             ) : (
-                                                <div>
-                                                    <span className="badge badge-approved">Published</span>
-                                                    {(r.reportCount || 0) > 0 && (
-                                                        <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 2 }}>⚠️ ถูกรายงาน ({r.reportCount})</div>
-                                                    )}
-                                                </div>
+                                                <span className="badge badge-approved">Published</span>
                                             )}
                                         </td>
                                         <td>{r.helpfulCount} 👍</td>

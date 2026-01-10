@@ -12,7 +12,8 @@ type StatusName =
   | "CLOSED"
   | "OPEN"
   | "UPCOMING"
-  | "UNKNOWN";
+  | "UNKNOWN"
+  | "ADMIN_REMOVED";
 
 // ====== helpers (อยู่นอก component ได้) ======
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -37,33 +38,61 @@ const optionImgUrl = (opt: any) =>
 // ====== StatusBadge ======
 const StatusBadge = ({ status }: { status: StatusName }) => {
   let cls = "badge";
+  let icon = null;
+  let label: string = status;
+
   switch (status) {
     case "PENDING_REVIEW":
       cls = "badge badge-pending";
+      icon = "⏳";
+      label = "Pending Review";
       break;
     case "OPEN":
       cls = "badge badge-open";
+      icon = "🟢";
+      label = "Open";
       break;
     case "UPCOMING":
       cls = "badge badge-upcoming";
+      icon = "🗓️";
+      label = "Upcoming";
       break;
     case "PUBLISHED":
       cls = "badge badge-published";
+      icon = "✅";
+      label = "Published";
       break;
     case "REJECTED":
       cls = "badge badge-rejected";
+      icon = "❌";
+      label = "Rejected";
       break;
     case "CLOSED":
       cls = "badge badge-closed";
+      icon = "🔒";
+      label = "Closed";
       break;
     case "DRAFT":
       cls = "badge badge-draft";
+      icon = "📝";
+      label = "Draft";
+      break;
+    case "ADMIN_REMOVED":
+      cls = "badge badge-rejected"; // ใช้สีแดงเหมือน Rejected
+      icon = "🗑️";
+      label = "Admin Removed";
       break;
     default:
       cls = "badge";
+      label = status;
   }
 
-  return <span className={cls}>{status}</span>;
+  return (
+    <span className={cls}>
+      {icon && <span style={{ fontSize: "1.1em" }}>{icon}</span>}
+      {label}
+    </span>
+  );
 };
 
 const MyPolls: React.FC = () => {
@@ -117,6 +146,8 @@ const MyPolls: React.FC = () => {
   const [confirmAction, setConfirmAction] = useState<null | (() => Promise<void>)>(
     null
   );
+
+
 
   // -------- helpers: กัน field name ไม่ตรง --------
   const getId = (p: Poll) => Number((p as any).ID ?? (p as any).id ?? 0);
@@ -252,6 +283,9 @@ const MyPolls: React.FC = () => {
 
   // ✅ แสดง/นับ/กรองตาม computed สำหรับโพลที่ published แล้ว
   const getDisplayStatus = (p: Poll): StatusName => {
+    // 1. เช็คถูกลบโดยแอดมินก่อน
+    if (isDeletedByAdmin(p)) return "ADMIN_REMOVED";
+
     const base = getBaseStatus(p);
 
     // ถ้า DB ปิดจริง (status_id=5) ก็ปิดเลย
@@ -456,7 +490,8 @@ const MyPolls: React.FC = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const list = polls;
+    // ✅ Filter logic must match the table display: exclude OWNER deleted polls
+    const list = polls.filter((p) => getDeletedByType(p) !== "OWNER");
 
     const count = (s: StatusName) => list.filter((p) => getDisplayStatus(p) === s).length;
 
@@ -472,6 +507,7 @@ const MyPolls: React.FC = () => {
       pending: count("PENDING_REVIEW"),
       published: publishedLike,
       rejected: count("REJECTED"),
+      adminRemoved: count("ADMIN_REMOVED"),
       closed: count("CLOSED"),
     };
   }, [polls]);
@@ -483,6 +519,7 @@ const MyPolls: React.FC = () => {
     { id: 3, label: "Published", count: stats.published },
     { id: 4, label: "Rejected", count: stats.rejected },
     { id: 5, label: "Closed", count: stats.closed },
+    { id: 6, label: "Admin Removed", count: stats.adminRemoved },
   ];
 
   // ✅✅✅ FIX: filtered (ค้นได้ทั้ง question + หมวด 3 ชั้น)
@@ -496,31 +533,17 @@ const MyPolls: React.FC = () => {
     base = base.filter((p) => getDeletedByType(p) !== "OWNER");
 
     if (activeTab !== 0) {
-      base = polls.filter((p) => {
+      base = base.filter((p) => {
         const ds = getDisplayStatus(p);
 
-        // tab=Published(3): เอา OPEN/UPCOMING/PUBLISHED (ไม่รวม CLOSED)
+        if (activeTab === 1) return ds === "DRAFT";
+        if (activeTab === 2) return ds === "PENDING_REVIEW";
         if (activeTab === 3) return ds === "OPEN" || ds === "UPCOMING" || ds === "PUBLISHED";
-
-        // tab=Closed(5): เอา CLOSED
+        if (activeTab === 4) return ds === "REJECTED";
         if (activeTab === 5) return ds === "CLOSED";
+        if (activeTab === 6) return ds === "ADMIN_REMOVED";
 
-        // tab อื่น ๆ: ตรงตาม base status เดิม (DB)
-        const baseS = getBaseStatus(p);
-        const sid =
-          baseS === "DRAFT"
-            ? 1
-            : baseS === "PENDING_REVIEW"
-              ? 2
-              : baseS === "PUBLISHED"
-                ? 3
-                : baseS === "REJECTED"
-                  ? 4
-                  : baseS === "CLOSED"
-                    ? 5
-                    : 0;
-
-        return sid === activeTab;
+        return false;
       });
     }
 
@@ -719,17 +742,9 @@ const MyPolls: React.FC = () => {
         </div>
 
         <div className="my-toolbar">
-          <div className="my-search">
-            <span className="my-search-ico">⌕</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="ค้นหา โดย คำถาม, หมวดหมู่..."
-            />
-          </div>
-
           <button className="btn btn-primary" onClick={() => navigate("/User/Polls/create")}>
-            ➕ สร้างโพล          </button>
+            ➕ สร้างโพล
+          </button>
         </div>
       </div>
 
@@ -759,21 +774,54 @@ const MyPolls: React.FC = () => {
           <div className="k">Closed</div>
           <div className="v">{stats.closed}</div>
         </div>
+        <div className="stat">
+          <div className="k">Admin Removed</div>
+          <div className="v">{stats.adminRemoved}</div>
+        </div>
       </div>
 
-      {/* TABS */}
-      <div className="my-tabs">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            className={activeTab === t.id ? "tab tab-active" : "tab"}
-            onClick={() => setActiveTab(t.id)}
-            type="button"
-          >
-            {t.label}
-            <span className="tab-count">{t.count}</span>
-          </button>
-        ))}
+      {/* FILTER TOOLBAR (Search + Dropdown) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        {/* Search */}
+        <div className="my-search" style={{ margin: 0, flex: 1 }}>
+          <span className="my-search-ico">⌕</span>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="ค้นหา โดย คำถาม, หมวดหมู่..."
+          />
+        </div>
+
+        {/* Status Dropdown */}
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(Number(e.target.value))}
+          style={{
+            padding: "0 20px",
+            height: 46, // match search bar height approx
+            borderRadius: 999,
+            border: "none", // match my-search style
+            backgroundColor: "white",
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            color: "#334155",
+            outline: "none",
+            cursor: "pointer",
+            minWidth: 220,
+            boxShadow: "0 12px 28px rgba(255, 122, 24, 0.10)", // match my-search shadow
+            appearance: "none", // hide default arrow if we want custom style, but let's keep it simple for now or use background image
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 16px center",
+            backgroundSize: "16px",
+          }}
+        >
+          {tabs.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label} ({t.count})
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* TABLE */}
@@ -978,9 +1026,10 @@ const MyPolls: React.FC = () => {
                         </div>
                       )}
 
-                      <div style={{ fontWeight: 600, color: "#7f1d1d", marginBottom: "4px", marginLeft: "4px" }}>
+                      <div style={{ fontWeight: 600, color: "#7f1d1d", marginBottom: "6px" }}>
                         Reason:
                       </div>
+
                       <div
                         style={{
                           backgroundColor: "#fff",
@@ -997,21 +1046,19 @@ const MyPolls: React.FC = () => {
                     </div>
                   )}
 
+
+                  {/* Question */}
                   <div className="detail-block">
                     <div className="detail-label">Question</div>
                     <div
                       className="detail-value"
-                      style={
-                        isDeletedByAdmin(selectedPoll)
-                          ? { color: "#555" } // เอาขีดฆ่าออก เหลือแค่สีเทาให้รู้ว่าเก่า
-                          : {}
-                      }
+                      style={isDeletedByAdmin(selectedPoll) ? { color: "#555" } : {}}
                     >
                       {getQuestion(selectedPoll)}
                     </div>
                   </div>
 
-
+                  {/* Main fields */}
                   <div className="detail-grid">
                     <div className="detail-block">
                       <div className="detail-label">Status</div>
@@ -1022,9 +1069,7 @@ const MyPolls: React.FC = () => {
 
                     <div className="detail-block">
                       <div className="detail-label">Allow Multiple</div>
-                      <div className="detail-value">
-                        {getAllowMultiple(selectedPoll) ? "Yes" : "No"}
-                      </div>
+                      <div className="detail-value">{getAllowMultiple(selectedPoll) ? "Yes" : "No"}</div>
                     </div>
 
                     <div className="detail-block">
@@ -1037,13 +1082,14 @@ const MyPolls: React.FC = () => {
                       <div className="detail-value muted">
                         {getStartAt(selectedPoll)
                           ? dayjs(getStartAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
-                          : "-"}{" "}
-                        →{" "}
+                          : "-"}
+                        →
                         {getEndAt(selectedPoll)
                           ? dayjs(getEndAt(selectedPoll)).format("DD/MM/YYYY HH:mm")
                           : "-"}
                       </div>
                     </div>
+
                     <div className="detail-block">
                       <div className="detail-label">Identity</div>
                       <div className="detail-value">
@@ -1051,10 +1097,8 @@ const MyPolls: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* ✅ วางตรงนี้เลย */}
                     <div className="detail-block">
                       <div className="detail-label">Category</div>
-
                       <div className="detail-value cat-grid">
                         <div className="cat-row">
                           <span className="cat-label">หมวดหลัก:</span>
@@ -1097,25 +1141,17 @@ const MyPolls: React.FC = () => {
                     </div>
                   )}
 
-
                   {/* ✅ Admin Close Reason */}
                   {isClosedByAdmin(selectedPoll) && getAdminCloseReason(selectedPoll) && (
                     <div className="detail-block" style={{ marginTop: 10 }}>
                       <div className="detail-label">🔒 Closed by Admin</div>
 
-                      {/* ✅ Timestamp */}
                       {getUpdatedAt(selectedPoll) && (
-                        <div style={{
-                          fontSize: "0.85rem",
-                          color: "#856404",
-                          marginBottom: "8px",
-                          fontWeight: 600
-                        }}>
+                        <div style={{ fontSize: "0.85rem", color: "#856404", marginBottom: 8 }}>
                           Closed on: {dayjs(getUpdatedAt(selectedPoll)).format("D MMM YYYY [at] HH:mm")}
                         </div>
                       )}
 
-                      {/* ✅ Reason */}
                       <div
                         className="detail-value"
                         style={{
@@ -1131,9 +1167,7 @@ const MyPolls: React.FC = () => {
                     </div>
                   )}
 
-
-
-                  {/* ✅ OPTIONS + click to zoom */}
+                  {/* ✅ OPTIONS + click to zoom (วางนอกเงื่อนไข admin close) */}
                   <div className="detail-block" style={{ marginTop: 10 }}>
                     <div className="detail-label">Options</div>
 
@@ -1192,6 +1226,7 @@ const MyPolls: React.FC = () => {
         </div>
       )}
 
+
       {/* ✅ IMAGE LIGHTBOX OVERLAY */}
       {imgOpen && (
         <div className="img-overlay" onMouseDown={closeImg}>
@@ -1205,34 +1240,32 @@ const MyPolls: React.FC = () => {
       )}
 
       {/* CONFIRM MODAL */}
-      {
-        confirmOpen && (
-          <div className="modal-backdrop" onMouseDown={() => setConfirmOpen(false)}>
-            <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-              <div className="modal-title">{confirmTitle}</div>
-              <div className="modal-sub">{confirmDesc}</div>
+      {confirmOpen && (
+        <div className="modal-backdrop" onMouseDown={() => setConfirmOpen(false)}>
+          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-title">{confirmTitle}</div>
+            <div className="modal-sub">{confirmDesc}</div>
 
-              <div className="modal-actions">
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setConfirmOpen(false)}
-                  type="button"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  className={confirmDanger ? "btn btn-danger" : "btn btn-primary"}
-                  onClick={runConfirm}
-                  type="button"
-                >
-                  ยืนยัน
-                </button>
-              </div>
+            <div className="modal-actions">
+              <button
+                className="btn btn-outline"
+                onClick={() => setConfirmOpen(false)}
+                type="button"
+              >
+                ยกเลิก
+              </button>
+              <button
+                className={confirmDanger ? "btn btn-danger" : "btn btn-primary"}
+                onClick={runConfirm}
+                type="button"
+              >
+                ยืนยัน
+              </button>
             </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   );
 };
 

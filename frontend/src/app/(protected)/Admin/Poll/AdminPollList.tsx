@@ -383,21 +383,47 @@ const AdminPollList: React.FC = () => {
     };
   }, [polls]);
 
-  const confirmAction = async (title: string, detail: string, onYes: () => Promise<void>) => {
-    const ok = window.confirm(`${title}\n\n${detail}`);
-    if (!ok) return;
-    await onYes();
+  /* Confimation Modal State */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmDesc, setConfirmDesc] = useState("");
+  const [confirmDanger, setConfirmDanger] = useState(false);
+  const [confirmCallback, setConfirmCallback] = useState<(() => Promise<void>) | null>(null);
+
+  const openConfirm = (
+    title: string,
+    desc: string,
+    danger: boolean,
+    onYes: () => Promise<void>
+  ) => {
+    setConfirmTitle(title);
+    setConfirmDesc(desc);
+    setConfirmDanger(danger);
+    setConfirmCallback(() => onYes);
+    setConfirmOpen(true);
   };
 
-  const approve = async (id: number) => {
-    await confirmAction("Approve this poll?", "It will be published immediately.", async () => {
-      try {
-        await adminPollAPI.approve(id);
-        await fetchPolls();
-      } catch {
-        alert("Failed to approve");
-      }
-    });
+  const handleConfirmYes = async () => {
+    if (confirmCallback) {
+      await confirmCallback();
+    }
+    setConfirmOpen(false);
+    setConfirmCallback(null);
+  };
+
+  const approve = (id: number) => {
+    openConfirm(
+      "อนุมัติโพลนี้ใช่หรือไม่?",
+      "โพลจะถูกเผยแพร่ทันทีและผู้ใช้สามารถเข้ามาโหวตได้",
+      false,
+      async () => {
+        try {
+          await adminPollAPI.approve(id);
+          await fetchPolls();
+        } catch {
+          alert("Failed to approve");
+        }
+      });
   };
 
   const openReject = (id: number) => {
@@ -1092,6 +1118,42 @@ const AdminPollList: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Confirm Modal (Approve / Generic) */}
+      {confirmOpen && (
+        <div className="card-backdrop" onMouseDown={() => setConfirmOpen(false)}>
+          <div className="card-modal" style={{ width: "min(420px, 90vw)", height: "auto" }} onMouseDown={(e) => e.stopPropagation()}>
+            <div style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ fontSize: "56px", marginBottom: "16px", lineHeight: 1 }}>
+                {confirmDanger ? "⚠️" : "✅"}
+              </div>
+              <div style={{ fontSize: "22px", fontWeight: "800", color: "#0f172a", marginBottom: "8px" }}>
+                {confirmTitle}
+              </div>
+              <div style={{ fontSize: "15px", color: "#64748b", marginBottom: "32px", lineHeight: "1.6", fontWeight: "600" }}>
+                {confirmDesc}
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", width: "100%", justifyContent: "center" }}>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setConfirmOpen(false)}
+                  style={{ minWidth: "100px" }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  className={`btn ${confirmDanger ? "btn-danger" : "btn-primary"}`}
+                  onClick={handleConfirmYes}
+                  style={{ minWidth: "120px", boxShadow: confirmDanger ? "0 10px 25px rgba(239,68,68,0.25)" : "0 10px 25px rgba(59,130,246,0.3)" }}
+                >
+                  ยืนยัน
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

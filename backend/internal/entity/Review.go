@@ -35,7 +35,8 @@ type Review struct {
 	Tags         []Tag         `gorm:"many2many:review_tags" json:"tags"`
 	ReviewTags   []ReviewTag   `gorm:"foreignKey:ReviewID" json:"ReviewTags"`
 
-	Reports []Report `gorm:"polymorphic:Target;" json:"Reports"`
+	// ✅ Fix: Explicitly specify polymorphic value for proper GORM loading
+	Reports []Report `gorm:"polymorphic:Target;polymorphicValue:Review" json:"Reports"`
 
 	DeletedByType     string `json:"deleted_by_type" gorm:"type:varchar(10);default:''"`
 	AdminDeleteReason string `json:"admin_delete_reason"`
