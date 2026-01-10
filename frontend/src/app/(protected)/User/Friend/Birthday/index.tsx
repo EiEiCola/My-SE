@@ -129,7 +129,7 @@ const FriendBirthday = () => {
   if (loading) return <div className="flex h-screen items-center justify-center text-slate-500">กำลังโหลดข้อมูลวันเกิด...</div>;
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-2xl mx-auto p-6">
 

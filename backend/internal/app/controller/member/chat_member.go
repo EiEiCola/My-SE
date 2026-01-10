@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -25,26 +24,14 @@ func NewChatController(service *services.ChatService, hub *ws.Hub) *ChatControll
 // 1. Room Management
 // ----------------------------------------------------------------
 
-// CreateRoom: สร้างห้อง (Private / Group)
-func (c *ChatController) CreateRoom(ctx *gin.Context) {
-	var req dto.CreateRoomRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	userId, _ := ctx.Get("user_id")
-	room, err := c.service.CreateRoom(req, convertToUint(userId))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"data": room})
-}
-
 // GetMyRooms: ดึงรายการห้องของฉัน
 func (c *ChatController) GetMyRooms(ctx *gin.Context) {
-	userId, _ := ctx.Get("user_id")
-	rooms, err := c.service.GetMyRooms(convertToUint(userId))
+	userId, err := getUserIdFromContext(ctx)
+	if err != nil {
+		return
+	}
+
+	rooms, err := c.service.GetMyRooms(userId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -52,12 +39,14 @@ func (c *ChatController) GetMyRooms(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": rooms})
 }
 
-// ✅ GetRoomMembers: ดูสมาชิกในห้อง (สำหรับ Group)
+// GetRoomMembers: ดูสมาชิกในห้อง (สำหรับ Group)
 func (c *ChatController) GetRoomMembers(ctx *gin.Context) {
-	roomIdStr := ctx.Param("id")
-	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
+	roomId, err := parseUintParam(ctx, "id") // ✅ เรียกใช้ฟังก์ชันที่มีอยู่แล้วใน member_post_helpers.go
+	if err != nil {
+		return
+	}
 
-	members, err := c.service.GetRoomMembers(uint(roomId))
+	members, err := c.service.GetRoomMembers(roomId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -65,17 +54,37 @@ func (c *ChatController) GetRoomMembers(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": members})
 }
 
-// ✅ LeaveRoom: ออกจากห้อง
-func (c *ChatController) LeaveRoom(ctx *gin.Context) {
-	roomIdStr := ctx.Param("id")
-	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
-	userId, _ := ctx.Get("user_id")
+// GetRoomDetails: ดึงข้อมูลห้องแบบเจาะจง
+func (c *ChatController) GetRoomDetails(ctx *gin.Context) {
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
+		return
+	}
 
-	if err := c.service.LeaveRoom(convertToUint(userId), uint(roomId)); err != nil {
+	room, err := c.service.GetRoomByID(roomId)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": room})
+}
+
+// LeaveRoom: ออกจากห้อง
+func (c *ChatController) LeaveRoom(ctx *gin.Context) {
+	userId, err := getUserIdFromContext(ctx)
+	if err != nil {
+		return
+	}
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
+		return
+	}
+
+	if err := c.service.LeaveRoom(userId, roomId); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "left room successfully"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Left room successfully"})
 }
 
 // ----------------------------------------------------------------
@@ -84,21 +93,22 @@ func (c *ChatController) LeaveRoom(ctx *gin.Context) {
 
 // SendMessage: ส่งข้อความ
 func (c *ChatController) SendMessage(ctx *gin.Context) {
-	roomIdStr := ctx.Param("id")
-	roomId, err := strconv.ParseUint(roomIdStr, 10, 32)
+	userId, err := getUserIdFromContext(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
 		return
 	}
 
-	userId, _ := ctx.Get("user_id")
 	var req dto.SendMessageRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	msg, err := c.service.SendMessage(convertToUint(userId), uint(roomId), req)
+	msg, err := c.service.SendMessage(userId, roomId, req)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -108,11 +118,16 @@ func (c *ChatController) SendMessage(ctx *gin.Context) {
 
 // GetRoomHistory: ดึงประวัติแชท
 func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
-	roomIdStr := ctx.Param("id")
-	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
-	userId, _ := ctx.Get("user_id")
+	userId, err := getUserIdFromContext(ctx)
+	if err != nil {
+		return
+	}
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
+		return
+	}
 
-	msgs, err := c.service.GetRoomHistory(convertToUint(userId), uint(roomId))
+	msgs, err := c.service.GetRoomHistory(userId, roomId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -120,50 +135,61 @@ func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": msgs})
 }
 
-// ReadMessage: อ่านข้อความ (Mock ไว้ก่อนเพื่อให้ Routes ไม่แดง)
-func (c *ChatController) ReadMessage(ctx *gin.Context) {
-	// TODO: Implement Logic Mark as Read in Service
-	ctx.JSON(http.StatusOK, gin.H{"message": "read status updated"})
-}
-
 // ----------------------------------------------------------------
 // 3. Actions (Unsend & Clear)
 // ----------------------------------------------------------------
 
-// ✅ ClearChatHistory: ล้างแชท (ฝั่งตัวเอง)
+// ClearChatHistory: ล้างแชท (ฝั่งตัวเอง)
 func (c *ChatController) ClearChatHistory(ctx *gin.Context) {
-	roomIdStr := ctx.Param("id")
-	roomId, _ := strconv.ParseUint(roomIdStr, 10, 32)
-	userId, _ := ctx.Get("user_id")
+	userId, err := getUserIdFromContext(ctx)
+	if err != nil {
+		return
+	}
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
+		return
+	}
 
-	if err := c.service.ClearChatHistory(convertToUint(userId), uint(roomId)); err != nil {
+	if err := c.service.ClearChatHistory(userId, roomId); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "chat history cleared"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Chat history cleared"})
 }
 
-// ✅ UnsendMessage: ยกเลิกข้อความ (ลบข้อความเฉพาะอันที่ตัวเองส่ง)
+// UnsendMessage: ยกเลิกข้อความ (ลบข้อความเฉพาะอันที่ตัวเองส่ง)
 func (c *ChatController) UnsendMessage(ctx *gin.Context) {
-	msgIdStr := ctx.Param("message_id")
-	msgId, _ := strconv.ParseUint(msgIdStr, 10, 32)
-	userId, _ := ctx.Get("user_id")
+	userId, err := getUserIdFromContext(ctx)
+	if err != nil {
+		return
+	}
+	msgId, err := parseUintParam(ctx, "message_id")
+	if err != nil {
+		return
+	}
 
-	if err := c.service.UnsendMessage(convertToUint(userId), uint(msgId)); err != nil {
+	if err := c.service.UnsendMessage(userId, msgId); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "message unsent"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Message unsent"})
 }
 
 // ----------------------------------------------------------------
 // 4. WebSocket
 // ----------------------------------------------------------------
 
-var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
 func (c *ChatController) ConnectWebSocket(ctx *gin.Context) {
 	token := ctx.Query("token")
+	if token == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Token is required"})
+		return
+	}
+
 	claims, err := utils.ParseToken(token)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
@@ -177,11 +203,12 @@ func (c *ChatController) ConnectWebSocket(ctx *gin.Context) {
 
 	client := &ws.Client{UserID: claims.UserID, Conn: conn, Send: make(chan ws.WSMessage)}
 	c.hub.Register <- client
+
+	// Start goroutines for read/write
 	go client.WritePump()
 	go client.ReadPump(c.hub)
 }
 
-// Helper Convert
 func convertToUint(val interface{}) uint {
 	switch v := val.(type) {
 	case uint:
@@ -193,4 +220,87 @@ func convertToUint(val interface{}) uint {
 	default:
 		return 0
 	}
+}
+
+// ถ้า getUserIdFromContext แดง (Redeclared) ให้ลบฟังก์ชันด้านล่างนี้ทิ้งครับ
+func getUserIdFromContext(ctx *gin.Context) (uint, error) {
+	userIdVal, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
+		return 0, http.ErrNoCookie
+	}
+	return convertToUint(userIdVal), nil
+}
+
+
+func (c *ChatController) CreateRoom(ctx *gin.Context) {
+    userId, err := getUserIdFromContext(ctx)
+    if err != nil {
+        return
+    }
+
+    var req dto.CreateRoomRequest
+    if err := ctx.ShouldBindJSON(&req); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    // เรียก Service (Service จะแยก Logic Private/Group เอง)
+    room, err := c.service.CreateRoom(req, userId) // หรือ CreateGroupRoom ถ้าแยก
+    if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    ctx.JSON(http.StatusOK, gin.H{"data": room})
+}
+
+// UpdateGroupInfo
+func (c *ChatController) UpdateGroup(ctx *gin.Context) {
+    userID, _ := getUserIdFromContext(ctx)
+    roomID, _ := parseUintParam(ctx, "id")
+    
+    var req struct {
+        Name      string `json:"name"`
+        AvatarURL string `json:"avatar_url"`
+    }
+    if err := ctx.ShouldBindJSON(&req); err != nil { return }
+
+    room, err := c.service.UpdateGroupInfo(userID, roomID, req.Name, req.AvatarURL)
+    if err != nil {
+        ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        return
+    }
+    ctx.JSON(http.StatusOK, gin.H{"data": room})
+}
+
+// Invite Members
+func (c *ChatController) InviteMembers(ctx *gin.Context) {
+    userID, _ := getUserIdFromContext(ctx)
+    roomID, _ := parseUintParam(ctx, "id")
+    
+    var req struct { MemberIDs []uint `json:"member_ids"` }
+    if err := ctx.ShouldBindJSON(&req); err != nil { return }
+
+    if err := c.service.AddMembersToGroup(userID, roomID, req.MemberIDs); err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    ctx.JSON(http.StatusOK, gin.H{"message": "Members added"})
+}
+
+// Update Role
+func (c *ChatController) UpdateMemberRole(ctx *gin.Context) {
+    userID, _ := getUserIdFromContext(ctx)
+    roomID, _ := parseUintParam(ctx, "id")
+    targetID, _ := parseUintParam(ctx, "member_id")
+    
+    var req struct { Role string `json:"role"` } // "admin" or "member"
+    if err := ctx.ShouldBindJSON(&req); err != nil { return }
+
+    if err := c.service.UpdateMemberRole(userID, roomID, targetID, req.Role); err != nil {
+        ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        return
+    }
+    ctx.JSON(http.StatusOK, gin.H{"message": "Role updated"})
 }

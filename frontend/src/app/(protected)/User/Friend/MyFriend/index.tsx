@@ -101,19 +101,19 @@ const FriendRelation: React.FC = () => {
       if (friendData.data) {
         // Map ข้อมูลให้ครบทุก field ตาม Interface
         setFriends(friendData.data.map((m: any) => ({
-            id: m.ID || m.id,
-            name: `${m.first_name} ${m.last_name}`,
-            username: m.username || "-",
-            avatar: getImageUrl(m.member_picture),
-            
-            // Stats
-            friendCount: m.friend_count || 0,
-            followerCount: m.follower_count || 0,
-            followingCount: m.following_count || 0,
+          id: m.ID || m.id,
+          name: `${m.first_name} ${m.last_name}`,
+          username: m.username || "-",
+          avatar: getImageUrl(m.member_picture),
 
-            bio: m.bio || "-",
-           gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
-            dob: m.dob ? dayjs(m.dob).format("D MMM BBBB") : "-",
+          // Stats
+          friendCount: m.friend_count || 0,
+          followerCount: m.follower_count || 0,
+          followingCount: m.following_count || 0,
+
+          bio: m.bio || "-",
+          gender: m.Gender ? m.Gender.gender_name : "ไม่ระบุ",
+          dob: m.dob ? dayjs(m.dob).format("D MMM BBBB") : "-",
 
           isFollowing: followingSet.has(m.ID || m.id)
         })));
@@ -127,20 +127,20 @@ const FriendRelation: React.FC = () => {
       const data = await res.json();
       if (data.data) {
         setBlockedUsers(data.data.map((m: any) => ({
-            id: m.ID || m.id,
-            name: `${m.first_name} ${m.last_name}`,
-            username: m.username || "-",
-            avatar: getImageUrl(m.member_picture),
-            
-            friendCount: 0, 
-            followerCount: 0, 
-            followingCount: 0, 
-            
-            bio: "-", 
-            gender: "-", 
-            dob: "-", 
-            
-            isFollowing: false
+          id: m.ID || m.id,
+          name: `${m.first_name} ${m.last_name}`,
+          username: m.username || "-",
+          avatar: getImageUrl(m.member_picture),
+
+          friendCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+
+          bio: "-",
+          gender: "-",
+          dob: "-",
+
+          isFollowing: false
         })));
       }
     } catch (e) { console.error(e); }
@@ -221,7 +221,7 @@ const FriendRelation: React.FC = () => {
   const filteredFriends = friends.filter(friend => friend.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="flex h-screen bg-gray-100" onClick={() => setActiveMenu(null)}>
+    <div className="flex h-full bg-gray-100" onClick={() => setActiveMenu(null)}>
 
       {/* ----------------- LEFT SIDEBAR ----------------- */}
       <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">

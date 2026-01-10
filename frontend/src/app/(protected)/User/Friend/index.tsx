@@ -2,26 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Image, MoreHorizontal, MessageCircle, UserPlus, UserMinus, Ban, User } from "lucide-react";
 
-// --- Interfaces ---
-export interface FriendRequestUI {
-  id: number;
-  name: string;
-  avatar: string;
-}
-
-export interface SuggestedFriendUI {
-  id: number;
-  name: string;
-  avatar: string;
-  mutualFriends?: number;
-  status: 'none' | 'pending' | 'friends';
-  requestId?: number;
-  isFollowing: boolean;
-}
+import {
+  friendAPI,
+  getImageUrl,
+  type FriendRequestUI,
+  type SuggestedFriendUI
+} from "../../../../services/http/friend";
 
 const Friends: React.FC = () => {
   const navigate = useNavigate();
-  const API_URL = "/api";
+  // const API_URL = "/api";  <-- No longer needed here
 
   const [friendRequests, setFriendRequests] = useState<FriendRequestUI[]>([]);
   const [suggestedFriends, setSuggestedFriends] = useState<SuggestedFriendUI[]>([]);
@@ -29,17 +19,6 @@ const Friends: React.FC = () => {
   const [myId, setMyId] = useState<number | null>(null);
 
   const token = localStorage.getItem("token");
-  const headersWithToken = {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
-
-  // ⭐ Helper: จัดการ URL รูปภาพ
-  const getImageUrl = (path: string) => {
-    if (!path) return "";
-    if (path.startsWith("http") || path.startsWith("data:")) return path;
-    return `${API_URL.replace("/api", "")}${path.startsWith("/") ? "" : "/"}${path}`;
-  };
 
   useEffect(() => {
     if (!token) { navigate("/login"); return; }
@@ -49,24 +28,25 @@ const Friends: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. ดึงข้อมูลทุกอย่างพร้อมกัน (Parallel Fetching)
+      // ✅ Use Service Methods
       const [meRes, reqRecvRes, reqSentRes, friendRes, blockRes, followRes, popRes] = await Promise.all([
-        fetch(`${API_URL}/member/me`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/my/friend-requests/received`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/my/friend-requests/sent`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/my/friends`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/my/blocks`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/my/following`, { headers: headersWithToken }),
-        fetch(`${API_URL}/member/members/popular`, { headers: headersWithToken })
+        friendAPI.getMe(),
+        friendAPI.getReceivedRequests(),
+        friendAPI.getSentRequests(),
+        friendAPI.getMyFriends(),
+        friendAPI.getBlockedUsers(),
+        friendAPI.getMyFollowing(),
+        friendAPI.getPopularMembers()
       ]);
 
-      const meData = await meRes.json();
-      const reqRecvData = await reqRecvRes.json();
-      const reqSentData = await reqSentRes.json();
-      const friendData = await friendRes.json();
-      const blockData = await blockRes.json();
-      const followData = await followRes.json();
-      const popData = await popRes.json();
+      // The service methods now return the JSON data directly
+      const meData = meRes;
+      const reqRecvData = reqRecvRes;
+      const reqSentData = reqSentRes;
+      const friendData = friendRes;
+      const blockData = blockRes;
+      const followData = followRes;
+      const popData = popRes;
 
       const currentUserId = meData.data?.ID || meData.data?.id || 0;
       setMyId(currentUserId);
@@ -154,16 +134,13 @@ const Friends: React.FC = () => {
     }
   };
 
-  // ... (ส่วน Handlers และ Render ยังคงเดิม ไม่เปลี่ยนแปลง UI) ...
-
-  // --- Handlers (Add Friend / Request) ---
+  // --- Handlers ---
 
   const handleAcceptRequest = async (reqId: number) => {
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/respond`, {
-        method: "PUT", headers: headersWithToken, body: JSON.stringify({ accept: true })
-      });
-      if (res.ok) {
+      const res = await friendAPI.respondRequest(reqId, true);
+      // axios return status 200/201
+      if (res.status === 200 || res.status === 201) {
         setFriendRequests(prev => prev.filter(req => req.id !== reqId));
         fetchData();
       }
@@ -172,31 +149,27 @@ const Friends: React.FC = () => {
 
   const handleRejectRequest = async (reqId: number) => {
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/respond`, {
-        method: "PUT", headers: headersWithToken, body: JSON.stringify({ accept: false })
-      });
-      if (res.ok) setFriendRequests(prev => prev.filter(req => req.id !== reqId));
+      const res = await friendAPI.respondRequest(reqId, false);
+      if (res.status === 200) setFriendRequests(prev => prev.filter(req => req.id !== reqId));
     } catch (err) { console.error(err); }
   };
 
   const handleAddFriend = async (targetId: number) => {
     if (myId && targetId === myId) { alert("เพิ่มตัวเองไม่ได้"); return; }
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests`, {
-        method: "POST", headers: headersWithToken, body: JSON.stringify({ receiver_id: targetId })
-      });
-      if (res.ok) fetchData();
-      else { const err = await res.json(); alert(err.error || "Error"); }
-    } catch (err) { console.error(err); }
+      const res = await friendAPI.sendRequest(targetId);
+      if (res.status === 200 || res.status === 201) fetchData();
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || "Error";
+      alert(errorMsg);
+    }
   };
 
   const handleCancelRequest = async (reqId: number | undefined, memberId: number) => {
     if (!reqId || !window.confirm("ต้องการยกเลิกคำขอเป็นเพื่อน?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, {
-        method: "PUT", headers: headersWithToken
-      });
-      if (res.ok) {
+      const res = await friendAPI.cancelRequest(reqId);
+      if (res.status === 200) {
         setSuggestedFriends(prev => prev.map(f =>
           f.id === memberId ? { ...f, status: 'none', requestId: undefined } : f
         ));
@@ -208,27 +181,17 @@ const Friends: React.FC = () => {
     setSuggestedFriends(prev => prev.filter(friend => friend.id !== id));
   };
 
-
-  // --- Handlers (Block & Follow) ---
-
   const handleFollowToggle = async (targetId: number, isCurrentlyFollowing: boolean) => {
     try {
       if (isCurrentlyFollowing) {
-        const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, {
-          method: "PUT",
-          headers: headersWithToken
-        });
-        if (res.ok) {
+        const res = await friendAPI.unfollowUser(targetId);
+        if (res.status === 200) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: false } : f));
           alert("เลิกติดตามแล้ว");
         }
       } else {
-        const res = await fetch(`${API_URL}/member/follows`, {
-          method: "POST",
-          headers: headersWithToken,
-          body: JSON.stringify({ followed_id: targetId })
-        });
-        if (res.ok) {
+        const res = await friendAPI.followUser(targetId);
+        if (res.status === 200 || res.status === 201) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: true } : f));
           alert("ติดตามเรียบร้อย");
         }
@@ -239,23 +202,22 @@ const Friends: React.FC = () => {
   const handleBlock = async (targetId: number) => {
     if (!window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers: headersWithToken, body: JSON.stringify({ blocked_id: targetId })
-      });
-      if (res.ok) {
+      const res = await friendAPI.blockUser(targetId);
+      if (res.status === 200 || res.status === 201) {
         alert("บล็อกผู้ใช้เรียบร้อย");
         setSuggestedFriends(prev => prev.filter(f => f.id !== targetId));
         setFriendRequests(prev => prev.filter(r => r.id !== targetId));
-      } else {
-        const err = await res.json();
-        alert(err.error || "เกิดข้อผิดพลาด");
       }
-    } catch (err) { console.error(err); }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || "เกิดข้อผิดพลาด";
+      alert(errorMsg);
+    }
   };
 
   // --- Component: FriendCard ---
   const FriendCard = ({ person, type }: { person: any, type: 'request' | 'suggested' }) => {
     const [showMenu, setShowMenu] = useState(false);
+    const [menuPosition, setMenuPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -264,9 +226,18 @@ const Friends: React.FC = () => {
           setShowMenu(false);
         }
       };
+
+      const handleScroll = () => {
+        if (showMenu) setShowMenu(false);
+      }
+
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+      window.addEventListener("scroll", handleScroll, true);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        window.removeEventListener("scroll", handleScroll, true);
+      };
+    }, [showMenu]);
 
     const handleMenuAction = (action: string) => {
       setShowMenu(false);
@@ -283,14 +254,36 @@ const Friends: React.FC = () => {
       }
     };
 
+    const toggleMenu = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (showMenu) {
+        setShowMenu(false);
+      } else {
+        const rect = (e.currentTarget as Element).getBoundingClientRect();
+        // Align menu: top-right relative to button
+        setMenuPosition({
+          top: rect.bottom + 5,
+          left: rect.right - 180
+        });
+        setShowMenu(true);
+      }
+    }
+
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md transition-shadow relative group">
 
         <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden rounded-t-2xl relative">
           <div onClick={handleCardClick} className="cursor-pointer w-full h-full">
-            {/* ⭐ แก้ตรงนี้: เช็ค URL ให้ดีก่อนแสดงรูป */}
             {person.avatar ? (
-              <img src={person.avatar} alt={person.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+              <img
+                src={person.avatar}
+                alt={person.name}
+                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gray-300 text-white"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
+                }}
+              />
             ) : (
               <Image className="w-12 h-12 text-slate-300 mx-auto mt-10" />
             )}
@@ -303,37 +296,40 @@ const Friends: React.FC = () => {
               {person.name}
             </h3>
 
-            {/* --- Menu --- */}
-            <div ref={menuRef} className="relative">
-              <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-8 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                  <div className="py-1">
-                    <button onClick={() => handleMenuAction("message")} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
-                      <MessageCircle className="w-4 h-4" /> ส่งข้อความ
-                    </button>
-                    <button onClick={handleCardClick} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
-                      <User className="w-4 h-4" /> ดูโปรไฟล์
-                    </button>
+            <button onClick={toggleMenu} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
 
-                    <button onClick={() => handleMenuAction("follow_toggle")} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
-                      {person.isFollowing ? (
-                        <><UserMinus className="w-4 h-4" /> เลิกติดตาม</>
-                      ) : (
-                        <><UserPlus className="w-4 h-4" /> ติดตาม</>
-                      )}
-                    </button>
+            {showMenu && (
+              <div
+                ref={menuRef}
+                className="fixed w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                style={{ top: menuPosition.top, left: menuPosition.left }}
+              >
+                <div className="py-1">
+                  <button onClick={() => handleMenuAction("message")} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
+                    <MessageCircle className="w-4 h-4" /> ส่งข้อความ
+                  </button>
+                  <button onClick={handleCardClick} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
+                    <User className="w-4 h-4" /> ดูโปรไฟล์
+                  </button>
 
-                    <div className="border-t border-slate-100 my-1"></div>
-                    <button onClick={() => handleMenuAction("block")} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
-                      <Ban className="w-4 h-4" /> บล็อก
-                    </button>
-                  </div>
+                  <button onClick={() => handleMenuAction("follow_toggle")} className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors">
+                    {person.isFollowing ? (
+                      <><UserMinus className="w-4 h-4" /> เลิกติดตาม</>
+                    ) : (
+                      <><UserPlus className="w-4 h-4" /> ติดตาม</>
+                    )}
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1"></div>
+                  <button onClick={() => handleMenuAction("block")} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
+                    <Ban className="w-4 h-4" /> บล็อก
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
           </div>
 
           <p className="text-xs text-slate-500 mb-3">
@@ -372,7 +368,7 @@ const Friends: React.FC = () => {
   if (loading) return <div className="p-10 text-center">กำลังโหลดข้อมูล...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-full bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto space-y-10">
 
         {/* Section 1: Friend Requests */}

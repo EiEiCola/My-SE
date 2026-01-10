@@ -9,38 +9,38 @@ const AdminLayout: React.FC = () => {
     const toggleSidebar = () => {
         setIsCollapsed(!isCollapsed);
     };
-    
+
     return (
         <div className="min-h-screen relative">
-            
+
             {/* Sidebar - Fixed Position */}
-            <div 
+            <div
                 className="fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-30"
                 style={{ width: isCollapsed ? '80px' : '260px' }}
             >
-                <SideBar 
-                    role="user" 
-                    isCollapsed={isCollapsed} 
-                    onToggle={toggleSidebar} 
+                <SideBar
+                    role="user"
+                    isCollapsed={isCollapsed}
+                    onToggle={toggleSidebar}
                 />
             </div>
-            
+
             {/* Main Content Area with Dynamic Padding */}
-            <div 
-                className="transition-all duration-300 ease-in-out"
+            <div
+                className="transition-all duration-300 ease-in-out flex flex-col h-screen"
                 style={{ paddingLeft: isCollapsed ? '80px' : '260px' }}
             >
-                {/* Header - Full Width ของพื้นที่ที่เหลือ */}
-                <div className="sticky top-0 z-20">
-                    <Header 
-                        role="user" 
-                        username="User" 
+                {/* Header - Full Width */}
+                <div className="z-20 flex-none">
+                    <Header
+                        role="user"
+                        username="User"
                         isCollapsed={isCollapsed}
                     />
                 </div>
-                
+
                 {/* Main Content */}
-                <main className=" bg-slate-50 p-2 min-h-screen">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 p-2">
                     <Outlet />
                 </main>
             </div>

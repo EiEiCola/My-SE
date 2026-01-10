@@ -12,7 +12,7 @@ import (
 
 type ChatService struct {
 	repo       repository.ChatRepository
-	friendRepo *repository.FriendRepository // 🔥 ใช้เช็ค Block
+	friendRepo *repository.FriendRepository
 	hub        *websocket.Hub
 }
 
@@ -31,20 +31,19 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			return nil, errors.New("target_id required for private chat")
 		}
 
-		// 1.1 เช็ค Block ก่อนสร้างห้อง (สำคัญ!)
-		// ต้อง Cast uint -> int เพื่อส่งให้ FriendRepo
+		// 1.1 เช็ค Block
 		isBlocked, _ := s.friendRepo.IsBlocked(int(createdBy), int(*req.TargetID))
 		if isBlocked {
 			return nil, errors.New("cannot create chat: you are blocked or you blocked this user")
 		}
 
-		// 1.2 เช็คว่าเคยมีห้องกันหรือยัง ถ้ามีให้ Return ห้องเดิมกลับไปเลย
+		// 1.2 เช็คห้องเดิม
 		existing, _ := s.repo.FindPrivateRoom(createdBy, *req.TargetID)
 		if existing != nil {
 			return existing, nil
 		}
 
-		// 1.3 ถ้ายังไม่มี ให้สร้างใหม่
+		// 1.3 สร้างห้องใหม่
 		newRoom := entity.RoomChat{
 			Type:      "private",
 			CreatedBy: int(createdBy),
@@ -55,11 +54,11 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			return nil, err
 		}
 
-		// 1.4 เพิ่มสมาชิก 2 คน (คนสร้าง + คู่สนทนา)
+		// 1.4 เพิ่มสมาชิก
 		s.repo.AddRoomMember(&entity.RoomMember{RoomID: newRoom.ID, MemberID: createdBy, Role: "member", JoinedAt: time.Now()})
 		s.repo.AddRoomMember(&entity.RoomMember{RoomID: newRoom.ID, MemberID: *req.TargetID, Role: "member", JoinedAt: time.Now()})
 
-		return &newRoom, nil
+		return s.repo.GetRoomByID(newRoom.ID)
 	}
 
 	// --- กรณี Group (หลายคน) ---
@@ -75,12 +74,11 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			CreatedAt: time.Now(),
 		}
 
-		// 2.1 สร้างห้อง
 		if err := s.repo.CreateRoom(&newRoom); err != nil {
 			return nil, err
 		}
 
-		// 2.2 เพิ่มคนสร้างเป็น Admin
+		// เพิ่ม Admin
 		s.repo.AddRoomMember(&entity.RoomMember{
 			RoomID:   newRoom.ID,
 			MemberID: createdBy,
@@ -88,14 +86,11 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			JoinedAt: time.Now(),
 		})
 
-		// 2.3 เพิ่มสมาชิกคนอื่นๆ (Loop)
+		// เพิ่มสมาชิก
 		for _, memberID := range req.MemberIDs {
 			if memberID == createdBy {
 				continue
-			} // ข้ามตัวเอง
-
-			// (Optional) อาจจะเช็ค Block ตรงนี้ด้วยก็ได้ ถ้าไม่อยากให้ดึงคน Block เข้ากลุ่ม
-
+			}
 			s.repo.AddRoomMember(&entity.RoomMember{
 				RoomID:   newRoom.ID,
 				MemberID: memberID,
@@ -104,7 +99,7 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			})
 		}
 
-		return &newRoom, nil
+		return s.repo.GetRoomByID(newRoom.ID)
 	}
 
 	return nil, errors.New("invalid room type")
@@ -115,15 +110,21 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 // ----------------------------------------------------------------
 func (s *ChatService) SendMessage(senderID, roomID uint, req dto.SendMessageRequest) (*entity.Message, error) {
 
-	// 2.1 เช็คสิทธิ์การใช้ Sticker (ถ้ามี)
-	if req.Type == "sticker" && req.StickerID != nil {
-		count, _ := s.repo.CountMemberReward(senderID, *req.StickerID)
+	// 1. Validation: เช็คสิทธิ์ Sticker
+	if req.Type == "sticker" {
+		if req.StickerID == nil {
+			return nil, errors.New("sticker_id is required")
+		}
+		count, err := s.repo.CountMemberReward(senderID, *req.StickerID)
+		if err != nil {
+			return nil, err
+		}
 		if count == 0 {
 			return nil, errors.New("you do not own this sticker")
 		}
 	}
 
-	// 2.2 สร้าง Object Message
+	// 2. สร้าง Object Message
 	msg := entity.Message{
 		RoomID:    roomID,
 		SenderID:  senderID,
@@ -134,20 +135,26 @@ func (s *ChatService) SendMessage(senderID, roomID uint, req dto.SendMessageRequ
 		IsDeleted: false,
 	}
 
-	// 2.3 บันทึกลง Database
+	// 3. บันทึก
 	if err := s.repo.CreateMessage(&msg); err != nil {
 		return nil, err
 	}
 
-	// 2.4 ส่ง Real-time ผ่าน WebSocket (Broadcast)
+	// 4. ดึงข้อมูลเต็ม (พร้อมรูปโปรไฟล์/สติ๊กเกอร์)
+	fullMsg, err := s.repo.GetMessageByID(msg.ID)
+	if err != nil {
+		fullMsg = &msg // Fallback
+	}
+
+	// 5. Broadcast
 	s.hub.Broadcast <- websocket.WSMessage{
 		Type:     "new_message",
-		Payload:  msg,
+		Payload:  fullMsg,
 		RoomID:   roomID,
 		SenderID: senderID,
 	}
 
-	return &msg, nil
+	return fullMsg, nil
 }
 
 // ----------------------------------------------------------------
@@ -161,38 +168,20 @@ func (s *ChatService) GetMyRooms(memberID uint) ([]entity.RoomChat, error) {
 // 4. GetRoomHistory: ดึงประวัติแชท
 // ----------------------------------------------------------------
 func (s *ChatService) GetRoomHistory(userID, roomID uint) ([]entity.Message, error) {
-	// (Optional: เช็คว่า userID อยู่ในห้องนี้จริงไหมก่อนดึง)
 	return s.repo.GetRoomMessages(userID, roomID)
 }
 
 // ----------------------------------------------------------------
-// 5. GetRoomMembers: ดูสมาชิกในห้อง (สำหรับ Group)
+// 5. GetRoomMembers: ดูสมาชิกในห้อง
 // ----------------------------------------------------------------
 func (s *ChatService) GetRoomMembers(roomID uint) ([]entity.RoomMember, error) {
 	return s.repo.GetRoomMembers(roomID)
 }
 
 // ----------------------------------------------------------------
-// 6. LeaveRoom: ออกจากกลุ่ม
-// ----------------------------------------------------------------
-func (s *ChatService) LeaveRoom(userID, roomID uint) error {
-	// เรียก Repo เพื่อลบ record ในตาราง room_members
-	// (ตาม Logic ที่คุณแจ้ง: ไม่มี Delete โดย Member -> ใช้การ Leave แทน คือลบตัวเองออก)
-	if err := s.repo.RemoveRoomMember(roomID, userID); err != nil {
-		return err
-	}
-
-	// Optional: Broadcast บอกคนในห้องว่ามีคนออก
-	// s.hub.Broadcast <- websocket.WSMessage{Type: "member_left", Payload: userID, RoomID: roomID}
-
-	return nil
-}
-
-// ----------------------------------------------------------------
-// 7. ClearChatHistory: ล้างประวัติแชท (ฝั่งตัวเอง)
+// 7. ClearChatHistory: ล้างประวัติแชท
 // ----------------------------------------------------------------
 func (s *ChatService) ClearChatHistory(userID, roomID uint) error {
-	// อัปเดต ClearedAt ในตาราง RoomMember
 	return s.repo.ClearChatHistory(userID, roomID)
 }
 
@@ -205,17 +194,17 @@ func (s *ChatService) UnsendMessage(userID, messageID uint) error {
 		return err
 	}
 
-	// 8.1 เช็คสิทธิ์เจ้าของข้อความ
+	// เช็คสิทธิ์
 	if msg.SenderID != userID {
 		return errors.New("not authorized to unsend this message")
 	}
 
-	// 8.2 เช็คเวลา (ไม่เกิน 10 นาที)
+	// เช็คเวลา (10 นาที)
 	if time.Since(msg.SentAt) > 10*time.Minute {
 		return errors.New("cannot unsend message older than 10 minutes")
 	}
 
-	// 8.3 Soft Delete / Update Content
+	// Update Content
 	msg.IsDeleted = true
 	msg.Content = "This message was unsent"
 
@@ -223,12 +212,165 @@ func (s *ChatService) UnsendMessage(userID, messageID uint) error {
 		return err
 	}
 
-	// 8.4 แจ้งเตือนทุกคนในห้องว่าข้อความนี้ถูกลบแล้ว
+	// Broadcast Update
 	s.hub.Broadcast <- websocket.WSMessage{
-		Type:     "message_update", // Frontend รับ type นี้แล้วไปหา msg id เพื่อแก้ข้อความ
+		Type:     "message_update",
 		Payload:  msg,
 		RoomID:   msg.RoomID,
 		SenderID: userID,
 	}
 	return nil
+}
+
+func (s *ChatService) GetRoomByID(roomID uint) (*entity.RoomChat, error) {
+	return s.repo.GetRoomByID(roomID)
+}
+
+// internal/app/services/chat_service.go
+
+// CreateGroupRoom: สร้างห้องแชทแบบกลุ่ม
+func (s *ChatService) CreateGroupRoom(req dto.CreateRoomRequest, createdBy uint) (*entity.RoomChat, error) {
+
+	// 1. Validation
+	if req.GroupName == "" {
+		return nil, errors.New("group_name is required")
+	}
+	if len(req.MemberIDs) == 0 {
+		return nil, errors.New("at least one member is required")
+	}
+
+	// 2. สร้างห้อง (RoomChat)
+	newRoom := entity.RoomChat{
+		Type:      "group",
+		Name:      req.GroupName,
+		AvatarURL: "", // อาจจะรับจาก req หรือใส่ default
+		CreatedBy: int(createdBy),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := s.repo.CreateRoom(&newRoom); err != nil {
+		return nil, err
+	}
+
+	// 3. เพิ่มคนสร้างเป็น Admin
+	adminMember := entity.RoomMember{
+		RoomID:   newRoom.ID,
+		MemberID: createdBy,
+		Role:     "admin",
+		JoinedAt: time.Now(),
+	}
+	s.repo.AddRoomMember(&adminMember)
+
+	// 4. เพิ่มสมาชิกอื่นๆ (Members)
+	for _, memberID := range req.MemberIDs {
+		// (Optional) เช็คว่า memberID มีตัวตนจริงไหม หรือถูกบล็อกไหม ก่อนเพิ่ม
+		if memberID == createdBy {
+			continue
+		} // กันเหนียว
+
+		member := entity.RoomMember{
+			RoomID:   newRoom.ID,
+			MemberID: memberID,
+			Role:     "member",
+			JoinedAt: time.Now(),
+		}
+		s.repo.AddRoomMember(&member)
+	}
+
+	// 5. Return ข้อมูลห้องพร้อมสมาชิก (Preload)
+	return s.repo.GetRoomByID(newRoom.ID)
+}
+
+func (s *ChatService) UpdateGroupInfo(userID, roomID uint, name, avatarURL string) (*entity.RoomChat, error) {
+	// 1. เช็คว่าเป็น Admin หรือไม่
+	isAdmin, err := s.repo.IsRoomAdmin(roomID, userID)
+	if err != nil || !isAdmin {
+		return nil, errors.New("only admin can update group info")
+	}
+
+	// 2. ดึงห้องมาแก้ไข
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	if name != "" { room.Name = name }
+	if avatarURL != "" { room.AvatarURL = avatarURL }
+
+	// 3. บันทึก (สมมติว่ามี repo.UpdateRoom)
+	if err := s.repo.UpdateRoom(room); err != nil {
+		return nil, err
+	}
+	
+	return room, nil
+}
+
+// เชิญคนเข้ากลุ่มเพิ่ม
+func (s *ChatService) AddMembersToGroup(userID, roomID uint, newMemberIDs []uint) error {
+    // 1. เช็คว่าเป็นสมาชิกในห้องไหม (Member เชิญได้)
+    isMember, _ := s.repo.IsRoomMember(roomID, userID)
+    if !isMember {
+        return errors.New("you are not a member of this group")
+    }
+
+    // 2. Loop เพิ่มสมาชิก
+    for _, memberID := range newMemberIDs {
+        // เช็คก่อนว่ามีอยู่แล้วไหม (กัน Error Duplicate Key)
+        exists, _ := s.repo.IsRoomMember(roomID, memberID)
+        if !exists {
+            s.repo.AddRoomMember(&entity.RoomMember{
+                RoomID: roomID, MemberID: memberID, Role: "member", JoinedAt: time.Now(),
+            })
+        }
+    }
+    return nil
+}
+
+// จัดการ Admin (แต่งตั้ง/ปลด)
+func (s *ChatService) UpdateMemberRole(adminID, roomID, targetMemberID uint, newRole string) error {
+	// 1. เช็คคนสั่งการ ต้องเป็น Admin
+	isAdmin, _ := s.repo.IsRoomAdmin(roomID, adminID)
+	if !isAdmin {
+		return errors.New("permission denied: you are not an admin")
+	}
+
+	// 2. ห้ามเปลี่ยน Role ตัวเองผ่าน API นี้ (กันพลาดปลดตัวเอง)
+	if adminID == targetMemberID {
+		return errors.New("cannot change your own role via this endpoint")
+	}
+
+	// 3. อัปเดต
+	return s.repo.UpdateMemberRole(roomID, targetMemberID, newRole)
+}
+
+func (s *ChatService) LeaveRoom(userID, roomID uint) error {
+	// 1. ดึงข้อมูลสมาชิกเพื่อดู Role
+	members, err := s.repo.GetRoomMembers(roomID)
+	if err != nil {
+		return err
+	}
+
+	var currentUserRole string
+	adminCount := 0
+
+	for _, m := range members {
+		if m.Role == "admin" {
+			adminCount++
+		}
+		if m.MemberID == userID {
+			currentUserRole = m.Role
+		}
+	}
+
+	// 2. ⚠️ กฏเหล็ก: ถ้าเราเป็น Admin และเหลือ Admin แค่ 1 คน (คือเรา) ห้ามออก
+	if currentUserRole == "admin" && adminCount == 1 {
+		// ต้องเช็คด้วยว่าในห้องเหลือคนอื่นไหม ถ้าเหลือแค่เราคนเดียวในห้อง ออกได้เลย (ห้องร้าง)
+		if len(members) > 1 {
+			return errors.New("you are the only admin. please promote another member to admin before leaving")
+		}
+	}
+
+	// 3. ลบตัวเองออกจากห้อง
+	return s.repo.RemoveRoomMember(roomID, userID)
 }

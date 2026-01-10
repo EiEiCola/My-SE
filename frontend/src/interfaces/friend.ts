@@ -1,45 +1,67 @@
-// 1. ข้อมูลสมาชิก (ใช้ร่วมกันทั่วทั้งระบบ)
 export interface Member {
-  id: number;
-  username: string;
-  first_name: string;
-  last_name: string;
-  profile_pic: string; // แนะนำให้ทำเป็น string เปล่าถ้าไม่มีรูป
+  ID?: number;       // Backend often sends ID (uppercase)
+  id?: number;       // Frontend might use id (lowercase)
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  member_picture?: string;
+  
+  // Stats
+  friend_count?: number;
   follower_count?: number;
+  following_count?: number;
+  
+  // Profile Details
+  bio?: string;
+  dob?: string;
+  gender_id?: number;
+  Gender?: {
+    gender_name: string;
+  };
 }
 
-// 2. ข้อมูลคำขอเป็นเพื่อน (Friend Request)
-export interface FriendRequest {
-  id: number;           // นี่คือ rf_id จาก Backend
-  sent_member_id: number;
-  receive_member_id: number;
-  reques_status_id: number; // 1: Pending, 2: Accepted, 3: Rejected, 4: Cancelled
-  created_at: string;
-  updated_at: string;
-  sent_member: Member;  // ข้อมูลคนที่ส่งมา (สำหรับหน้า Received)
+// UI Interface for Friend Requests
+export interface FriendRequestUI {
+  id: number; // Request ID
+  name: string;
+  avatar: string;
 }
 
-// 3. ข้อมูลความสัมพันธ์ (Relation/Friendship)
-export interface Relation {
-  member1_id: number;
-  member2_id: number;
-  active: boolean;
-  created_at: string;
-  friend_info: Member; // ข้อมูลเพื่อนที่เราคุยด้วย
+// UI Interface for Suggested Friends (Popular/Search)
+export interface SuggestedFriendUI {
+  id: number; // Member ID
+  name: string;
+  avatar: string;
+  mutualFriends?: number; // follower_count in your case
+  status: 'none' | 'pending' | 'friends';
+  requestId?: number;
+  isFollowing: boolean;
 }
 
-// 4. ข้อมูลการติดตาม (Follow)
-export interface Follow {
-  f_id: number;
-  follower_id: number;
-  followed_id: number;
-  follow_status_id: number; // 1: Following, 2: Muted, 3: Unfollowed
-  updated_at: string;
+// UI Interface for Friend List & Search Results
+export interface FriendItem {
+  id: number;
+  name: string;
+  username: string;
+  avatar: string;
+
+  // Stats
+  friendCount: number;
+  followerCount: number;
+  followingCount: number;
+
+  // Profile
+  bio: string;
+  gender: string;
+  dob: string;
+
+  // Status
+  isFollowing: boolean;
 }
 
-// 5. โครงสร้าง Response พื้นฐานจาก Go Backend
+// Standard API Response Wrapper
 export interface ApiResponse<T> {
   data: T;
+  error?: string;
   message?: string;
-  status?: string;
 }

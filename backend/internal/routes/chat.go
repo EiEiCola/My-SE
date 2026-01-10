@@ -11,10 +11,17 @@ func SetupChatHTTPRoutes(api *gin.RouterGroup, chatCtl *m.ChatController) {
 	{
 		// Room Management
 		chat.GET("/rooms", chatCtl.GetMyRooms)
+
+		chat.GET("/rooms/:id", chatCtl.GetRoomDetails)
 		chat.POST("/rooms", chatCtl.CreateRoom)
 
 		chat.GET("/rooms/:id/members", chatCtl.GetRoomMembers)
 		chat.DELETE("/rooms/:id/leave", chatCtl.LeaveRoom)
+
+		// ใน routes.go
+		chat.PUT("/rooms/:id", chatCtl.UpdateGroup)
+		chat.POST("/rooms/:id/members", chatCtl.InviteMembers)
+		chat.PUT("/rooms/:id/members/:member_id/role", chatCtl.UpdateMemberRole)
 
 		// Messaging
 		chat.GET("/rooms/:id/messages", chatCtl.GetRoomHistory)

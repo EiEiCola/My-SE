@@ -12,7 +12,7 @@ type Message struct {
 	Content string `json:"content"`
 	Type    string `json:"type_message"` // text, image, file, sticker
 
-	StickerID *uint `json:"sticker_id"`
+	StickerID *uint `gorm:"index" json:"sticker_id"`
 
 	SentAt    time.Time `json:"sent_at"`
 	IsDeleted bool      `json:"is_deleted"`
@@ -21,4 +21,5 @@ type Message struct {
 	AttachmentsChat []AttachmentChat `gorm:"foreignKey:MessageID;references:ID" json:"attachments,omitempty"`
 	Room            RoomChat         `gorm:"foreignKey:RoomID;references:ID" json:"room,omitempty"`
 	Sender          Member           `gorm:"foreignKey:SenderID;references:ID" json:"sender,omitempty"`
+	Sticker         *Reward          `gorm:"foreignKey:StickerID;references:ID" json:"sticker,omitempty"`
 }

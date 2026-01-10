@@ -11,6 +11,13 @@ const getHeaders = () => {
   };
 };
 
+export interface CreateRoomPayload {
+  type: 'private' | 'group';
+  target_id?: number;      // สำหรับ Private
+  group_name?: string;     // สำหรับ Group
+  member_ids?: number[];   // สำหรับ Group
+}
+
 export const chatService = {
   getRooms: async (): Promise<{ data: Room[] }> => {
     const res = await fetch(`${API_URL}/rooms`, { headers: getHeaders() });
@@ -19,6 +26,30 @@ export const chatService = {
 
   getMessages: async (roomId: number): Promise<{ data: Message[] }> => {
     const res = await fetch(`${API_URL}/rooms/${roomId}/messages`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  // createGroup: async (groupName: string, memberIds: number[]) => {
+  //   const res = await fetch(`${API_URL}/rooms`, {
+  //     method: 'POST',
+  //     headers: getHeaders(),
+  //     body: JSON.stringify({
+  //       type: 'group',
+  //       group_name: groupName,
+  //       member_ids: memberIds // ส่งเป็น Array [1, 2, 3]
+  //     })
+  //   });
+  //   return res.json();
+  // },
+
+// ✅ แก้ไข: ให้ createRoom รับ Payload Object ก้อนเดียว
+  // เพื่อรองรับทั้ง Private และ Group ตามที่หน้า ChatPage.tsx เรียกใช้
+  createRoom: async (payload: CreateRoomPayload) => {
+    const res = await fetch(`${API_URL}/rooms`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload) // ส่ง JSON ไปตรงๆ ให้ Backend
+    });
     return res.json();
   },
 
