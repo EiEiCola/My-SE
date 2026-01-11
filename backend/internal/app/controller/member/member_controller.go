@@ -59,7 +59,7 @@ func (ctl *MemberController) GetMe(c *gin.Context) {
 	m, err := ctl.memberService.GetProfileByAccountID(accountID)
 	if err != nil {
 		// fallback: maybe token contains account id instead — try by account ID
-		m, err = ctl.memberService.GetProfileByAccountID(memberID)
+		m, err = ctl.memberService.GetProfileByAccountID(accountID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
@@ -117,7 +117,7 @@ func (ctl *MemberController) UpdateMe(c *gin.Context) {
 	m, err := ctl.memberService.UpdateProfile(accountID, input)
 	if err != nil {
 		// fallback: treat user_id as account id and update by account
-		m, err = ctl.memberService.UpdateProfile(memberID, input)
+		m, err = ctl.memberService.UpdateProfile(accountID, input)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
