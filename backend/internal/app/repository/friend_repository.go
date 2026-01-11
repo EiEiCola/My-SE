@@ -40,27 +40,6 @@ func (r *FriendRepository) CheckActiveFriend(m1, m2 int) (bool, error) {
 	return count > 0, nil
 }
 
-//ดูรายการคำขอ (Sent/Received)
-// func (r *FriendRepository) GetFriendRequests(memberID int, direction string) ([]entity.RequesFriend, error) {
-//     var reqs []entity.RequesFriend
-
-//     // กรณี 1: ดูคำขอที่เรา "ส่งไป" (Sent)
-//     if direction == "sent" {
-//         err := r.DB.Preload("ReceiveMember").
-//             Where("\"sent_mem_id\" = ?", memberID).
-//             Where("status = ?", 1).
-//             Find(&reqs).Error
-//         return reqs, err
-//     }
-//     // กรณี 2: ดูคำขอที่ "ส่งมาหาเรา" (Received) -> อันนี้ที่ใช้แสดงหน้า "คำขอเป็นเพื่อน"
-//  	err := r.DB.Debug().Preload("SentMember"). // ⭐ บรรทัดนี้สำคัญมาก! ต้องมีเพื่อให้ sent_member ไม่เป็น null
-//         Where("\"receive_mem_id\" = ?", memberID).
-//         Where("status = ?", 1).
-//         Find(&reqs).Error
-
-//     return reqs, err
-// }
-
 func (r *FriendRepository) GetFriendRequests(memberID int, direction string) ([]entity.RequesFriend, error) {
 	var reqs []entity.RequesFriend
 	var err error
@@ -86,7 +65,7 @@ func (r *FriendRepository) GetFriendRequests(memberID int, direction string) ([]
 		return nil, err
 	}
 
-	// ⭐ 2. วนลูปเพื่อ "คำนวณตัวเลข" แล้วยัดใส่ Struct (ไม่ได้ยุ่งกับ DB Table Members)
+	// 2. วนลูปเพื่อ "คำนวณตัวเลข" แล้วยัดใส่ Struct (ไม่ได้ยุ่งกับ DB Table Members)
 	for i := range reqs {
 		var targetMember *entity.Member
 
@@ -114,7 +93,7 @@ func (r *FriendRepository) GetFriendRequests(memberID int, direction string) ([]
 // ดึงข้อมูลคำขอล่าสุดระหว่าง Sender และ Receiver
 func (r *FriendRepository) GetLatestRequest(sID, rID int) (*entity.RequesFriend, error) {
 	var req entity.RequesFriend
-	// ⭐ ใช้ r.DB (เพราะอยู่ใน Repository)
+	//ใช้ r.DB (เพราะอยู่ใน Repository)
 	err := r.DB.Where("sent_mem_id = ? AND receive_mem_id = ?", sID, rID).
 		Order("rf_id DESC").
 		First(&req).Error
@@ -135,7 +114,7 @@ func (r *FriendRepository) UpdateRequestStatus(id uint, statusID int) error {
 		Where("rf_id = ?", id).
 		Updates(map[string]interface{}{
 			"status":      statusID,
-			"finished_at": time.Now(), // ⭐ เช็คชื่อคอลัมน์ใน DB ให้ตรงกัน
+			"finished_at": time.Now(), // เช็คชื่อคอลัมน์ใน DB ให้ตรงกัน
 		}).Error
 }
 
@@ -156,6 +135,7 @@ func (r *FriendRepository) GetFriendsForUser(memberID int) ([]entity.Member, err
 	var friends []entity.Member
 	// 1. Query รายชื่อเพื่อน
 	err := r.DB.Table("members").
+		Preload("Gender").
 		Joins("JOIN relations ON (relations.\"member1_ID\" = members.id OR relations.\"member2_ID\" = members.id)").
 		Where("((relations.\"member1_ID\" = ?) OR (relations.\"member2_ID\" = ?)) AND relations.active = ?", memberID, memberID, true).
 		Where("members.id != ?", memberID).
@@ -165,7 +145,7 @@ func (r *FriendRepository) GetFriendsForUser(memberID int) ([]entity.Member, err
 		return nil, err
 	}
 
-	// ⭐ 2. เพิ่ม Loop นับ Friend/Follower/Following (เพื่อให้ Frontend มีตัวเลขโชว์)
+	// 2. เพิ่ม Loop นับ Friend/Follower/Following (เพื่อให้ Frontend มีตัวเลขโชว์)
 	for i := range friends {
 		f, fer, fing := r.CountMemberStats(friends[i].ID)
 		friends[i].FriendCount = f
@@ -187,7 +167,7 @@ func (r *FriendRepository) UpdateBlockStatus(blockerID, blockedID int, active bo
 		Where("\"blocker_ID\" = ? AND \"blocked_ID\" = ?", blockerID, blockedID).
 		Updates(map[string]interface{}{
 			"active":    active,
-			"update_at": time.Now(), // ⭐ บันทึกเวลาทุกครั้งที่เปลี่ยนสถานะ
+			"update_at": time.Now(), // บันทึกเวลาทุกครั้งที่เปลี่ยนสถานะ
 		})
 
 	if result.Error != nil {
@@ -224,7 +204,7 @@ func (r *FriendRepository) GetAvailableMembers(currentUserID int) ([]entity.Memb
 		WHERE id != ? 
 		AND id NOT IN (SELECT \"blocked_ID\" FROM blocks WHERE \"blocker_ID\" = ? AND active = true)
 		AND id NOT IN (SELECT \"blocker_ID\" FROM blocks WHERE \"blocked_ID\" = ? AND active = true)
-	`, currentUserID, currentUserID, currentUserID).Scan(&members).Error
+	`, currentUserID, currentUserID, currentUserID).Find(&members).Error
 
 	return members, err
 }
@@ -241,7 +221,7 @@ func (r *FriendRepository) UpdateFollowStatus(followerID, followedID int, status
 		Where("\"follower_ID\" = ? AND \"followed_ID\" = ?", followerID, followedID).
 		Updates(map[string]interface{}{
 			"follow_status_id": statusID,
-			"update_at":        time.Now(), // ⭐ บันทึกเวลาเปลี่ยนสถานะเรียลไทม์
+			"update_at":        time.Now(), // บันทึกเวลาเปลี่ยนสถานะเรียลไทม์
 		})
 
 	if result.Error != nil {
@@ -277,6 +257,7 @@ func (r *FriendRepository) GetPopularMembers(myID int) ([]entity.Member, error) 
 	var members []entity.Member
 
 	err := r.DB.Table("members").
+		Preload("Gender").
 		Select("members.*, count(follows.\"followed_ID\") as temp_count").
 		Joins("LEFT JOIN follows ON follows.\"followed_ID\" = members.id AND follows.follow_status_id = 1").
 		Where("members.deleted_at IS NULL").
@@ -286,7 +267,7 @@ func (r *FriendRepository) GetPopularMembers(myID int) ([]entity.Member, error) 
 		Group("members.id").
 		Order("count(follows.\"followed_ID\") DESC").
 		Limit(10).
-		Scan(&members).Error
+		Find(&members).Error
 
 	if err != nil {
 		return nil, err
@@ -303,11 +284,12 @@ func (r *FriendRepository) GetPopularMembers(myID int) ([]entity.Member, error) 
 	return members, nil
 }
 
-// ⭐ แก้ไข: รับ myID เพิ่มเข้ามาเพื่อใช้กรอง Block ตอน Search
+// แก้ไข: รับ myID เพิ่มเข้ามาเพื่อใช้กรอง Block ตอน Search
 func (r *FriendRepository) GetAllMembers(myID int) ([]entity.Member, error) {
 	var members []entity.Member
 
 	err := r.DB.Model(&entity.Member{}).
+		Preload("Gender").
 		Where("id != ?", myID). // ไม่เอาตัวเอง (Frontend กรองเองได้ แต่ Filter DB ชัวร์กว่า)
 		Where("id NOT IN (SELECT \"blocked_ID\" FROM blocks WHERE \"blocker_ID\" = ? AND active = true)", myID).
 		Where("id NOT IN (SELECT \"blocker_ID\" FROM blocks WHERE \"blocked_ID\" = ? AND active = true)", myID).
@@ -326,8 +308,6 @@ func (r *FriendRepository) GetAllMembers(myID int) ([]entity.Member, error) {
 
 	return members, nil
 }
-
-// ----------------- General -----------------
 
 // ----------------- Block Logic Enhancements -----------------
 
@@ -362,7 +342,7 @@ func (r *FriendRepository) CountMemberStats(memberID uint) (int64, int64, int64)
 	var friendCount, followerCount, followingCount int64
 
 	// 1. นับเพื่อน (Relation Active = true)
-	// ⭐ แก้ไข: ใส่ \"...\" ครอบชื่อคอลัมน์ให้ตรงกับ DB
+	// H แก้ไข: ใส่ \"...\" ครอบชื่อคอลัมน์ให้ตรงกับ DB
 	r.DB.Model(&entity.Relations{}).
 		Where("((\"member1_ID\" = ?) OR (\"member2_ID\" = ?)) AND active = ?", memberID, memberID, true).
 		Count(&friendCount)
@@ -382,15 +362,15 @@ func (r *FriendRepository) CountMemberStats(memberID uint) (int64, int64, int64)
 
 // ดึง Follow ทั้งหมด (สำหรับ Admin)
 func (r *FriendRepository) AdminGetAllFollows() ([]entity.Follow, error) {
-    var follows []entity.Follow
-    err := r.DB.Find(&follows).Error
-    return follows, err
+	var follows []entity.Follow
+	err := r.DB.Find(&follows).Error
+	return follows, err
 }
 
 // ดึงข้อมูล Relations ทั้งหมด (Admin)
 func (r *FriendRepository) AdminGetAllRelations() ([]entity.Relations, error) {
 	var relations []entity.Relations
-    // ⭐ เพิ่ม Preload Member1 และ Member2
+	// เพิ่ม Preload Member1 และ Member2
 	err := r.DB.Preload("Member1").Preload("Member2").Find(&relations).Error
 	return relations, err
 }
@@ -398,36 +378,34 @@ func (r *FriendRepository) AdminGetAllRelations() ([]entity.Relations, error) {
 // ดึงข้อมูล Block ทั้งหมด (Admin)
 func (r *FriendRepository) AdminGetAllBlocks() ([]entity.Block, error) {
 	var blocks []entity.Block
-    // ⭐ เพิ่ม Preload Blocker และ Blocked
+	// เพิ่ม Preload Blocker และ Blocked
 	err := r.DB.Preload("Blocker").Preload("Blocked").Find(&blocks).Error
 	return blocks, err
 }
 
 // (ส่วน Requests ปกติคุณมี Preload อยู่แล้ว เช็คให้ชัวร์ว่ามีบรรทัดนี้)
 func (r *FriendRepository) AdminGetAllRequests() ([]entity.RequesFriend, error) {
-    var reqs []entity.RequesFriend
-    err := r.DB.Preload("SentMember").Preload("ReceiveMember").Find(&reqs).Error
-    return reqs, err
+	var reqs []entity.RequesFriend
+	err := r.DB.Preload("SentMember").Preload("ReceiveMember").Find(&reqs).Error
+	return reqs, err
 }
 
 // ----------------- DELETE Functions (Hard Delete) -----------------
 // 1. ลบ Request (ตารางนี้ปกติใช้ id เล็กอยู่แล้ว หรือถ้าตั้ง rf_id ก็ต้องเช็คดีๆ แต่ปกติ id จะรอด)
 func (r *FriendRepository) DeleteRequest(id int) error {
-    return r.DB.Unscoped().Delete(&entity.RequesFriend{}, id).Error
+	return r.DB.Unscoped().Delete(&entity.RequesFriend{}, id).Error
 }
 
 // 2. ลบ Relation (Friendship)
 func (r *FriendRepository) DeleteRelation(m1, m2 int) error {
-    // ⭐ ใส่ \" ครอบชื่อคอลัมน์: \"member1_ID\"
-    return r.DB.Unscoped().
-        Where("(\"member1_ID\" = ? AND \"member2_ID\" = ?) OR (\"member1_ID\" = ? AND \"member2_ID\" = ?)", m1, m2, m2, m1).
-        Delete(&entity.Relations{}).Error
+	return r.DB.Unscoped().
+		Where("(\"member1_ID\" = ? AND \"member2_ID\" = ?) OR (\"member1_ID\" = ? AND \"member2_ID\" = ?)", m1, m2, m2, m1).
+		Delete(&entity.Relations{}).Error
 }
 
 // 3. ลบ Block
 func (r *FriendRepository) DeleteBlock(blockerID, blockedID int) error {
-    // ⭐ ใส่ \" ครอบชื่อคอลัมน์: \"blocker_ID\"
-    return r.DB.Unscoped().
-        Where("\"blocker_ID\" = ? AND \"blocked_ID\" = ?", blockerID, blockedID).
-        Delete(&entity.Block{}).Error
+	return r.DB.Unscoped().
+		Where("\"blocker_ID\" = ? AND \"blocked_ID\" = ?", blockerID, blockedID).
+		Delete(&entity.Block{}).Error
 }

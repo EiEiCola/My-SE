@@ -53,12 +53,12 @@ function App() {
           </div>
 
           {/* CTA Button */}
-          <div className="pt-8">
+          <div className="pt-1">
             <button 
               onClick={handleNavigateToLogin}
-              className="px-8 py-3 rounded-full border-2 border-orange-500 text-orange-600 font-semibold hover:bg-orange-50 transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg"
+               className="group px-12 py-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xl font-semibold rounded-full hover:shadow-2xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-3"
             >
-              ไปหน้า Login
+              เข้าสู่ระบบ
             </button>
           </div>
 

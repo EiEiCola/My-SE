@@ -7,10 +7,11 @@ type CreateReviewRequest struct {
     Rating      int    `json:"rating" binding:"required,min=1,max=5"`
     IsAnonymous bool   `json:"is_anonymous"`
 
-    // หมวดหมู่ที่รีวิวจะผูกอยู่
+   // ✅ บังคับครบ 3 ชั้น
     MainCategoryID  *uint `json:"main_category_id" binding:"required"`
     SubCategoryL1ID *uint `json:"sub_category_l1_id"`
     SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+
 
     //แล้วแก้ field MemberID จากเดิมที่เป็น binding:"required" ให้เป็น ไม่ต้อง required หรือให้ Gin “ไม่ต้อง bind/validate” field นี้
   MemberID uint `json:"member_id" binding:"-"`
@@ -69,6 +70,7 @@ type ReviewResponse struct {
     MainCategoryID  *uint `json:"main_category_id"`
     SubCategoryL1ID *uint `json:"sub_category_l1_id"`
     SubCategoryL2ID *uint `json:"sub_category_l2_id"`
+
 
     Tags   []string            `json:"tags"`   // ชื่อแท็ก เช่น ["งานเยอะ","เก็บคะแนนโหด"]
     Images []ReviewImageOutput `json:"images"`
