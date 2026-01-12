@@ -23,9 +23,9 @@ type Post struct {
 
 	// *** เพิ่มฟิลด์ Back-Reference ตรงนี้ ***
 	// (ใช้ชื่อฟิลด์เดียวกับ struct แม่)
-	MainCategory  MainCategory   `valid:"-" json:"-"`
-	SubCategoryL1 SubCategoryL1  `valid:"-" json:"-"`
-	SubCategoryL2 SubCategoryL2  `valid:"-" json:"-"`
+	MainCategory  *MainCategory  `valid:"-" gorm:"foreignKey:MainCategoryID" json:"MainCategory,omitempty"`
+	SubCategoryL1 *SubCategoryL1 `valid:"-" gorm:"foreignKey:SubCategoryL1ID" json:"SubCategoryL1,omitempty"`
+	SubCategoryL2 *SubCategoryL2 `valid:"-" gorm:"foreignKey:SubCategoryL2ID" json:"SubCategoryL2,omitempty"`
 
 	Status       string `valid:"required~Status is required,in(active|reported|deleted)~Status is invalid" json:"status"`
 	ViewCount    uint   `json:"view_count"`

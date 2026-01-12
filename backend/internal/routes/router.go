@@ -62,6 +62,9 @@ func SetupRoutes(
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
 
+		// ✅ admin post management
+		SetupAdminPostRoutes(adminAPI)
+
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
 	}
 
@@ -70,6 +73,7 @@ func SetupRoutes(
 		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
+		SetupMemberPostRoutes(memberAPI)
 		// SetupChatRoutes(memberAPI)
 	}
 
