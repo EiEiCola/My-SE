@@ -10,28 +10,42 @@ import (
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
-func SetupReviewRoutes(memberAPI *gin.RouterGroup) {
+// =======================
+// Public: /api/reviews
+// =======================
+func SetupPublicReviewRoutes(api *gin.RouterGroup) {
 	db := config.DB
 
-	// ✅ group สำหรับ Review โดยเฉพาะ
+	reviewRepo := repository.NewReviewRepository(db)
+
+	// ✅ ส่ง pointSvc = nil (public list ไม่ให้แต้ม)
+	reviewService := services.NewReviewService(reviewRepo, nil)
+
+	reviewController := member_controller.NewReviewController(reviewService)
+
+	api.GET("/reviews", reviewController.ListReviews)
+}
+
+// =======================
+// Member: /api/member/reviews
+// =======================
+func SetupMemberReviewRoutes(memberAPI *gin.RouterGroup) {
+	db := config.DB
+
 	reviewGroup := memberAPI.Group("")
 	reviewGroup.Use(middlewares.RequireMemberReviewMiddleware())
 
 	reviewRepo := repository.NewReviewRepository(db)
 
-	// ⭐ POINT SYSTEM: สร้าง PointService สำหรับคำนวณ/ให้แต้มจากกิจกรรม
+	// ⭐ POINT SYSTEM
 	pointSvc := services.NewPointService(db)
 
-	// ⭐ POINT SYSTEM: ส่ง pointSvc เข้า ReviewService (เพื่อให้แต้มตอน CreateReview)
 	reviewService := services.NewReviewService(reviewRepo, pointSvc)
-
 	reviewController := member_controller.NewReviewController(reviewService)
 
-	// ✅ Routes จะเป็น /api/member/reviews...
 	reviewGroup.POST("/reviews", reviewController.CreateReview)
 	reviewGroup.GET("/reviews", reviewController.ListReviews)
 
-	// ✅ รีวิวของฉัน
 	reviewGroup.GET("/reviews/my", reviewController.ListMyReviews)
 
 	reviewGroup.DELETE("/reviews/:id", reviewController.DeleteReview)
