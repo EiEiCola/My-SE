@@ -19,7 +19,13 @@ func SetupAdminPostRoutes(r *gin.RouterGroup) {
 	commentRepo := repository.NewCommentRepository(db)
 	bookmarkRepo := repository.NewBookmarkRepository(db)
 
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo)
+	// --- Added by Point System ---
+	// สร้าง pointService เพื่อให้ NewPostService มี arguments ครบตามที่แก้ไขใน service
+	pointService := services.NewPointService(db)
+
+	// เพิ่ม pointService เข้าไปเป็นตัวแปรสุดท้าย (ตัวที่ 8)
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, pointService)
+	
 	postCtrl := adminctl.NewAdminPostController(postSvc)
 
 	posts := r.Group("/posts")

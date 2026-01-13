@@ -9,6 +9,7 @@ import (
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
+
 func SetupReviewRoutes(memberAPI *gin.RouterGroup) {
 	db := config.DB
 
@@ -17,7 +18,13 @@ func SetupReviewRoutes(memberAPI *gin.RouterGroup) {
 	reviewGroup.Use(middlewares.RequireMemberReviewMiddleware())
 
 	reviewRepo := repository.NewReviewRepository(db)
-	reviewService := services.NewReviewService(reviewRepo)
+
+	// ⭐ POINT SYSTEM: สร้าง PointService สำหรับคำนวณ/ให้แต้มจากกิจกรรม
+	pointSvc := services.NewPointService(db)
+
+	// ⭐ POINT SYSTEM: ส่ง pointSvc เข้า ReviewService (เพื่อให้แต้มตอน CreateReview)
+	reviewService := services.NewReviewService(reviewRepo, pointSvc)
+
 	reviewController := member_controller.NewReviewController(reviewService)
 
 	// ✅ Routes จะเป็น /api/member/reviews...

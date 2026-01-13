@@ -16,7 +16,11 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 	db := config.DB
 
 	pollRepo := repository.NewPollRepository(db)
-	pollService := services.NewPollService(pollRepo)
+
+	// ⭐ POINT SYSTEM: สร้าง point service แล้ว inject เข้า poll service
+	pointService := services.NewPointService(db)
+
+	pollService := services.NewPollService(pollRepo, pointService)
 
 	adminPollController := admin_controller.NewAdminPollController(pollService)
 	memberPollController := member_controller.NewPollController(pollService)

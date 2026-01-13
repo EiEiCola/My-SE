@@ -30,6 +30,8 @@ type PostService struct {
 	LikeRepo       *repository.PostLikeRepository
 	CommentRepo    *repository.CommentRepository
 	BookmarkRepo   *repository.BookmarkRepository
+	// --- Added by Point System ---
+	PointService PointService
 }
 
 func NewPostService(
@@ -40,6 +42,8 @@ func NewPostService(
 	likeRepo *repository.PostLikeRepository,
 	commentRepo *repository.CommentRepository,
 	bookmarkRepo *repository.BookmarkRepository,
+	// --- Added by Point System ---
+	pointService PointService,
 ) *PostService {
 	return &PostService{
 		DB:             db,
@@ -49,6 +53,8 @@ func NewPostService(
 		LikeRepo:       likeRepo,
 		CommentRepo:    commentRepo,
 		BookmarkRepo:   bookmarkRepo,
+		// --- Added by Point System ---
+		PointService: pointService,
 	}
 }
 
@@ -129,19 +135,17 @@ func (s *PostService) CreatePost(
 
 	// รูปภาพ
 	for idx, f := range imageFiles {
-		// Generate unique filename
 		ext := strings.ToLower(filepath.Ext(f.Filename))
 		newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 		filePath := filepath.Join(imageDir, newFilename)
 
-		// Save file
 		if err := saveUploadedFile(f, filePath); err != nil {
 			return nil, fmt.Errorf("ไม่สามารถบันทึกรูปภาพ %s: %v", f.Filename, err)
 		}
 
 		img := &entity.PostImage{
 			PostID:     post.ID,
-			URL:        "/" + filePath, // URL path for serving
+			URL:        "/" + filePath,
 			OrderIndex: idx,
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
@@ -153,12 +157,10 @@ func (s *PostService) CreatePost(
 
 	// ไฟล์แนบ
 	for idx, f := range attachmentFiles {
-		// Generate unique filename but keep original extension
 		ext := strings.ToLower(filepath.Ext(f.Filename))
 		newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 		filePath := filepath.Join(attachmentDir, newFilename)
 
-		// Save file
 		if err := saveUploadedFile(f, filePath); err != nil {
 			return nil, fmt.Errorf("ไม่สามารถบันทึกไฟล์ %s: %v", f.Filename, err)
 		}
@@ -166,7 +168,7 @@ func (s *PostService) CreatePost(
 		att := &entity.PostAttachment{
 			PostID:     post.ID,
 			FileURL:    "/" + filePath,
-			FileName:   f.Filename, // Keep original filename for display
+			FileName:   f.Filename,
 			FileSize:   f.Size,
 			OrderIndex: idx,
 			CreatedAt:  time.Now(),
@@ -175,8 +177,13 @@ func (s *PostService) CreatePost(
 		if err := s.AttachmentRepo.Create(att); err != nil {
 			return nil, err
 		}
-
 	}
+
+	// --- Added by Point System ---
+	// มอบแต้มให้ผู้ใช้หลังจากสร้างโพสต์สำเร็จ
+	// ใช้ activityType "Post Create" ตามข้อมูลใน Database ของคุณ
+	_ = s.PointService.EarnPoints(userID, "Post Create", "posts", post.ID, "")
+
 	return post, nil
 }
 
@@ -270,13 +277,10 @@ func (s *PostService) UpdatePost(
 
 	// Delete specified images
 	for _, imgID := range deletedImageIDs {
-		// Delete file from disk
 		img := &entity.PostImage{}
 		if err := s.DB.First(img, imgID).Error; err == nil && img.PostID == postID {
-			// Remove file from disk
 			filePath := strings.TrimPrefix(img.URL, "/")
 			os.Remove(filePath)
-			// Delete from DB
 			s.DB.Delete(img)
 		}
 	}
@@ -285,10 +289,8 @@ func (s *PostService) UpdatePost(
 	for _, attID := range deletedAttachmentIDs {
 		att := &entity.PostAttachment{}
 		if err := s.DB.First(att, attID).Error; err == nil && att.PostID == postID {
-			// Remove file from disk
 			filePath := strings.TrimPrefix(att.FileURL, "/")
 			os.Remove(filePath)
-			// Delete from DB
 			s.DB.Delete(att)
 		}
 	}
@@ -298,7 +300,6 @@ func (s *PostService) UpdatePost(
 		imageDir := fmt.Sprintf("uploads/posts/%d/images", post.ID)
 		os.MkdirAll(imageDir, 0755)
 
-		// Get current max order index
 		var maxOrder int
 		s.DB.Model(&entity.PostImage{}).Where("post_id = ?", post.ID).Select("COALESCE(MAX(order_index), -1)").Scan(&maxOrder)
 
@@ -329,7 +330,6 @@ func (s *PostService) UpdatePost(
 		attachmentDir := fmt.Sprintf("uploads/posts/%d/attachments", post.ID)
 		os.MkdirAll(attachmentDir, 0755)
 
-		// Get current max order index
 		var maxOrder int
 		s.DB.Model(&entity.PostAttachment{}).Where("post_id = ?", post.ID).Select("COALESCE(MAX(order_index), -1)").Scan(&maxOrder)
 
@@ -374,7 +374,6 @@ func (s *PostService) DeletePost(userID, postID uint) error {
 		return ErrForbidden
 	}
 
-	// ลบ image, attachment ที่เกี่ยวข้องก่อน (ถ้าต้องการ)
 	if err := s.ImageRepo.DeleteByPostID(postID); err != nil {
 		return err
 	}
@@ -396,7 +395,6 @@ func (s *PostService) AdminDeletePost(postID uint) error {
 		return err
 	}
 
-	// ลบ image, attachment ที่เกี่ยวข้อง
 	if err := s.ImageRepo.DeleteByPostID(post.ID); err != nil {
 		return err
 	}
@@ -410,28 +408,22 @@ func (s *PostService) AdminDeletePost(postID uint) error {
 
 // =============== LIKE METHODS ===============
 
-// ToggleLike toggles a like for a post - returns new like count and whether user now likes the post
 func (s *PostService) ToggleLike(postID, userID uint) (int64, bool, error) {
-	// Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		return 0, false, ErrPostNotFound
 	}
 
-	// Check if user already liked
 	isLiked := s.LikeRepo.HasUserLiked(postID, userID)
 
 	if isLiked {
-		// Unlike - delete the like
 		if err := s.LikeRepo.Delete(postID, userID); err != nil {
 			return 0, false, err
 		}
-		// Update post like count
 		if post.LikeCount > 0 {
 			s.DB.Model(post).Update("like_count", post.LikeCount-1)
 		}
 	} else {
-		// Like - create new like
 		like := &entity.PostLike{
 			PostID: postID,
 			UserID: userID,
@@ -439,30 +431,24 @@ func (s *PostService) ToggleLike(postID, userID uint) (int64, bool, error) {
 		if err := s.LikeRepo.Create(like); err != nil {
 			return 0, false, err
 		}
-		// Update post like count
 		s.DB.Model(post).Update("like_count", post.LikeCount+1)
 	}
 
-	// Get updated count
 	count, _ := s.LikeRepo.CountByPost(postID)
 	return count, !isLiked, nil
 }
 
-// HasUserLiked checks if user has liked a post
 func (s *PostService) HasUserLiked(postID, userID uint) bool {
 	return s.LikeRepo.HasUserLiked(postID, userID)
 }
 
 // =============== COMMENT METHODS ===============
 
-// GetComments returns all comments for a post
 func (s *PostService) GetComments(postID uint) ([]entity.Comment, error) {
 	return s.CommentRepo.FindByPostID(postID)
 }
 
-// CreateComment creates a new comment on a post
 func (s *PostService) CreateComment(postID, userID uint, content string, isAnonymous bool) (*entity.Comment, error) {
-	// Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		return nil, ErrPostNotFound
@@ -480,25 +466,21 @@ func (s *PostService) CreateComment(postID, userID uint, content string, isAnony
 		return nil, err
 	}
 
-	// Update post comment count
 	s.DB.Model(post).Update("comment_count", post.CommentCount+1)
 
 	return comment, nil
 }
 
-// DeleteComment deletes a comment (only by owner or admin)
 func (s *PostService) DeleteComment(commentID, userID uint) error {
 	comment, err := s.CommentRepo.FindByID(commentID)
 	if err != nil {
 		return errors.New("comment not found")
 	}
 
-	// Check ownership
 	if comment.AuthorID != userID {
 		return ErrForbidden
 	}
 
-	// Update post comment count
 	post, err := s.PostRepo.FindByID(comment.PostID)
 	if err == nil && post.CommentCount > 0 {
 		s.DB.Model(post).Update("comment_count", post.CommentCount-1)
@@ -509,30 +491,24 @@ func (s *PostService) DeleteComment(commentID, userID uint) error {
 
 // =============== BOOKMARK METHODS ===============
 
-// ToggleBookmark toggles a bookmark for a post
 func (s *PostService) ToggleBookmark(postID, userID uint) (bool, error) {
-	// Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		return false, ErrPostNotFound
 	}
 
-	// Prevent bookmarking own post
 	if post.AuthorID == userID {
 		return false, errors.New("cannot bookmark your own post")
 	}
 
-	// Check if user already bookmarked
 	isBookmarked := s.BookmarkRepo.IsBookmarked(userID, postID)
 
 	if isBookmarked {
-		// Remove bookmark
 		if err := s.BookmarkRepo.Delete(userID, postID); err != nil {
 			return false, err
 		}
 		return false, nil
 	} else {
-		// Add bookmark
 		bookmark := &entity.Bookmark{
 			PostID:   postID,
 			MemberID: userID,
@@ -544,17 +520,14 @@ func (s *PostService) ToggleBookmark(postID, userID uint) (bool, error) {
 	}
 }
 
-// IsBookmarked checks if user has bookmarked a post
 func (s *PostService) IsBookmarked(postID, userID uint) bool {
 	return s.BookmarkRepo.IsBookmarked(userID, postID)
 }
 
-// GetBookmarkedPosts returns all posts bookmarked by user
 func (s *PostService) GetBookmarkedPosts(memberID uint) ([]entity.Post, error) {
 	return s.BookmarkRepo.GetBookmarkedPosts(memberID)
 }
 
-// GetMyPosts returns all posts created by user
 func (s *PostService) GetMyPosts(memberID uint) ([]entity.Post, error) {
 	return s.PostRepo.FindByAuthorID(memberID)
 }

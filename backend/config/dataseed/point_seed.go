@@ -41,6 +41,7 @@ func ensureSeedPointRule(db *gorm.DB, initial int) (uint, error) {
 
 // ---------- SAFE seed: create balance ONLY if not exists ----------
 func SeedInitialPointsSafe(db *gorm.DB, initial int) error {
+	return nil
 	seedRuleID, err := ensureSeedPointRule(db, initial)
 	if err != nil {
 		return err
