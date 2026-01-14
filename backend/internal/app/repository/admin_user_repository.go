@@ -6,8 +6,9 @@ type AdminUserRow struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
-	Code     string `json:"code"`
-	IsLocked bool   `json:"is_locked"`
+	Code           string `json:"code"`
+	IsLocked       bool   `json:"is_locked"`
+	ProfilePicture string `json:"profile_picture"`
 }
 
 type AdminUserRepository interface {
@@ -29,13 +30,15 @@ func (r *adminUserRepository) Search(email, code string) ([]AdminUserRow, error)
 	q := r.db.Table("member_accounts AS ma").
 		Select(`
 			ma.id AS id,
-			COALESCE(m.username, '') AS username,
+			COALESCE(NULLIF(m.username, ''), NULLIF(a.username, ''), '') AS username,
 			ma.email AS email,
 			COALESCE(m.student_id, '') AS code,
-			ma.is_locked AS is_locked
+			ma.is_locked AS is_locked,
+			COALESCE(NULLIF(m.member_picture, ''), NULLIF(a.profile_picture, ''), '') AS profile_picture
 		`).
 		// ✅ FIX: join ให้ผูก members กับ member_accounts ให้ถูก
 		Joins("LEFT JOIN members m ON m.member_account_id = ma.id").
+		Joins("LEFT JOIN admins a ON a.member_account_id = ma.id").
 		Where("ma.deleted_at IS NULL")
 
 	// ✅ FIX: ILIKE ใช้ได้เฉพาะ Postgres -> เปลี่ยนเป็น LIKE ให้ใช้ได้ทุก DB

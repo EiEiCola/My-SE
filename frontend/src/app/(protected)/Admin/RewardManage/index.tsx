@@ -21,12 +21,12 @@ const toNumber = (v: any) => {
 const pickId = (raw: any) => {
   const n = Number(
     raw?.ID ??
-      raw?.id ??
-      raw?.Model?.ID ??
-      raw?.model?.id ??
-      raw?.reward_id ??
-      raw?.RewardID ??
-      raw?.rewardID
+    raw?.id ??
+    raw?.Model?.ID ??
+    raw?.model?.id ??
+    raw?.reward_id ??
+    raw?.RewardID ??
+    raw?.rewardID
   );
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
@@ -282,6 +282,13 @@ const RewardManage: React.FC = () => {
     },
   ];
 
+  // ------------------ SEARCH ------------------
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredRewards = rewards.filter((r) =>
+    r.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <main
       style={{
@@ -320,7 +327,7 @@ const RewardManage: React.FC = () => {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 30,
+              marginBottom: 20,
             }}
           >
             <div style={{ display: "flex", gap: 15 }}>
@@ -364,6 +371,18 @@ const RewardManage: React.FC = () => {
               Point Rule
             </Button>
           </div>
+
+          <Input
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              marginBottom: 20,
+              borderRadius: 10,
+              height: 40,
+              width: 250,
+            }}
+          />
 
           {/* POPUP */}
           {open && (
@@ -534,7 +553,7 @@ const RewardManage: React.FC = () => {
           </Modal>
 
           <Table
-            dataSource={rewards}
+            dataSource={filteredRewards}
             columns={columns}
             rowKey={(record: any) => record.id}
             style={{ marginTop: 20 }}

@@ -279,8 +279,8 @@ const Reward: React.FC = () => {
         padding: 30,
         display: "flex",
         justifyContent: "center",
-        // ✅ เหมือนหน้าโปรไฟล์: ไม่กำหนดสีพื้นหลังเอง ให้ใช้พื้นหลังจาก layout
-        // background: undefined,
+        // ✅ ไล่สีพื้นหลัง (Gradient) ส้มอ่อนๆ ให้ดู Premium
+        background: "linear-gradient(135deg, #FFF7ED 0%, #FFEEE5 100%)",
       }}
     >
       <div style={{ width: "100%", maxWidth: 1100 }}>
@@ -289,9 +289,10 @@ const Reward: React.FC = () => {
           style={{
             borderRadius: 24,
             marginBottom: 25,
-            background: "#FFFFFF", // ✅ ไม่มี gradient
-            boxShadow: "0 8px 20px rgba(0,0,0,0.05)", // ✅ โทนเดียวกับหน้าโปรไฟล์
-            border: "none",
+            background: "rgba(255, 255, 255, 0.9)", // Glassy effect
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 20px 40px rgba(255, 154, 102, 0.15)", // Orange glow shadow
+            border: "1px solid rgba(255, 255, 255, 0.6)",
           }}
         >
           <div
@@ -306,10 +307,13 @@ const Reward: React.FC = () => {
                 level={3}
                 style={{
                   margin: 0,
-                  color: "#C42E0A",
-                  fontWeight: 700,
-                  fontSize: 28,
+                  background: "linear-gradient(45deg, #FF512F, #DD2476)", // Gradient Text
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  fontWeight: 800,
+                  fontSize: 32,
                   paddingLeft: 15,
+                  letterSpacing: "0.5px",
                 }}
               >
                 My Points
@@ -348,21 +352,23 @@ const Reward: React.FC = () => {
               <Button
                 onClick={() => setActiveTab("shop")}
                 style={{
-                  backgroundColor: "#9c2510",
-                  color: "white",
-                  borderRadius: 12,
+                  background: activeTab === "shop"
+                    ? "linear-gradient(45deg, #FF512F, #DD2476)"
+                    : "rgba(255, 81, 47, 0.1)", // Light orange tint when inactive
+                  color: activeTab === "shop" ? "white" : "#FF512F",
+                  borderRadius: 20,
                   fontWeight: 700,
-                  height: 40,
-                  paddingLeft: 24,
-                  paddingRight: 24,
+                  fontSize : 15,
+                  height: 44,
+                  paddingLeft: 28,
+                  paddingRight: 28,
                   border: "none",
-                  opacity: activeTab === "shop" ? 1 : 0.65,
                   transform: activeTab === "shop" ? "scale(1.05)" : "scale(1)",
                   boxShadow:
                     activeTab === "shop"
-                      ? "0 4px 12px rgba(196, 46, 10, 0.3)"
+                      ? "0 10px 20px rgba(221, 36, 118, 0.3)"
                       : "none",
-                  transition: "all 0.3s ease",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
                 Sticker Shop
@@ -375,21 +381,23 @@ const Reward: React.FC = () => {
                   loadMyPoints();
                 }}
                 style={{
-                  backgroundColor: "#9c2510",
-                  color: "white",
-                  borderRadius: 12,
+                  background: activeTab === "my"
+                    ? "linear-gradient(45deg, #FF512F, #DD2476)"
+                    : "rgba(255, 81, 47, 0.1)",
+                  color: activeTab === "my" ? "white" : "#FF512F",
+                  borderRadius: 20,
                   fontWeight: 700,
-                  height: 40,
-                  paddingLeft: 24,
-                  paddingRight: 24,
+                  fontSize : 15,
+                  height: 44,
+                  paddingLeft: 28,
+                  paddingRight: 28,
                   border: "none",
-                  opacity: activeTab === "my" ? 1 : 0.65,
                   transform: activeTab === "my" ? "scale(1.05)" : "scale(1)",
                   boxShadow:
                     activeTab === "my"
-                      ? "0 4px 12px rgba(196, 46, 10, 0.3)"
+                      ? "0 10px 20px rgba(221, 36, 118, 0.3)"
                       : "none",
-                  transition: "all 0.3s ease",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
                 My Sticker
@@ -460,7 +468,7 @@ const Reward: React.FC = () => {
                   padding: 0,
                   height: "auto",
                   fontWeight: 600,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: "#C42E0A",
                 }}
                 onClick={() => setRuleOpen(true)}
@@ -503,11 +511,11 @@ const Reward: React.FC = () => {
                 >
                   <Card
                     style={{
-                      borderRadius: 20,
-                      background: "#FFFFFF", // ✅ ไม่มี gradient
-                      height: 290,
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-                      border: "none",
+                      borderRadius: 24,
+                      background: "#FFFFFF",
+                      height: 310, // Added height for better spacing
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
+                      border: "1px solid rgba(255, 247, 237, 1)",
                       position: "relative",
                       overflow: "hidden",
                     }}
@@ -573,17 +581,20 @@ const Reward: React.FC = () => {
                       disabled={disabled}
                       onClick={() => handleClickPurchase(it)}
                       style={{
-                        backgroundColor: disabled ? "#d1d5db" : "#c42e0a",
-                        color: disabled ? "#6b7280" : "white",
-                        borderRadius: 12,
-                        height: 36,
-                        padding: "0 24px",
+                        background: disabled
+                          ? "#e5e7eb"
+                          : "linear-gradient(45deg, #FF8008, #FFC837)", // Premium Orange Gradient
+                        color: disabled ? "#9ca3af" : "white",
+                        borderRadius: 15,
+                        height: 40,
+                        padding: "0 28px",
                         border: "none",
                         fontWeight: 700,
+                        fontSize: 16,
                         boxShadow: disabled
                           ? "none"
-                          : "0 4px 12px rgba(196, 46, 10, 0.3)",
-                        transition: "all 0.3s ease",
+                          : "0 5px 15px rgba(255, 128, 8, 0.3)",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                       }}
                       onMouseEnter={(e) => {
                         if (!disabled) {
@@ -615,9 +626,10 @@ const Reward: React.FC = () => {
                 style={{
                   gridColumn: "1 / -1",
                   borderRadius: 20,
-                  background: "#FFFFFF", // ✅ ไม่มี gradient
+                  background: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(4px)",
                   boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-                  border: "none",
+                  border: "1px solid rgba(255, 247, 237, 1)",
                 }}
               >
                 <Text style={{ color: "#C42E0A", fontWeight: 600, fontSize: 16 }}>
@@ -648,11 +660,11 @@ const Reward: React.FC = () => {
                   >
                     <Card
                       style={{
-                        borderRadius: 20,
-                        background: "#FFFFFF", // ✅ ไม่มี gradient
-                        height: 270,
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-                        border: "none",
+                        borderRadius: 24,
+                        background: "#FFFFFF",
+                        height: 290, // Adjusted height
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.06)", // Consistent premium shadow
+                        border: "1px solid rgba(255, 247, 237, 1)",
                         position: "relative",
                         overflow: "hidden",
                       }}
@@ -739,15 +751,12 @@ const Reward: React.FC = () => {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 8,
-                          background: "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
-                          padding: "6px 16px",
-                          borderRadius: 20,
-                          boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                          gap: 6,
+                          marginTop: 10,
                         }}
                       >
-                        <DomainVerificationIcon style={{ color: "#fff", fontSize: 20 }} />
-                        <Text style={{ color: "#fff", fontWeight: 700, margin: 0 }}>
+                        <DomainVerificationIcon style={{ color: "#10b981", fontSize: 22 }} />
+                        <Text style={{ color: "#10b981", fontWeight: 700, margin: 0, fontSize: 16 }}>
                           Owned
                         </Text>
                       </div>
@@ -767,7 +776,12 @@ const Reward: React.FC = () => {
           onOk={confirmPurchase}
           onCancel={cancelPurchase}
           okButtonProps={{
-            style: { backgroundColor: "#C42E0A", borderColor: "#C42E0A" },
+            style: {
+              background: "linear-gradient(45deg, #FF8008, #FFC837)",
+              borderColor: "transparent",
+              color: "white",
+              fontWeight: 700,
+            },
           }}
         >
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
