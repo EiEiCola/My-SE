@@ -18,6 +18,7 @@ type PostController struct {
 	PointRuleRepo           repository.PointRuleRepository
 	PostStarRepo            repository.PostStarRepository
 	MemberService           services.MemberService // ✅ Add MemberService
+	PointService            services.PointService  // ✅ Add PointService for EarnPoints
 }
 
 func NewPostController(
@@ -26,6 +27,7 @@ func NewPostController(
 	prRepo repository.PointRuleRepository,
 	psRepo repository.PostStarRepository,
 	mService services.MemberService, // ✅ Add param
+	pService services.PointService, // ✅ Add PointService
 ) *PostController {
 	return &PostController{
 		Service:                 s,
@@ -33,6 +35,7 @@ func NewPostController(
 		PointRuleRepo:           prRepo,
 		PostStarRepo:            psRepo,
 		MemberService:           mService, // ✅ Init
+		PointService:            pService, // ✅ Init
 	}
 }
 
@@ -389,15 +392,9 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 2. Find PointRule "StarPost"
-	rule, err := ctl.PointRuleRepo.GetByActivityType("StarPost")
-	if err != nil || rule == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "star feature not available"})
-		return
-	}
+	// 2. Check if already starred
+	// (PointRule fetching moved to inside EarnPoints)
 
-	// 3. Check if already starred
-	// 3. Check if already starred using PostStarRepo
 	hasStarred, err := ctl.PostStarRepo.HasStarred(memberID, postID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -408,7 +405,7 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 4. Create PostStar record
+	// 3. Create PostStar record
 	star := &entity.PostStar{
 		MemberID: memberID,
 		PostID:   post.ID,
@@ -418,30 +415,28 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 5. Create Transaction (Give points to Author)
-	// We want to give points to the AUTHOR.
-	// So calling CreatePointTransaction with memberID = post.AuthorID
-	// And refIDs including post_id
-	refIDs := map[string]uint{
-		"post_id": post.ID,
-	}
+	// 4. ⭐ POINT SYSTEM: Give points to Author (Post Quality)
+	if ctl.PointService != nil {
+		// Idempotency: "Post Quality:<PostID>:<SenderID>"
+		// Ensures points are awarded unique per [Post + Sender] pair
+		idemKey := "Post Quality:" + strconv.FormatUint(uint64(post.ID), 10) + ":" + strconv.FormatUint(uint64(memberID), 10)
 
-	// Note: PointTransactionService checks daily limit for the "receiving" user if validation is standard.
-	// But usually DailyLimit is for EARNING actions. Here Author earns.
-	// We assume StarPost rule is set for the Author.
+		// Author receives points
+		// Source: "POST_STAR", SourceID: star.ID
+		err := ctl.PointService.EarnPoints(
+			post.AuthorID,
+			"Post Quality", // Renamed from StarPost
+			"POST_STAR",
+			star.ID,
+			idemKey,
+		)
 
-	_, err = ctl.PointTransactionService.CreatePointTransaction(post.AuthorID, rule.ID, refIDs)
-	if err != nil {
-		// Log error but maybe don't rollback star? Or rollback?
-		// For simplicity, we just return success with warning or error?
-		// Better to return error.
-		// Ignoring rollback for now (MVP).
-		c.JSON(http.StatusOK, gin.H{
-			"message":     "star created but failed to award points",
-			"is_starred":  true,
-			"point_error": err.Error(),
-		})
-		return
+		if err != nil {
+			// Log error via console/logger used in project?
+			// For now, if daily limit reached or dup, we just ignore client warning
+			// or could return specific message.
+			// But usually we treat star as success even if points failed/maxed out.
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

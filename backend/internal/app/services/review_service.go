@@ -69,11 +69,11 @@ func (s *reviewService) CreateReview(req dto.CreateReviewRequest) (*entity.Revie
 
 	// 2) ⭐ POINT SYSTEM: ให้แต้ม (15 แต้ม)
 	if s.pointSvc != nil {
-		idemKey := "REVIEW_CREATE:" +
+		idemKey := "Review Create:" +
 			strconv.FormatUint(uint64(review.MemberID), 10) + ":" +
 			strconv.FormatUint(uint64(review.ID), 10)
 
-		_ = s.pointSvc.EarnPoints(review.MemberID, "REVIEW_CREATE", "REVIEW", review.ID, idemKey)
+		_ = s.pointSvc.EarnPoints(review.MemberID, "Review Create", "REVIEW", review.ID, idemKey)
 	}
 
 	// 3) จัดการ Hashtags (ของเพื่อน)
@@ -144,6 +144,30 @@ func (s *reviewService) VoteReview(reviewID uint, memberID uint, voteType string
 
 	h, n, myVote, action, err := s.reviewRepo.ToggleReviewVote(reviewID, memberID, voteType)
 	if err != nil { return nil, err }
+
+	// ⭐ POINT SYSTEM: Award points to owner if Helpful
+	if s.pointSvc != nil && (action == "voted" || action == "switched") {
+		// เช็คว่าเป็น helpful จริงไหม
+		if myVote != nil && *myVote == "helpful" {
+			// ต้องดึง review เพื่อหา owner
+			if r, err := s.reviewRepo.FindReviewByID(reviewID); err == nil {
+				// สร้าง Idempotency Key: REVIEW_LIKE:<VoterID>:<ReviewID>
+				// เพื่อให้เจ้าของรีวิวได้รับแต้มจาก Voter แต่ละคนได้
+				idemKey := "REVIEW_LIKE:" +
+					strconv.FormatUint(uint64(memberID), 10) + ":" +
+					strconv.FormatUint(uint64(reviewID), 10)
+
+				_ = s.pointSvc.EarnPoints(
+					r.MemberID,       // Owner
+					"Review Quality", // Rule
+					"review_vote",    // SourceType
+					reviewID,         // SourceID
+					idemKey,
+				)
+			}
+		}
+	}
+
 	return &dto.VoteReviewResponse{
 		ReviewID: reviewID, HelpfulCount: h, NotHelpfulCount: n, MyVoteType: myVote, Action: action,
 	}, nil

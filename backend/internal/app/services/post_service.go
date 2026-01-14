@@ -181,8 +181,9 @@ func (s *PostService) CreatePost(
 
 	// --- Added by Point System ---
 	// มอบแต้มให้ผู้ใช้หลังจากสร้างโพสต์สำเร็จ
-	// ใช้ activityType "Post Create" ตามข้อมูลใน Database ของคุณ
-	_ = s.PointService.EarnPoints(userID, "Post Create", "posts", post.ID, "")
+	// ใช้ activityType "Post Create" ตามกฎที่สร้างไว้
+	idempotencyKey := fmt.Sprintf("Post Create:%d:%d", userID, post.ID)
+	_ = s.PointService.EarnPoints(userID, "Post Create", "posts", post.ID, idempotencyKey)
 
 	return post, nil
 }

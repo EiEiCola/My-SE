@@ -39,7 +39,7 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	memberRepo := repository.NewMemberRepository(db)
 	memberSvc := services.NewMemberService(memberRepo)
 
-	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo, memberSvc)
+	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo, memberSvc, pointService)
 
 	posts := r.Group("/posts")
 	{

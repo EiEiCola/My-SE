@@ -67,16 +67,27 @@ func (s *pointService) EarnPoints(
 			return err
 		}
 
-		// 2) กันซ้ำ
-		var dup entity.PointTransaction
-		err := tx.Where("member_id = ? AND txn_type = ? AND source_type = ? AND source_id = ?",
-			memberID, entity.PointTxnEarn, sourceType, sourceID).
-			First(&dup).Error
+		// 2) กันซ้ำ (Check Duplication)
+		// ถ้ามี IdempotencyKey ให้เช็คด้วย Key เป็นหลัก (caller กำหนดความ Unique เอง)
+		if idempotencyKey != "" {
+			var dupKey entity.PointTransaction
+			if err := tx.Where("idempotency_key = ?", idempotencyKey).First(&dupKey).Error; err == nil {
+				return ErrDuplicateEarn // หรือ return nil ถ้าอยากให้ Idempotent แบบเงียบๆ
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		} else {
+			// fallback: เช็คด้วย source_type + source_id (แบบเดิม)
+			var dup entity.PointTransaction
+			err := tx.Where("member_id = ? AND txn_type = ? AND source_type = ? AND source_id = ?",
+				memberID, entity.PointTxnEarn, sourceType, sourceID).
+				First(&dup).Error
 
-		if err == nil {
-			return ErrDuplicateEarn
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
+			if err == nil {
+				return ErrDuplicateEarn
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
 		}
 
 		// 3) daily limit

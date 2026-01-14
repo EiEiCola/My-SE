@@ -544,6 +544,18 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, err
 	}
 
+	// ⭐ POINT SYSTEM: Give points to Poll Owner (Poll Vote)
+	if s.pointSvc != nil {
+		idemKey := "Poll Vote:" + strconv.FormatUint(uint64(poll.ID), 10) + ":" + strconv.FormatUint(uint64(memberID), 10)
+		_ = s.pointSvc.EarnPoints(
+			poll.MemberID,
+			"Poll Vote",
+			"POLL_VOTE",
+			poll.ID,
+			idemKey,
+		)
+	}
+
 	results, err := s.Results(memberID, pollID)
 	if err != nil {
 		return &dto.VotePollResponse{
@@ -667,19 +679,19 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 		ToStatusID:   &newStatusID,
 	})
 
-	// ⭐ POINT SYSTEM: ให้แต้มเมื่อ Admin Approve แล้วเท่านั้น (POLL_CREATE)
+	// ⭐ POINT SYSTEM: ให้แต้มเมื่อ Admin Approve แล้วเท่านั้น (Poll Create)
 	// - 10 แต้ม/โพล
 	// - จำกัด 3 ครั้ง/วัน (ตาม point_rules.daily_limit)
 	// - กันซ้ำด้วย source_id = poll.ID
 	// - ถ้าแต้มเต็มแล้ว approve ยังผ่านตามเดิม
 	if s.pointSvc != nil {
-		idemKey := "POLL_CREATE:" +
+		idemKey := "Poll Create:" +
 			strconv.FormatUint(uint64(poll.MemberID), 10) + ":" +
 			strconv.FormatUint(uint64(poll.ID), 10)
 
 		e := s.pointSvc.EarnPoints(
 			poll.MemberID, // ✅ ให้แต้มเจ้าของโพล
-			"POLL_CREATE",
+			"Poll Create",
 			"POLL",
 			poll.ID,
 			idemKey,
