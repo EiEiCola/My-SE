@@ -21,7 +21,11 @@ func SetupPublicReviewRoutes(api *gin.RouterGroup) {
 	// ✅ ส่ง pointSvc = nil (public list ไม่ให้แต้ม)
 	reviewService := services.NewReviewService(reviewRepo, nil)
 
-	reviewController := member_controller.NewReviewController(reviewService)
+	// Public might not need member service, but we inject it to satisfy signature
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
+	reviewController := member_controller.NewReviewController(reviewService, memberSvc)
 
 	api.GET("/reviews", reviewController.ListReviews)
 }
@@ -40,8 +44,12 @@ func SetupMemberReviewRoutes(memberAPI *gin.RouterGroup) {
 	// ⭐ POINT SYSTEM
 	pointSvc := services.NewPointService(db)
 
+	// ✅ Needed for resolving Profile ID
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
 	reviewService := services.NewReviewService(reviewRepo, pointSvc)
-	reviewController := member_controller.NewReviewController(reviewService)
+	reviewController := member_controller.NewReviewController(reviewService, memberSvc)
 
 	reviewGroup.POST("/reviews", reviewController.CreateReview)
 	reviewGroup.GET("/reviews", reviewController.ListReviews)

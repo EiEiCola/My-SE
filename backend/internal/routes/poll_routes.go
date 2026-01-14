@@ -22,8 +22,12 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 
 	pollService := services.NewPollService(pollRepo, pointService)
 
+	// ✅ Needed for resolving Profile ID from Account ID
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
 	adminPollController := admin_controller.NewAdminPollController(pollService)
-	memberPollController := member_controller.NewPollController(pollService)
+	memberPollController := member_controller.NewPollController(pollService, memberSvc)
 
 	// =========================
 	// MEMBER: /api/member/*

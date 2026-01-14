@@ -107,11 +107,29 @@ func ensureCategories(db *gorm.DB, adminID uint) (entity.MainCategory, entity.Su
 }
 
 func ensureMembers(db *gorm.DB) (entity.Member, entity.Member) {
-	m1 := entity.Member{Username: "member01", FirstName: "Somchai", StudentID: "S6500001", GenderID: 1, ActiveStatusID: 1}
+	// ✅ Add MemberPicture (DiceBear) so they are not empty
+	m1 := entity.Member{
+		Username: "member01", 
+		FirstName: "Somchai", 
+		StudentID: "S6500001", 
+		GenderID: 1, 
+		ActiveStatusID: 1,
+		MemberPicture: "https://api.dicebear.com/7.x/avataaars/svg?seed=Somchai", 
+	}
 	db.Where("username = ?", m1.Username).FirstOrCreate(&m1)
+	// Force update picture in case it's empty
+	db.Model(&m1).Updates(map[string]interface{}{"member_picture": m1.MemberPicture})
 
-	m2 := entity.Member{Username: "member02", FirstName: "Somsri", StudentID: "S6500002", GenderID: 2, ActiveStatusID: 1}
+	m2 := entity.Member{
+		Username: "member02", 
+		FirstName: "Somsri", 
+		StudentID: "S6500002", 
+		GenderID: 2, 
+		ActiveStatusID: 1,
+		MemberPicture: "https://api.dicebear.com/7.x/avataaars/svg?seed=Somsri",
+	}
 	db.Where("username = ?", m2.Username).FirstOrCreate(&m2)
+	db.Model(&m2).Updates(map[string]interface{}{"member_picture": m2.MemberPicture})
 
 	return m1, m2
 }

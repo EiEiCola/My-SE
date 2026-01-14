@@ -14,6 +14,7 @@ import (
 
 func SeedAll(db *gorm.DB) {
 	seedAdmin(db)
+	SeedReviewSystem(db) // ✅ Enable Review/Member seeding
 	//seedPointRules(db)
 }
 

@@ -17,6 +17,7 @@ type PostController struct {
 	PointTransactionService services.PointTransactionService
 	PointRuleRepo           repository.PointRuleRepository
 	PostStarRepo            repository.PostStarRepository
+	MemberService           services.MemberService // ✅ Add MemberService
 }
 
 func NewPostController(
@@ -24,13 +25,29 @@ func NewPostController(
 	ptService services.PointTransactionService,
 	prRepo repository.PointRuleRepository,
 	psRepo repository.PostStarRepository,
+	mService services.MemberService, // ✅ Add param
 ) *PostController {
 	return &PostController{
 		Service:                 s,
 		PointTransactionService: ptService,
 		PointRuleRepo:           prRepo,
 		PostStarRepo:            psRepo,
+		MemberService:           mService, // ✅ Init
 	}
+}
+
+// Helper to get Profile ID (MemberID) from AccountID (user_id in JWT)
+func (ctl *PostController) getMemberProfileID(c *gin.Context) (uint, bool) {
+	accountID := c.GetUint("user_id")
+	if accountID == 0 {
+		return 0, false
+	}
+	// Call MemberService to get profile
+	m, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		return 0, false
+	}
+	return m.ID, true
 }
 
 // ---- Create Post ----
@@ -97,9 +114,10 @@ func (ctl *PostController) CreatePost(c *gin.Context) {
 		}
 	}
 
-	memberID, ok := getMemberID(c)
+	// ✅ Fix: Get Profile ID (MemberID) instead of AccountID
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized (profile not found)"})
 		return
 	}
 
@@ -158,7 +176,7 @@ func (ctl *PostController) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -239,7 +257,7 @@ func (ctl *PostController) DeletePost(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -270,7 +288,7 @@ func (ctl *PostController) GetLikeStatus(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -301,7 +319,7 @@ func (ctl *PostController) ToggleLike(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -327,7 +345,7 @@ func (ctl *PostController) ToggleBookmark(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -352,7 +370,7 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -459,7 +477,7 @@ func (ctl *PostController) CreateComment(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -495,7 +513,7 @@ func (ctl *PostController) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -511,7 +529,7 @@ func (ctl *PostController) DeleteComment(c *gin.Context) {
 
 // GetBookmarkedPosts - GET /api/member/posts/bookmarked
 func (ctl *PostController) GetBookmarkedPosts(c *gin.Context) {
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return

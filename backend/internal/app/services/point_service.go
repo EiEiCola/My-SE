@@ -18,7 +18,7 @@ var (
 
 type PointService interface {
 	EarnPoints(
-		accountID uint, // เปลี่ยนชื่อให้เข้าใจง่ายว่าเป็น ID จาก Account/Token
+		memberID uint, // ✅ ProfileID
 		activityType string,
 		sourceType string,
 		sourceID uint,
@@ -46,7 +46,7 @@ func todayRange() (time.Time, time.Time, error) {
 }
 
 func (s *pointService) EarnPoints(
-	accountID uint,
+	memberID uint, // ✅ รับ ProfileID โดยตรง (Controller resolved มาแล้ว)
 	activityType string,
 	sourceType string,
 	sourceID uint,
@@ -54,18 +54,7 @@ func (s *pointService) EarnPoints(
 ) error {
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-
-		// --- ส่วนที่เพิ่มเข้ามาเพื่อแก้ปัญหา ID ไม่ตรงกัน ---
-		// หา Member ID ที่แท้จริงจากตาราง members โดยใช้ FK (member_account_id)
-		var actualMember entity.Member
-		// สมมติว่าคอลัมน์ FK ของเพื่อนชื่อ MemberAccountID นะครับ (ลองเช็คใน entity.Member อีกที)
-		if err := tx.Where("member_account_id = ?", accountID).First(&actualMember).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrMemberNotFound
-			}
-			return err
-		}
-		memberID := actualMember.ID // ได้ ID 76 มาใช้งานในระบบแต้มแล้ว
+		// ✅ ไม่ต้อง lookup แล้ว เพราะ input คือ ProfileID
 		// ----------------------------------------------
 
 		// 1) load rule

@@ -35,7 +35,11 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 
-	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo)
+	// ✅ Needed for resolving Profile ID from Account ID
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
+	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo, memberSvc)
 
 	posts := r.Group("/posts")
 	{
