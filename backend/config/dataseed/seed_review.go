@@ -106,102 +106,31 @@ func ensureCategories(db *gorm.DB, adminID uint) (entity.MainCategory, entity.Su
 }
 
 func ensureMembers(db *gorm.DB) (entity.Member, entity.Member) {
-	// 1. Ensure "member" role exists
-	memberRole := entity.Role{RoleName: "member"}
-	db.Where("role_name = ?", memberRole.RoleName).FirstOrCreate(&memberRole)
-
-	// 2. Define member data with their account info
-	membersData := []struct {
-		Email      string
-		Password   string
-		Username   string
-		FirstName  string
-		LastName   string
-		StudentID  string
-		NationalID string
-		GenderID   uint
-	}{
-		{
-			Email:      "member01@sut.ac.th",
-			Password:   "$2a$10$dummyhash1234567890abc", // Pre-hashed password for seed
-			Username:   "member01",
-			FirstName:  "Somchai",
-			LastName:   "Seedmember",
-			StudentID:  "S6500001",
-			NationalID: "1234567890001",
-			GenderID:   1,
-		},
-		{
-			Email:      "member02@sut.ac.th",
-			Password:   "$2a$10$dummyhash1234567890xyz", // Pre-hashed password for seed
-			Username:   "member02",
-			FirstName:  "Somsri",
-			LastName:   "Seedmember",
-			StudentID:  "S6500002",
-			NationalID: "1234567890002",
-			GenderID:   2,
-		},
+	// ✅ Add MemberPicture (DiceBear) so they are not empty
+	m1 := entity.Member{
+		Username:       "member01",
+		FirstName:      "Somchai",
+		StudentID:      "S6500001",
+		GenderID:       1,
+		ActiveStatusID: 1,
+		MemberPicture:  "https://api.dicebear.com/7.x/avataaars/svg?seed=Somchai",
 	}
+	db.Where("username = ?", m1.Username).FirstOrCreate(&m1)
+	// Force update picture in case it's empty
+	db.Model(&m1).Updates(map[string]interface{}{"member_picture": m1.MemberPicture})
 
-	var members []entity.Member
-
-	for _, data := range membersData {
-		// 3. Create or find MemberAccount first (by email)
-		account := entity.MemberAccount{
-			Email:        data.Email,
-			PasswordHash: data.Password,
-			RoleID:       memberRole.ID,
-			IsLocked:     false,
-		}
-		if err := db.Where("email = ?", account.Email).FirstOrCreate(&account).Error; err != nil {
-			log.Printf("Error creating MemberAccount for %s: %v\n", data.Email, err)
-			continue
-		}
-
-		// 4. Check if Member already exists for this account
-		var existingMember entity.Member
-		if err := db.Where("member_account_id = ?", account.ID).First(&existingMember).Error; err == nil {
-			// Member already exists, use it
-			members = append(members, existingMember)
-			continue
-		}
-
-		// 5. Check if Member exists by username (legacy data)
-		if err := db.Where("username = ?", data.Username).First(&existingMember).Error; err == nil {
-			// Update existing member to link to account if not already linked
-			if existingMember.MemberAccountID == 0 {
-				db.Model(&existingMember).Update("member_account_id", account.ID)
-			}
-			members = append(members, existingMember)
-			continue
-		}
-
-		// 6. Create new Member linked to the account
-		member := entity.Member{
-			Username:        data.Username,
-			FirstName:       data.FirstName,
-			LastName:        data.LastName,
-			StudentID:       data.StudentID,
-			NationalID:      data.NationalID,
-			GenderID:        data.GenderID,
-			ActiveStatusID:  1,
-			MemberAccountID: account.ID,
-		}
-
-		if err := db.Create(&member).Error; err != nil {
-			log.Printf("Error creating Member %s: %v\n", data.Username, err)
-			continue
-		}
-		members = append(members, member)
+	m2 := entity.Member{
+		Username:       "member02",
+		FirstName:      "Somsri",
+		StudentID:      "S6500002",
+		GenderID:       2,
+		ActiveStatusID: 1,
+		MemberPicture:  "https://api.dicebear.com/7.x/avataaars/svg?seed=Somsri",
 	}
+	db.Where("username = ?", m2.Username).FirstOrCreate(&m2)
+	db.Model(&m2).Updates(map[string]interface{}{"member_picture": m2.MemberPicture})
 
-	// Return the two members (or empty if failed)
-	if len(members) >= 2 {
-		return members[0], members[1]
-	} else if len(members) == 1 {
-		return members[0], entity.Member{}
-	}
-	return entity.Member{}, entity.Member{}
+	return m1, m2
 }
 
 func ensureTags(db *gorm.DB, names []string) map[string]entity.Tag {

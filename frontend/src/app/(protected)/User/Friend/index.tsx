@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Image, MoreHorizontal, MessageCircle, UserPlus, UserMinus, Ban, User } from "lucide-react";
 
 import {
@@ -8,9 +8,11 @@ import {
   type FriendRequestUI,
   type SuggestedFriendUI
 } from "../../../../services/http/friend";
+import { chatService } from "../../../../services/http/chat"; // ✅ Import Chat Service
 
 const Friends: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   // const API_URL = "/api";  <-- No longer needed here
 
   const [friendRequests, setFriendRequests] = useState<FriendRequestUI[]>([]);
@@ -24,6 +26,20 @@ const Friends: React.FC = () => {
     if (!token) { navigate("/login"); return; }
     fetchData();
   }, []);
+
+  // Auto-select user from navigation state (from Chat)
+  useEffect(() => {
+    const state = location.state as { selectedId?: number };
+    if (state?.selectedId) {
+      // Find user in suggested friends and auto-select
+      setTimeout(() => {
+        const userCard = document.querySelector(`[data-user-id="${state.selectedId}"]`);
+        if (userCard) {
+          (userCard as HTMLElement).click();
+        }
+      }, 500); // Wait for data to load
+    }
+  }, [location.state, suggestedFriends]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -51,6 +67,12 @@ const Friends: React.FC = () => {
       const currentUserId = meData.data?.ID || meData.data?.id || 0;
       setMyId(currentUserId);
 
+      // --- Following Set (Moved Up) ---
+      const followingIds = new Set<number>();
+      if (followData.data) {
+        followData.data.forEach((f: any) => followingIds.add(f.ID || f.id));
+      }
+
       // --- Received Requests ---
       const receivedIds = new Set<number>();
       if (reqRecvData.data) {
@@ -60,7 +82,9 @@ const Friends: React.FC = () => {
           return {
             id: r.rf_id,
             name: r.sent_member ? `${r.sent_member.first_name} ${r.sent_member.last_name}` : "Unknown User",
-            avatar: getImageUrl(r.sent_member?.member_picture) // ⭐ ใช้ Helper
+            avatar: getImageUrl(r.sent_member?.member_picture),
+            memberId: senderId,
+            isFollowing: followingIds.has(senderId) // ✅ Added isFollowing
           };
         }));
       }
@@ -86,11 +110,7 @@ const Friends: React.FC = () => {
         blockData.data.forEach((b: any) => blockedIds.add(b.ID || b.id));
       }
 
-      // --- Following Set ---
-      const followingIds = new Set<number>();
-      if (followData.data) {
-        followData.data.forEach((f: any) => followingIds.add(f.ID || f.id));
-      }
+
 
       // --- Popular / Suggested Friends ---
       if (popData.data) {
@@ -187,12 +207,14 @@ const Friends: React.FC = () => {
         const res = await friendAPI.unfollowUser(targetId);
         if (res.status === 200) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: false } : f));
+          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: false } : r)); // ✅ Sync FriendRequests
           alert("เลิกติดตามแล้ว");
         }
       } else {
         const res = await friendAPI.followUser(targetId);
         if (res.status === 200 || res.status === 201) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: true } : f));
+          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: true } : r)); // ✅ Sync FriendRequests
           alert("ติดตามเรียบร้อย");
         }
       }
@@ -211,6 +233,21 @@ const Friends: React.FC = () => {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "เกิดข้อผิดพลาด";
       alert(errorMsg);
+    }
+  };
+
+
+
+  // ✅ Handle Message Click
+  const handleMessageClick = async (targetId: number) => {
+    try {
+      const res = await chatService.createRoom({ type: 'private', target_id: targetId });
+      if (res.data) {
+        navigate('/User/Message', { state: { roomId: res.data.room_id } });
+      }
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+      alert("ไม่สามารถเริ่มแชทได้");
     }
   };
 
@@ -241,14 +278,18 @@ const Friends: React.FC = () => {
 
     const handleMenuAction = (action: string) => {
       setShowMenu(false);
+      // ⭐ Fix: Prioritize memberId (User ID) if available (for Requests), otherwise use id (for Suggested)
+      const targetId = person.memberId || person.id;
+
       if (action === "view_profile") handleCardClick();
-      else if (action === "follow_toggle") handleFollowToggle(person.id, person.isFollowing);
-      else if (action === "block") handleBlock(person.id);
+      else if (action === "message") handleMessageClick(targetId); // ✅ Now sends correct User ID
+      else if (action === "follow_toggle") handleFollowToggle(targetId, person.isFollowing);
+      else if (action === "block") handleBlock(targetId);
     };
 
     const handleCardClick = () => {
       if (type === 'request') {
-        navigate('/User/Friends/Request', { state: { selectedId: person.id } });
+        navigate('/User/Friends/Request', { state: { selectedId: person.memberId } });
       } else {
         navigate('/User/Friends/Popular', { state: { selectedId: person.id } });
       }
@@ -270,7 +311,10 @@ const Friends: React.FC = () => {
     }
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md transition-shadow relative group">
+      <div
+        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-visible hover:shadow-md transition-shadow relative group"
+        data-user-id={person.id}
+      >
 
         <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden rounded-t-2xl relative">
           <div onClick={handleCardClick} className="cursor-pointer w-full h-full">

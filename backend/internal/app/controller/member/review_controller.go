@@ -19,10 +19,49 @@ import (
 
 type ReviewController struct {
 	reviewService services.ReviewService
+	memberService services.MemberService // ✅ Add MemberService
 }
 
-func NewReviewController(reviewService services.ReviewService) *ReviewController {
-	return &ReviewController{reviewService: reviewService}
+func NewReviewController(reviewService services.ReviewService, memberService services.MemberService) *ReviewController {
+	return &ReviewController{
+		reviewService: reviewService,
+		memberService: memberService,
+	}
+}
+
+// Helper: resolve MemberID from AccountID (from context)
+func (rc *ReviewController) getActualMemberID(c *gin.Context) (uint, error) {
+	// Try getting member_id directly first
+	v, ok := c.Get("member_id")
+	if !ok {
+		// Try accessing user_id which is typically AccountID
+		v, ok = c.Get("user_id")
+		if !ok {
+			return 0, errors.New("missing user_id")
+		}
+	}
+
+	// Convert to uint
+	var accountID uint
+	switch t := v.(type) {
+	case uint:
+		accountID = t
+	case int:
+		if t < 0 { return 0, errors.New("invalid id") }
+		accountID = uint(t)
+	case float64:
+		if t < 0 { return 0, errors.New("invalid id") }
+		accountID = uint(t)
+	default:
+		return 0, errors.New("invalid id type")
+	}
+
+	// Resolve Profile ID
+	m, err := rc.memberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		return 0, err
+	}
+	return m.ID, nil
 }
 
 // POST /api/member/reviews
@@ -38,30 +77,13 @@ func (rc *ReviewController) CreateReview(c *gin.Context) {
 	}
 
 	// member_id จาก middleware
-	memberIDAny, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
+	// member_id จาก middleware (แก้ไขให้ lookup member จริง)
+	memberID, err := rc.getActualMemberID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "detail": err.Error()})
 		return
 	}
-	switch v := memberIDAny.(type) {
-	case uint:
-		req.MemberID = v
-	case int:
-		if v < 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
-			return
-		}
-		req.MemberID = uint(v)
-	case float64:
-		if v < 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
-			return
-		}
-		req.MemberID = uint(v)
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
-		return
-	}
+	req.MemberID = memberID
 
 	review, err := rc.reviewService.CreateReview(req)
 	if err != nil {
@@ -106,14 +128,9 @@ func (rc *ReviewController) ListReviews(c *gin.Context) {
 
 // DELETE /api/member/reviews/:id
 func (rc *ReviewController) DeleteReview(c *gin.Context) {
-	v, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	memberID, ok := v.(uint)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+	memberID, err := rc.getActualMemberID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "detail": err.Error()})
 		return
 	}
 
@@ -140,14 +157,9 @@ func (rc *ReviewController) DeleteReview(c *gin.Context) {
 // form key: images (multiple)
 func (rc *ReviewController) UploadReviewImages(c *gin.Context) {
 	// member_id จาก middleware
-	v, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	memberID, ok := v.(uint)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
+	memberID, err := rc.getActualMemberID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "detail": err.Error()})
 		return
 	}
 
@@ -231,31 +243,10 @@ func (rc *ReviewController) UploadReviewImages(c *gin.Context) {
 // ✅ POST /api/member/reviews/:id/vote
 func (rc *ReviewController) VoteReview(c *gin.Context) {
 	// member_id จาก middleware (mockMemberAuth)
-	memberIDAny, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
-		return
-	}
-
-	// ✅ กัน panic: รองรับ uint/int/float64 เหมือน CreateReview
-	var memberID uint
-	switch v := memberIDAny.(type) {
-	case uint:
-		memberID = v
-	case int:
-		if v < 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
-			return
-		}
-		memberID = uint(v)
-	case float64:
-		if v < 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id"})
-			return
-		}
-		memberID = uint(v)
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+	// member_id จาก middleware
+	memberID, err := rc.getActualMemberID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "detail": err.Error()})
 		return
 	}
 
@@ -296,30 +287,10 @@ func (rc *ReviewController) VoteReview(c *gin.Context) {
 // GET /api/member/reviews/my?main_category_id=1
 func (rc *ReviewController) ListMyReviews(c *gin.Context) {
 	// member_id จาก middleware
-	v, ok := c.Get("member_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing member_id"})
-		return
-	}
-
-	var memberID uint
-	switch x := v.(type) {
-	case uint:
-		memberID = x
-	case int:
-		if x < 0 {
-			c.JSON(401, gin.H{"error": "invalid member_id"})
-			return
-		}
-		memberID = uint(x)
-	case float64:
-		if x < 0 {
-			c.JSON(401, gin.H{"error": "invalid member_id"})
-			return
-		}
-		memberID = uint(x)
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid member_id type"})
+	// member_id จาก middleware
+	memberID, err := rc.getActualMemberID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "detail": err.Error()})
 		return
 	}
 

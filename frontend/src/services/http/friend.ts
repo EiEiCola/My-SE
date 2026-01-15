@@ -8,6 +8,7 @@ export interface FriendRequestUI {
   id: number;
   name: string;
   avatar: string;
+  memberId?: number;
 }
 
 export interface SuggestedFriendUI {
@@ -24,13 +25,13 @@ export interface SuggestedFriendUI {
 // 2. Helper Functions
 // ==========================================
 
-const BASE_IMAGE_URL = "http://localhost:8080"; 
+const BASE_IMAGE_URL = "http://localhost:8080";
 
 export const getImageUrl = (path: string | undefined | null) => {
-    if (!path) return "";
-    if (path.startsWith("http") || path.startsWith("data:")) return path;
-    const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    return `${BASE_IMAGE_URL}${cleanPath}`;
+  if (!path) return "";
+  if (path.startsWith("http") || path.startsWith("data:")) return path;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${BASE_IMAGE_URL}${cleanPath}`;
 };
 
 // ==========================================
@@ -40,17 +41,19 @@ export const getImageUrl = (path: string | undefined | null) => {
 export const friendAPI = {
   // --- Get Data (Return Data Directly) ---
   getMe: async () => (await api.get("/member/me")).data,
-  
+
   getReceivedRequests: async () => (await api.get("/member/my/friend-requests/received")).data,
-  
+
   getSentRequests: async () => (await api.get("/member/my/friend-requests/sent")).data,
-  
+
   getMyFriends: async () => (await api.get("/member/my/friends")).data,
-  
+
   getBlockedUsers: async () => (await api.get("/member/my/blocks")).data,
-  
+
   getMyFollowing: async () => (await api.get("/member/my/following")).data,
-  
+
+  getMyFollowers: async () => (await api.get("/member/my/followers")).data,
+
   getPopularMembers: async () => (await api.get("/member/members/popular")).data,
 
   getAllMembers: async () => (await api.get("/member/members")).data,

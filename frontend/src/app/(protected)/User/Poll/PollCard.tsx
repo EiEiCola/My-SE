@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "./PollList.css";
+import { toFullUrl } from "../../../../services/http/poll";
 
 type AnyPoll = any;
 
@@ -100,7 +101,15 @@ export const PollCard: React.FC<Props> = (props) => {
 
   // ✅ NEW: ดึง avatar + is_anonymous
   const isAnonymous = Boolean(p?.is_anonymous ?? p?.IsAnonymous ?? false);
-  const avatarUrl = String(p?.author_avatar_url ?? p?.AuthorAvatarURL ?? "").trim();
+  // ✅ Fix: Check member/Member object for picture as well
+  const rawAvatar =
+    p?.author_avatar_url ??
+    p?.AuthorAvatarURL ??
+    p?.member?.member_picture ??
+    p?.Member?.MemberPicture ??
+    "";
+
+  const avatarUrl = toFullUrl(String(rawAvatar).trim());
   const ANON_AVATAR = "/avatars/anon.png";
 
   const allowMultiple = props.getAllowMultiple(p);
@@ -195,9 +204,9 @@ export const PollCard: React.FC<Props> = (props) => {
     const startAt = props.getStartAt(p) ? dayjs(props.getStartAt(p)) : null;
     const endAt = props.getEndAt(p) ? dayjs(props.getEndAt(p)) : null;
 
-    if (status === "OPEN" && endAt) return `⏱ ปิด ${dayjs().to(endAt)}`;
-    if (status === "UPCOMING" && startAt) return `⏱ เริ่ม ${dayjs().to(startAt)}`;
-    if (status === "CLOSED" && endAt) return `จบเมื่อ ${dayjs(endAt).fromNow()}`;
+    if (status === "OPEN" && endAt) return `⏱ ปิด ${dayjs().to(endAt)} `;
+    if (status === "UPCOMING" && startAt) return `⏱ เริ่ม ${dayjs().to(startAt)} `;
+    if (status === "CLOSED" && endAt) return `จบเมื่อ ${dayjs(endAt).fromNow()} `;
 
     return "";
   }, [p, props, status]);
@@ -241,7 +250,7 @@ export const PollCard: React.FC<Props> = (props) => {
     }
 
     // ✅ ของคนอื่น -> /User/Profile/:memberId
-    if (ownerId) navigate(`/User/Profile/${ownerId}`);
+    if (ownerId) navigate(`/ User / Profile / ${ownerId} `);
   };
 
   // ✅ ล็อกเฉพาะเจ้าของจริง ๆ เท่านั้น
@@ -250,16 +259,7 @@ export const PollCard: React.FC<Props> = (props) => {
   // ✅ ให้โหวตได้เฉพาะ: OPEN + ยังไม่โหวต + ไม่ใช่เจ้าของ + ต้องมี myId
   const canVote = status === "OPEN" && !hasVoted && !isOwner && myId > 0;
 
-  // ✅ ใส่ตรงนี้เลย (ก่อน return)
-  useEffect(() => {
-    console.log("[PollCard debug]", {
-      pollId: id,
-      ownerId,
-      myId,
-      isOwner,
-      raw: { member_id: p?.member_id, created_by: p?.created_by, created_by_id: p?.created_by_id },
-    });
-  }, [id, ownerId, myId, isOwner, p]);
+
 
 
 
@@ -307,9 +307,7 @@ export const PollCard: React.FC<Props> = (props) => {
     return names.join(", ");
   }, [hasVoted, options, selected, props]);
 
-  useEffect(() => {
-    console.log("[PollCard debug]", { pollId: id, ownerId, myId, raw: { member_id: p?.member_id, created_by: p?.created_by } });
-  }, [id, ownerId, myId]);
+
 
 
   return (
@@ -358,7 +356,7 @@ export const PollCard: React.FC<Props> = (props) => {
               <span className="pc-date">{created ? dayjs(created).format("DD/MM/YYYY HH:mm") : "-"}</span>
 
               {timeHint ? (
-                <span className={`pc-timePill pc-timePill-${status.toLowerCase()}`}>
+                <span className={`pc - timePill pc - timePill - ${status.toLowerCase()} `}>
                   <span className="pc-timeDot" />
                   {timeHint}
                 </span>
@@ -487,7 +485,7 @@ export const PollCard: React.FC<Props> = (props) => {
         {/* ===== expand / collapse (if more than 5) ===== */}
         {options.length > 5 ? (
           <button className="link-btn" type="button" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? "ย่อรายการ" : `ดูตัวเลือกเพิ่มเติม (${options.length})`}
+            {expanded ? "ย่อรายการ" : `ดูตัวเลือกเพิ่มเติม(${options.length})`}
           </button>
         ) : null}
 

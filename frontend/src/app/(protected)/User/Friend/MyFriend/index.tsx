@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
@@ -14,6 +14,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CrueltyFreeIcon from "@mui/icons-material/CrueltyFree";
 import { UserPlus, UserCheck } from "lucide-react";
+import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service (Correct Path)
 
 // Config Dayjs
 dayjs.extend(buddhistEra);
@@ -42,6 +43,7 @@ interface FriendItem {
 
 const FriendRelation: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const API_URL = "/api";
   const token = localStorage.getItem("token");
 
@@ -80,6 +82,19 @@ const FriendRelation: React.FC = () => {
     if (!token) { navigate("/login"); return; }
     fetchInitialData();
   }, []);
+
+  // Auto-select friend from navigation state (from Chat)
+  useEffect(() => {
+    const state = location.state as { selectedId?: number };
+    if (state?.selectedId && friends.length > 0) {
+      const targetFriend = friends.find(f => f.id === state.selectedId);
+      if (targetFriend) {
+        setSelectedProfile(targetFriend);
+        // Clear state to prevent re-selection on refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, friends]);
 
   // --- Fetch Data ---
   const fetchInitialData = async () => {
@@ -216,7 +231,17 @@ const FriendRelation: React.FC = () => {
     } catch (e) { console.error(e); }
   };
 
-  const handleMessage = (name: string) => { alert(`Chat with ${name} (Coming Soon)`); };
+  const handleMessageClick = async (targetId: number) => {
+    try {
+      const res = await chatService.createRoom({ type: 'private', target_id: targetId });
+      if (res.data) {
+        navigate('/User/Message', { state: { roomId: res.data.room_id } });
+      }
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+      alert("ไม่สามารถเริ่มแชทได้");
+    }
+  };
 
   const filteredFriends = friends.filter(friend => friend.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -279,7 +304,7 @@ const FriendRelation: React.FC = () => {
                 {/* Dropdown Menu */}
                 {activeMenu === friend.id && (
                   <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-64 z-50 animate-fadeIn origin-top-right">
-                    <button onClick={() => handleMessage(friend.name)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                    <button onClick={() => handleMessageClick(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
                       <MessageCircle className="w-5 h-5 text-gray-700" /><p className="text-sm font-semibold text-gray-800">ส่งข้อความ</p>
                     </button>
 
@@ -376,7 +401,7 @@ const FriendRelation: React.FC = () => {
 
               {/* 3. ปุ่มส่งข้อความ */}
               <button
-                onClick={() => handleMessage(selectedProfile.name)}
+                onClick={() => handleMessageClick(selectedProfile.id)}
                 className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex items-center justify-center gap-2 font-medium text-sm transition-colors shadow-sm"
               >
                 <MessageCircle size={18} /> ส่งข้อความ

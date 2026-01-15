@@ -52,6 +52,16 @@ type PostItem = {
   isAnonymous: boolean;
 };
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+const toFullUrl = (u: string) => {
+  if (!u) return "";
+  if (u.startsWith("http")) return u;
+  if (u.startsWith("data:")) return u; // ✅ Support Base64
+  if (u.startsWith("/")) return `${API_BASE}${u}`;
+  return `${API_BASE}/${u}`;
+};
+
 // Helper: แปลง Post entity เป็น PostItem สำหรับแสดงผล
 const mapPostToItem = (post: Post): PostItem => {
   const createdDate = new Date(post.created_at);
@@ -81,9 +91,20 @@ const mapPostToItem = (post: Post): PostItem => {
     authorName =
       post.author.username ||
       `${post.author.first_name} ${post.author.last_name}`;
-    authorAvatar =
-      post.author.member_picture ||
-      `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`;
+
+    // ✅ Fix: use toFullUrl to ensure the image path is correct, check ALL variants
+    const rawAvatar =
+      (post.author as any).member_picture ??
+      (post.author as any).MemberPicture ??
+      (post.author as any).avatar_url ??
+      (post.author as any).profile_picture ??
+      "";
+
+    if (rawAvatar) {
+      authorAvatar = toFullUrl(rawAvatar);
+    } else {
+      authorAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`;
+    }
   }
 
   return {

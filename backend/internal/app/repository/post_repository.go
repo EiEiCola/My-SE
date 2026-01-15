@@ -48,6 +48,12 @@ func (r *PostRepository) FindByID(id uint) (*entity.Post, error) {
 func (r *PostRepository) FindByAuthorID(authorID uint) ([]entity.Post, error) {
 	var posts []entity.Post
 	err := r.DB.
+		Preload("Images").
+		Preload("Attachments").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Author"). // ✅ Ensure Author (Member) is loaded
 		Where("author_id = ?", authorID).
 		Order("created_at DESC").
 		Find(&posts).Error
@@ -64,7 +70,7 @@ func (r *PostRepository) FindAll() ([]entity.Post, error) {
 		Preload("MainCategory").
 		Preload("SubCategoryL1").
 		Preload("SubCategoryL2").
-		Preload("Author").
+		Preload("Author"). // ✅ Ensure Author (Member) is loaded
 		Order("created_at DESC").
 		Find(&posts).Error
 	return posts, err

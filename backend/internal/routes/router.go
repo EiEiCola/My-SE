@@ -5,39 +5,33 @@ import (
 	"github.com/sut68/team12/backend/config"
 
 	adminCtl "github.com/sut68/team12/backend/internal/app/controller/admin"
-	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member" // เพิ่ม
+	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
-// SetupRoutes initializes all routes
 func SetupRoutes(
 	r *gin.Engine,
 	adminProfileController *adminCtl.AdminProfileController,
 	adminUserController *adminCtl.AdminUserController,
 	adminCategoryController *adminCtl.AdminCategoryController,
-	chatController *memberCtl.ChatController, // ✅ เพิ่ม ChatController ตรงนี้
+	chatController *memberCtl.ChatController,
 	adminReviewController *adminCtl.AdminReviewController,
+	uploadController *memberCtl.UploadController, // ✅ เพิ่ม UploadController
 ) {
-	// static files
 	r.Static("/uploads", "./uploads")
 
-	// ✅ API group
 	api := r.Group("/api")
 
-	// ✅ Auth routes under /api/auth (ไม่ protect)
 	auth := api.Group("/auth")
 	SetupAuthRoutes(auth)
 
-	// ✅ Protected group: /api/member/*
 	memberAPI := api.Group("/member")
 	memberAPI.Use(middlewares.JWTAuthMiddleware())
 
-	// ✅ Protected group: /api/admin/* (admin only)
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middlewares.JWTAuthMiddleware())
 	adminAPI.Use(middlewares.RequireAdminMiddleware())
 
-	// routes ที่อยู่ใต้ /api (ของเดิม)
 	{
 		SetupChatWSRoutes(api, chatController)
 		SetupPRRoutes(api)
@@ -45,23 +39,17 @@ func SetupRoutes(
 		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
 
-		// ✅ public reward list
 		SetupRewardRoutes(api)
-		//revirew
-		SetupReviewRoutes(api)
-		// Report System
-		SetupReportRoutes(api)
 
+		// ✅ แยก public reviews ออก (ให้ list ได้โดยไม่ต้อง member middleware)
+		SetupPublicReviewRoutes(api)
+
+		SetupReportRoutes(api)
 	}
 
-	// =========================
-	// ADMIN ROUTES (/api/admin/*)
-	// =========================
 	{
-		// ✅ admin reward (สำคัญ)
 		SetupAdminRewardRoutes(adminAPI)
 
-		// ✅ admin routes (ย้ายมาอยู่ใต้ adminAPI)
 		SetupAdminProfileRoutes(adminAPI, adminProfileController)
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
@@ -74,24 +62,21 @@ func SetupRoutes(
 
 	}
 
-	// =========================
-	// MEMBER ROUTES (/api/member/*)
-	// =========================
-
 	{
-		SetupFriendRoutes(memberAPI, adminAPI) // ส่ง api group เข้าไปเพื่อให้ URL เป็น /api/friend-requests
+		SetupFriendRoutes(memberAPI, adminAPI)
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
 		SetupChatHTTPRoutes(memberAPI, chatController)
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
-		SetupReviewRoutes(memberAPI)
 		SetupNotificationRoutes(memberAPI)
+		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload
 		// SetupChatRoutes(memberAPI)
 
+		// ✅ member reviews (create/delete/vote/my/images) อยู่ใต้ /api/member
+		SetupMemberReviewRoutes(memberAPI)
 	}
 
-	// routes ที่ไม่ได้อยู่ใต้ /api (คงเดิม)
 	SetupMemberRoutes(r)
 	SetupPublicCategoryRoutes(r, config.DB)
 }

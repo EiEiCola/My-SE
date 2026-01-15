@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"strconv" // ⭐ POINT SYSTEM: ใช้ทำ idempotency key
 
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/dto"
@@ -41,10 +42,14 @@ type PollService interface {
 
 type pollService struct {
 	pollRepo repository.PollRepository
+	pointSvc PointService // ⭐ POINT SYSTEM: inject point service สำหรับให้แต้ม
 }
 
-func NewPollService(pollRepo repository.PollRepository) PollService {
-	return &pollService{pollRepo: pollRepo}
+func NewPollService(pollRepo repository.PollRepository, pointSvc PointService) PollService { // ⭐ POINT SYSTEM: เพิ่มพารามิเตอร์ pointSvc
+	return &pollService{
+		pollRepo: pollRepo,
+		pointSvc: pointSvc, // ⭐ POINT SYSTEM
+	}
 }
 
 /* =========================
@@ -201,6 +206,9 @@ func (s *pollService) SubmitForReview(memberID uint, pollID uint) (*dto.PollResp
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &newStatusID,
 	})
+
+	// ⭐ POINT SYSTEM: (ย้ายออก) ไม่ให้แต้มตอน submit แล้ว
+	// แต้มจะให้เมื่อ admin approve เท่านั้น (อยู่ใน Approve)
 
 	updated, err := s.pollRepo.GetPollByID(poll.ID)
 	if err != nil {
@@ -400,6 +408,10 @@ func (s *pollService) CreateRequest(memberID uint, req dto.CreatePollRequest) (*
 	if err := s.pollRepo.CreatePoll(&poll); err != nil {
 		return nil, err
 	}
+
+	// ⭐ POINT SYSTEM: (ย้ายออก) ไม่ให้แต้มที่นี่แล้ว
+	// แต้มจะให้เมื่อ admin approve เท่านั้น (อยู่ใน Approve)
+
 	return s.mapPollToResponse(&poll), nil
 }
 
@@ -532,6 +544,18 @@ func (s *pollService) Vote(memberID uint, pollID uint, req dto.VotePollRequest) 
 		return nil, err
 	}
 
+	// ⭐ POINT SYSTEM: Give points to Poll Owner (Poll Vote)
+	if s.pointSvc != nil {
+		idemKey := "Poll Vote:" + strconv.FormatUint(uint64(poll.ID), 10) + ":" + strconv.FormatUint(uint64(memberID), 10)
+		_ = s.pointSvc.EarnPoints(
+			poll.MemberID,
+			"Poll Vote",
+			"POLL_VOTE",
+			poll.ID,
+			idemKey,
+		)
+	}
+
 	results, err := s.Results(memberID, pollID)
 	if err != nil {
 		return &dto.VotePollResponse{
@@ -654,6 +678,31 @@ func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, err
 		FromStatusID: &oldStatusID,
 		ToStatusID:   &newStatusID,
 	})
+
+	// ⭐ POINT SYSTEM: ให้แต้มเมื่อ Admin Approve แล้วเท่านั้น (Poll Create)
+	// - 10 แต้ม/โพล
+	// - จำกัด 3 ครั้ง/วัน (ตาม point_rules.daily_limit)
+	// - กันซ้ำด้วย source_id = poll.ID
+	// - ถ้าแต้มเต็มแล้ว approve ยังผ่านตามเดิม
+	if s.pointSvc != nil {
+		idemKey := "Poll Create:" +
+			strconv.FormatUint(uint64(poll.MemberID), 10) + ":" +
+			strconv.FormatUint(uint64(poll.ID), 10)
+
+		e := s.pointSvc.EarnPoints(
+			poll.MemberID, // ✅ ให้แต้มเจ้าของโพล
+			"Poll Create",
+			"POLL",
+			poll.ID,
+			idemKey,
+		)
+
+		if e != nil {
+			if errors.Is(e, ErrDailyLimitReached) || errors.Is(e, ErrDuplicateEarn) {
+				// ignore
+			}
+		}
+	}
 
 	updated, err := s.pollRepo.GetPollByID(poll.ID)
 	if err != nil {
