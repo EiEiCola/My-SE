@@ -65,7 +65,7 @@ func SeedReviewSystem(db *gorm.DB) {
 		}
 
 		// ใส่รูปภาพประกอบ (ตัวอย่าง)
-		seedReviewImage(db, r.ID)
+		//seedReviewImage(db, r.ID)
 
 		// สุ่มใส่ Tag ให้รีวิว (เช่น ใส่ Tag "สะอาด")
 		if r.Rating >= 4 {
