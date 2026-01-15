@@ -1,29 +1,78 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-const HomeSidebar: React.FC = () => {
+interface Post {
+    ID: number;
+    MainCategory?: { ID: number; title: string };
+    [key: string]: any;
+}
+
+interface HomeSidebarProps {
+    posts?: Post[];
+}
+
+const HomeSidebar: React.FC<HomeSidebarProps> = ({ posts = [] }) => {
+    const navigate = useNavigate();
+
+    // Calculate top 5 categories by post count
+    const trendingCategories = useMemo(() => {
+        const categoryCount: Record<string, { id: number; title: string; count: number }> = {};
+
+        posts.forEach((post) => {
+            if (post.MainCategory) {
+                const key = post.MainCategory.ID.toString();
+                if (categoryCount[key]) {
+                    categoryCount[key].count++;
+                } else {
+                    categoryCount[key] = {
+                        id: post.MainCategory.ID,
+                        title: post.MainCategory.title,
+                        count: 1,
+                    };
+                }
+            }
+        });
+
+        return Object.values(categoryCount)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+    }, [posts]);
+
     return (
         <div className="lg:col-span-3 space-y-6">
-            {/* Widget: Trending */}
+            {/* Widget: Trending Categories */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    🔥 กำลังมาแรง
+                    🔥 หมวดหมู่ที่กำลังมาแรง
                 </h3>
-                <ul className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((item) => (
-                        <li key={item} className="flex items-center gap-3 cursor-pointer group">
-                            <span className="text-gray-400 font-medium text-sm w-4 text-center">
-                                #{item}
-                            </span>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
-                                    SUT_GameJam
-                                </p>
-                                <p className="text-[10px] text-gray-400">2.4k โพสต์</p>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                {trendingCategories.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีข้อมูล</p>
+                ) : (
+                    <ul className="space-y-3">
+                        {trendingCategories.map((category, index) => (
+                            <li
+                                key={category.id}
+                                onClick={() => navigate(`/User/Group?category=${category.id}`)}
+                                className="flex items-center gap-3 cursor-pointer group"
+                            >
+                                <span
+                                    className={`font-bold text-sm w-6 h-6 flex items-center justify-center rounded-full ${index < 3
+                                        ? "bg-orange-500 text-white"
+                                        : "bg-gray-100 text-gray-500"
+                                        }`}
+                                >
+                                    {index + 1}
+                                </span>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-700 group-hover:text-orange-600 transition-colors">
+                                        {category.title}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400">{category.count} โพสต์</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
 
             {/* Widget: Suggested Groups */}

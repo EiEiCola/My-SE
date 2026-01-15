@@ -85,7 +85,7 @@ const mapPostToItem = (post: Post): PostItem => {
   }
 
   let authorName = "ไม่เปิดเผยชื่อ";
-  let authorAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
+  let authorAvatar = `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`;
 
   if (!post.is_anonymous && post.author) {
     authorName =
@@ -130,18 +130,28 @@ const mapPostToItem = (post: Post): PostItem => {
 const PostComponent: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [popularRange, setPopularRange] = useState<"today" | "week">("today");
 
-  // Fetch posts from API
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const INITIAL_LIMIT = 10; // แสดง 10 โพสต์แรก
+  const LOAD_MORE_LIMIT = 20; // โหลดเพิ่มทีละ 20 โพสต์
+
+  // Fetch initial posts from API
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchInitialPosts = async () => {
       try {
         setLoading(true);
-        const response = await postService.getAll();
-
+        const response = await postService.getPaginated(1, INITIAL_LIMIT);
         const postItems = response.data.data.map(mapPostToItem);
         setPosts(postItems);
+        setHasMore(response.data.hasMore);
+        setTotalPosts(response.data.total);
+        setCurrentPage(1);
       } catch (error) {
         console.error("Failed to fetch posts:", error);
         message.error("ไม่สามารถโหลดโพสต์ได้");
@@ -150,14 +160,28 @@ const PostComponent: React.FC = () => {
       }
     };
 
-    fetchPosts();
+    fetchInitialPosts();
   }, []);
 
-  // แยกโพสต์เป็น realtime (ล่าสุด) และ popular (ยอดนิยม)
-  const realtimePosts = useMemo(() => {
-    return posts.slice(0, 5); // 5 โพสต์ล่าสุด
-  }, [posts]);
+  // Load more posts
+  const handleLoadMore = async () => {
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      const response = await postService.getPaginated(nextPage, LOAD_MORE_LIMIT);
+      const newPosts = response.data.data.map(mapPostToItem);
+      setPosts((prev) => [...prev, ...newPosts]);
+      setHasMore(response.data.hasMore);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error("Failed to load more posts:", error);
+      message.error("ไม่สามารถโหลดโพสต์เพิ่มได้");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
+  // แยกโพสต์เป็น popular (ยอดนิยม) - ใช้ posts ที่โหลดมาแล้ว
   const filteredPopularPosts = useMemo(() => {
     // เรียงตาม likes + views
     const sorted = [...posts].sort(
@@ -228,10 +252,10 @@ const PostComponent: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-4">
-              {realtimePosts.length === 0 ? (
+              {posts.length === 0 ? (
                 <Empty description="ยังไม่มีโพสต์ล่าสุด" />
               ) : (
-                realtimePosts.map((item) => (
+                posts.map((item: PostItem) => (
                   <Card
                     key={item.id}
                     hoverable
@@ -324,13 +348,23 @@ const PostComponent: React.FC = () => {
                 ))
               )}
 
-              <Button
-                type="text"
-                className="w-full text-center text-gray-400 hover:text-orange-500 hover:bg-transparent mt-2"
-                style={{ height: 40 }}
-              >
-                ดูโพสต์ทั้งหมด <ArrowRightOutlined />
-              </Button>
+              {/* Load More Button */}
+              {hasMore && (
+                <Button
+                  type="text"
+                  loading={loadingMore}
+                  className="w-full text-center text-gray-400 hover:text-orange-500 hover:bg-transparent mt-2"
+                  style={{ height: 40 }}
+                  onClick={handleLoadMore}
+                >
+                  {loadingMore ? "กำลังโหลด..." : `โหลดเพิ่มเติม (${posts.length}/${totalPosts} โพสต์)`} <ArrowRightOutlined />
+                </Button>
+              )}
+              {!hasMore && posts.length > 0 && (
+                <div className="text-center text-gray-400 text-sm mt-2">
+                  แสดงโพสต์ทั้งหมด {posts.length} โพสต์แล้ว
+                </div>
+              )}
             </div>
           </Col>
 

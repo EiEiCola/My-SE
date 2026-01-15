@@ -217,6 +217,7 @@ const PostManage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostItem | null>(null);
   const [deleteForm] = Form.useForm();
 
@@ -233,23 +234,42 @@ const PostManage: React.FC = () => {
         const apiPosts = response.data.data;
 
         // Map API response to PostItem format
-        const mappedPosts: PostItem[] = apiPosts.map((p) => ({
-          id: p.ID,
-          authorName: p.is_anonymous ? "ไม่เปิดเผยชื่อ" : `User #${p.author_id}`,
-          authorAvatar: `https://api.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`,
-          title: p.title,
-          category: "ทั่วไป", // TODO: map category from backend
-          createdAt: new Date(p.created_at).toLocaleString("th-TH"),
-          status: (p.status?.toLowerCase() || "active") as PostStatus,
-          reportCount: p.reports?.length || 0,
-          content: p.content,
-          reports: p.reports?.map((r) => ({
-            id: r.ID,
-            reporter: r.reporter,
-            reason: r.reason,
-            createdAt: r.created_at,
-          })),
-        }));
+        const mappedPosts: PostItem[] = apiPosts.map((p) => {
+          // Get author name from backend
+          let authorName = "ไม่เปิดเผยชื่อ";
+          let authorAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
+          if (!p.is_anonymous && p.author) {
+            authorName = p.author.username || `${p.author.first_name} ${p.author.last_name}`;
+            authorAvatar = p.author.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`;
+          }
+
+          // Get category name from backend
+          let categoryName = "ไม่มีหมวดหมู่";
+          if (p.MainCategory?.title) {
+            categoryName = p.MainCategory.title;
+            if (p.SubCategoryL1?.title) {
+              categoryName += ` > ${p.SubCategoryL1.title}`;
+            }
+          }
+
+          return {
+            id: p.ID,
+            authorName,
+            authorAvatar,
+            title: p.title,
+            category: categoryName,
+            createdAt: new Date(p.created_at).toLocaleString("th-TH"),
+            status: (p.status?.toLowerCase() || "active") as PostStatus,
+            reportCount: p.reports?.length || 0,
+            content: p.content,
+            reports: p.reports?.map((r) => ({
+              id: r.ID,
+              reporter: r.reporter,
+              reason: r.reason,
+              createdAt: r.created_at,
+            })),
+          };
+        });
 
         setPosts(mappedPosts);
       } catch (error) {
@@ -319,42 +339,28 @@ const PostManage: React.FC = () => {
 
       if (!selectedPost) return;
 
-      Modal.confirm({
-        title: "Are you sure?",
-        icon: <ExclamationCircleOutlined style={{ color: "#ef4444" }} />,
-        content: (
-          <>
-            <p>คุณต้องการลบโพสต์นี้จริง ๆ หรือไม่?</p>
-            <p style={{ fontSize: 12, color: "#6b7280" }}>
-              ระบบจะส่งแจ้งเตือนไปยังเจ้าของโพสต์พร้อมเหตุผลการลบ
-            </p>
-          </>
-        ),
-        okText: "Yes, Delete it!",
-        okType: "danger",
-        cancelText: "Cancel",
-        onOk: async () => {
-          try {
-            await adminPostService.delete(selectedPost.id);
-            setPosts((prev) =>
-              prev.map((p) =>
-                p.id === selectedPost.id
-                  ? {
-                    ...p,
-                    status: "deleted",
-                    deletedReason: reason,
-                  }
-                  : p
-              )
-            );
-            setDeleteModalOpen(false);
-            message.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
-          } catch (error) {
-            console.error("Failed to delete post:", error);
-            message.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
-          }
-        },
-      });
+      setDeleting(true);
+      try {
+        await adminPostService.delete(selectedPost.id, reason);
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === selectedPost.id
+              ? {
+                ...p,
+                status: "deleted",
+                deletedReason: reason,
+              }
+              : p
+          )
+        );
+        setDeleteModalOpen(false);
+        message.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
+      } catch (error) {
+        console.error("Failed to delete post:", error);
+        message.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
+      } finally {
+        setDeleting(false);
+      }
     } catch {
       // validation ไม่ผ่าน
     }
@@ -696,6 +702,7 @@ const PostManage: React.FC = () => {
           cancelText="Cancel"
           onCancel={() => setDeleteModalOpen(false)}
           onOk={handleSubmitDelete}
+          confirmLoading={deleting}
           destroyOnClose
         >
           {selectedPost && (

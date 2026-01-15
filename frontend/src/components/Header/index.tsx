@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
-  Search, Settings, Help, DarkMode, ChatBubble, ExitToApp, Person
+  Search, Settings, Help, DarkMode, ChatBubble, ExitToApp, Person,
+  Notifications
 } from '@mui/icons-material';
 import { memberAPI } from "../../services/http/member_profile";
 import { adminProfileAPI } from "../../services/http/admin_profile";
+import { notificationAPI, type Notification } from "../../services/http/notification";
+import { Badge } from "antd"; // Use Ant Design Badge if available, or custom css
 
 interface HeaderProps {
   role: "admin" | "user";
@@ -17,6 +20,11 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notification State
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const [profileName, setProfileName] = useState(defaultUsername);
   const [profileImage, setProfileImage] = useState("");
@@ -49,13 +57,54 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       }
     };
     fetchProfile();
+    fetchProfile();
   }, [role]);
+
+  // Fetch Notifications
+  useEffect(() => {
+    if (role === 'user') {
+      const fetchNotifs = async () => {
+        try {
+          const res = await notificationAPI.getAll();
+          // Check data structure carefully
+          // API returns { data: Notification[] } based on controller
+          if (res.data && Array.isArray(res.data.data)) {
+            setNotifications(res.data.data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch notifications", err);
+        }
+      };
+      fetchNotifs();
+      // Poll every 30 seconds
+      const interval = setInterval(fetchNotifs, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [role]);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const handleRead = async (n: Notification) => {
+    if (!n.is_read) {
+      try {
+        await notificationAPI.markAsRead(n.ID);
+        setNotifications(prev => prev.map(item => item.ID === n.ID ? { ...item, is_read: true } : item));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    // Navigate or show detail?
+    // For now just mark as read
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -102,7 +151,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         "/User/Message": "ข้อความ",
         "/User/Friends": "เพื่อน",
         "/User/Post": "ฟีด",
-        "/User/Group": "กลุ่ม",
+        "/User/Group": "หมวดหมู่",
         "/User/Review": "รีวิว",
         "/User/Voting": "โพล",
         "/User/Announcement": "ประชาสัมพันธ์",
@@ -116,82 +165,126 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const subtitle = role === "admin" ? "Admin Panel" : "Welcome back";
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 px-6 py-4 relative z-40">
+    <div className="bg-gradient-to-r from-orange-500 to-orange-600 backdrop-blur-xl border-b border-orange-400/50 px-6 py-4 relative z-40 shadow-lg">
       <div className="flex items-center justify-between">
 
         {/* LEFT: Title */}
         <div className="hidden md:block">
-          <h1 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h1>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <h1 className="text-xl font-bold text-white">{title}</h1>
+          <p className="text-sm text-white/70">{subtitle}</p>
         </div>
 
         {/* CENTER: Search */}
         <div className="flex-1 max-w-md mx-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 w-5 h-5" />
             <input
               type="text"
               placeholder="Search anything..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800
-              border border-slate-200 dark:border-slate-700
-              rounded-full text-slate-800 dark:text-white
-              placeholder-slate-500 dark:placeholder-slate-400
+              className="w-full pl-10 pr-4 py-2.5 bg-white/20
+              border border-white/30
+              rounded-full text-white
+              placeholder-white/60
               focus:outline-none focus:ring-2
-              focus:ring-blue-500 focus:border-transparent transition-all"
+              focus:ring-white/50 focus:border-transparent transition-all"
             />
           </div>
         </div>
 
-        {/* RIGHT: Profile Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-200 hover:border-blue-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            {/* Fallback image if no profile picture */}
-            <img
-              src={profileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"}
-              alt="User Avatar"
-              className="w-full h-full object-cover"
-            />
-          </button>
+        {/* RIGHT: Notification Bell + Profile Dropdown */}
+        <div className="flex items-center gap-4">
+          {/* Notification Bell */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+              title="แจ้งเตือน"
+            >
+              <Badge count={unreadCount} size="small" offset={[5, 0]}>
+                <Notifications className="w-6 h-6 text-white" />
+              </Badge>
+            </button>
 
-          {/* Dropdown Menu */}
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+            {/* Notification Dropdown */}
+            {isNotifOpen && (
+              <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 border-b border-gray-700 flex justify-between items-center bg-[#242526]">
+                  <h4 className="font-semibold">Notifications</h4>
+                  {unreadCount > 0 && <span className="text-xs bg-red-500 px-2 py-0.5 rounded-full">{unreadCount} new</span>}
+                </div>
 
-              {/* Header: User Info */}
-              <div className="p-4 border-b border-gray-700">
-                <Link to={role === "admin" ? "/Admin/ProfileManage" : "/User/Profile"} className="flex items-center gap-3 p-2 hover:bg-[#3a3b3c] rounded-lg transition-colors group">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-500 shrink-0">
-                    <img
-                      src={profileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"}
-                      alt="User"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-base truncate group-hover:underline">{profileName}</h4>
-                    <p className="text-sm text-gray-400">View your profile</p>
-                  </div>
-                </Link>
+                <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-400">No notifications</div>
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n.ID}
+                        onClick={() => handleRead(n)}
+                        className={`p-3 border-b border-gray-700/50 hover:bg-[#3a3b3c] cursor-pointer transition-colors ${!n.is_read ? 'bg-[#2a3b4c]' : ''}`}
+                      >
+                        <div className="text-sm font-semibold text-orange-400 mb-1">{n.title}</div>
+                        <div className="text-sm text-gray-300 line-clamp-2">{n.message}</div>
+                        <div className="text-xs text-gray-500 mt-2">{new Date(n.CreatedAt).toLocaleString('th-TH')}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Menu Items */}
-              <div className="p-2 space-y-1">
-                {/* Logout */}
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 p-2 hover:bg-[#3a3b3c] rounded-lg transition-colors text-left"
-                >
-                  <div className="w-9 h-9 rounded-full bg-[#3a3b3c] flex items-center justify-center shrink-0">
-                    <ExitToApp className="w-5 h-5" />
-                  </div>
-                  <span className="font-medium text-sm flex-1">ออกจากระบบ</span>
-                </button>
+          {/* Profile Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/50 hover:border-white transition-all focus:outline-none focus:ring-2 focus:ring-white/30"
+            >
+              {/* Fallback image if no profile picture */}
+              <img
+                src={profileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"}
+                alt="User Avatar"
+                className="w-full h-full object-cover"
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+
+                {/* Header: User Info */}
+                <div className="p-4 border-b border-gray-700">
+                  <Link to={role === "admin" ? "/Admin/ProfileManage" : "/User/Profile"} className="flex items-center gap-3 p-2 hover:bg-[#3a3b3c] rounded-lg transition-colors group">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-500 shrink-0">
+                      <img
+                        src={profileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"}
+                        alt="User"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-base truncate group-hover:underline">{profileName}</h4>
+                      <p className="text-sm text-gray-400">View your profile</p>
+                    </div>
+                  </Link>
+                </div>
+
+                {/* Menu Items */}
+                <div className="p-2 space-y-1">
+                  {/* Logout */}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 p-2 hover:bg-[#3a3b3c] rounded-lg transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#3a3b3c] flex items-center justify-center shrink-0">
+                      <ExitToApp className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium text-sm flex-1">ออกจากระบบ</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
       </div>

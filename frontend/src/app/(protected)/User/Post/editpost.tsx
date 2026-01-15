@@ -7,11 +7,10 @@ import {
     Space,
     Typography,
     Switch,
-    message,
     Spin,
     Upload,
     Image,
-    notification,
+    App,
 } from "antd";
 import type { UploadFile, UploadProps } from "antd";
 import {
@@ -65,6 +64,7 @@ interface ExistingAttachment {
 const EditPost: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const { message } = App.useApp();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -226,19 +226,11 @@ const EditPost: React.FC = () => {
             });
 
             await postService.updateWithFiles(Number(id), formData);
-            notification.success({
-                message: "✅ แก้ไขโพสต์สำเร็จ",
-                description: "โพสต์ของคุณถูกแก้ไขเรียบร้อยแล้ว",
-                placement: "top",
-            });
+            message.success("แก้ไขโพสต์สำเร็จ");
             navigate(`/User/Post/detail/${id}`);
         } catch (error) {
             console.error("Failed to update post:", error);
-            notification.error({
-                message: "❌ เกิดข้อผิดพลาด",
-                description: "ไม่สามารถแก้ไขโพสต์ได้ กรุณาลองใหม่อีกครั้ง",
-                placement: "top",
-            });
+            message.error("ไม่สามารถแก้ไขโพสต์ได้ กรุณาลองใหม่อีกครั้ง");
         } finally {
             setSaving(false);
         }
