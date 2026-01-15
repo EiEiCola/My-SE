@@ -400,6 +400,36 @@ func (s *ChatService) AddMembersToGroup(userID, roomID uint, newMemberIDs []uint
 			})
 		}
 	}
+	// 3. Create System Message: "User invited A, B to the group"
+	inviterName := "Someone"
+	if inviter, err := s.friendRepo.GetMemberProfile(int(userID)); err == nil {
+		inviterName = inviter.FirstName
+	}
+
+	// Get names of invited members
+	var invitedNames string
+	for i, id := range newMemberIDs {
+		if member, err := s.friendRepo.GetMemberProfile(int(id)); err == nil {
+			if i > 0 {
+				invitedNames += ", "
+			}
+			invitedNames += member.FirstName
+		}
+	}
+
+	sysMsg := entity.Message{
+		RoomID:    roomID,
+		SenderID:  userID,
+		Content:   inviterName + " เชิญ " + invitedNames + " เข้ากลุ่ม",
+		Type:      "system",
+		SentAt:    time.Now(),
+		IsDeleted: false,
+	}
+	s.repo.CreateMessage(&sysMsg)
+
+	// Broadcast
+	s.broadcastSystemMessage(roomID, &sysMsg)
+
 	return nil
 }
 
@@ -418,6 +448,45 @@ func (s *ChatService) UpdateMemberRole(adminID, roomID, targetMemberID uint, new
 
 	// 3. อัปเดต
 	return s.repo.UpdateMemberRole(roomID, targetMemberID, newRole)
+}
+
+// Kick Member (Admin Only)
+func (s *ChatService) KickMember(adminID, roomID, targetMemberID uint) error {
+	// 1. Check Admin Permission
+	isAdmin, _ := s.repo.IsRoomAdmin(roomID, adminID)
+	if !isAdmin {
+		return errors.New("permission denied: you are not an admin")
+	}
+
+	// 2. Remove Member
+	if err := s.repo.RemoveRoomMember(roomID, targetMemberID); err != nil {
+		return err
+	}
+
+	// 3. Create System Message
+	adminName := "Admin"
+	if admin, err := s.friendRepo.GetMemberProfile(int(adminID)); err == nil {
+		adminName = admin.FirstName
+	}
+	targetName := "Member"
+	if target, err := s.friendRepo.GetMemberProfile(int(targetMemberID)); err == nil {
+		targetName = target.FirstName
+	}
+
+	sysMsg := entity.Message{
+		RoomID:    roomID,
+		SenderID:  adminID,
+		Content:   adminName + " เตะ " + targetName + " ออกจากกลุ่ม",
+		Type:      "system",
+		SentAt:    time.Now(),
+		IsDeleted: false,
+	}
+	s.repo.CreateMessage(&sysMsg)
+
+	// 4. Broadcast
+	s.broadcastSystemMessage(roomID, &sysMsg)
+
+	return nil
 }
 
 func (s *ChatService) LeaveRoom(userID, roomID uint) error {
@@ -447,6 +516,46 @@ func (s *ChatService) LeaveRoom(userID, roomID uint) error {
 		}
 	}
 
-	// 3. ลบตัวเองออกจากห้อง
-	return s.repo.RemoveRoomMember(roomID, userID)
+	// 3. Create System Message: "User left the group" (Before removing, so they might see it? No, after is better for others)
+	userName := "Someone"
+	if user, err := s.friendRepo.GetMemberProfile(int(userID)); err == nil {
+		userName = user.FirstName
+	}
+
+	// 4. ลบตัวเองออกจากห้อง
+	if err := s.repo.RemoveRoomMember(roomID, userID); err != nil {
+		return err
+	}
+
+	// 5. Broadcast System Message
+	sysMsg := entity.Message{
+		RoomID:    roomID,
+		SenderID:  userID,
+		Content:   userName + " ออกจากกลุ่ม",
+		Type:      "system",
+		SentAt:    time.Now(),
+		IsDeleted: false,
+	}
+	s.repo.CreateMessage(&sysMsg)
+	s.broadcastSystemMessage(roomID, &sysMsg)
+
+	return nil
+}
+
+// Helper for broadcasting system messages
+func (s *ChatService) broadcastSystemMessage(roomID uint, msg *entity.Message) {
+	members, _ := s.repo.GetRoomMembers(roomID)
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type:    "new_message",
+			Payload: msg,
+			RoomID:  roomID,
+		},
+	}
 }
