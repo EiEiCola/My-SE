@@ -53,9 +53,10 @@ const ORANGE = "#ff6a00";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 // Helper function to format avatar URL
-const formatAvatarUrl = (url: string | undefined | null): string => {
-    if (!url) return `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`;
+const formatAvatarUrl = (url: string | undefined | null, seed?: string | number): string => {
+    if (!url) return `https://api.dicebear.com/7.x/thumbs/svg?seed=${seed || 'default'}`;
     if (url.startsWith("http")) return url;
+    if (url.startsWith("data:")) return url; // Support Base64
     if (url.startsWith("/")) return `${API_BASE}${url}`;
     return `${API_BASE}/${url}`;
 };
@@ -153,7 +154,7 @@ const PostDetail: React.FC = () => {
 
                 if (!apiPost.is_anonymous && apiPost.author) {
                     ownerName = apiPost.author.username || `${apiPost.author.first_name} ${apiPost.author.last_name}`;
-                    ownerAvatar = formatAvatarUrl(apiPost.author.member_picture);
+                    ownerAvatar = formatAvatarUrl(apiPost.author.member_picture, apiPost.author_id);
                 }
 
                 setPost({

@@ -26,12 +26,12 @@ func SetupAdminPostRoutes(r *gin.RouterGroup) {
 
 	// เพิ่ม pointService เข้าไปเป็นตัวแปรสุดท้าย (ตัวที่ 8)
 	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService)
-	
+
 	postCtrl := adminctl.NewAdminPostController(postSvc)
 
 	posts := r.Group("/posts")
 	{
-		posts.GET("", postCtrl.GetAllPosts)       // GET /api/admin/posts
-		posts.DELETE("/:id", postCtrl.DeletePost) // DELETE /api/admin/posts/:id
+		posts.GET("", postCtrl.GetAllPosts)            // GET /api/admin/posts
+		posts.POST("/:id/delete", postCtrl.DeletePost) // POST /api/admin/posts/:id/delete
 	}
 }
