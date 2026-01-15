@@ -21,6 +21,13 @@ func NewChatService(repo repository.ChatRepository, friendRepo *repository.Frien
 }
 
 // ----------------------------------------------------------------
+// Helper: Resolve Member ID
+// ----------------------------------------------------------------
+func (s *ChatService) GetMemberIDByAccountID(accountID uint) (uint, error) {
+	return s.repo.GetMemberIDByAccountID(accountID)
+}
+
+// ----------------------------------------------------------------
 // 1. CreateRoom: สร้างห้องแชท (Private / Group)
 // ----------------------------------------------------------------
 func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*entity.RoomChat, error) {

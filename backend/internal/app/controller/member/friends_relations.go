@@ -22,7 +22,6 @@ func NewFriendshipController(s *services.FriendService) *FriendshipController {
 func (c *FriendshipController) getMemberID(ctx *gin.Context) (int, error) {
 	accountID := ctx.MustGet("user_id").(uint)
 	var member entity.Member
-	//แก้ไข: ใช้ member_account_id แทน id
 	if err := c.Service.Repo.DB.Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
 		return 0, err
 	}
