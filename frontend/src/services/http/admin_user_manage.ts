@@ -18,6 +18,7 @@ export type AdminUserAccountDTO = {
   code?: string;
   is_locked?: boolean;
   locked_reason?: string;
+  profile_picture?: string;
 };
 
 export type AdminUserSearchQuery = {

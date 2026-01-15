@@ -77,7 +77,9 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const adminTitles: { [key: string]: string } = {
         "/Admin": "หน้าหลัก",
         "/Admin/ProfileManage": "จัดการผู้ใช้",
+        "/Admin/Profile/Edit" : "แก้ไขโปรไฟล์" ,
         "/Admin/RewardManage": "จัดการสะสมแต้ม",
+        "/Admin/RewardManage/PointRule" : "จัดการกฎการได้แต้ม" ,
         "/Admin/MessageManage": "จัดการข้อความ",
         "/Admin/FriendsManage": "จัดการเพื่อน",
         "/Admin/PostManage": "จัดการโพสต์",
@@ -92,6 +94,10 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const userTitles: { [key: string]: string } = {
         "/User": "หน้าหลัก",
         "/User/Profile": "โปรไฟล์",
+        "/User/Profile/Edit" : "แก้ไขโปรไฟล์" ,
+        "/User/Profile/sticker" : "โปรไฟล์" ,
+        "/User/Profile/post" : "โปรไฟล์" , 
+         "/User/Profile/fav" : "โปรไฟล์" ,           
         "/User/Reward": "สะสมแต้ม",
         "/User/Message": "ข้อความ",
         "/User/Friends": "เพื่อน",

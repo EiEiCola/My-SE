@@ -68,10 +68,10 @@ const PointRuleModal: React.FC<Props> = ({ open, onClose }) => {
 
     const bySearch = q
       ? rules.filter((r) => {
-          const a = (r.activity_type || "").toLowerCase();
-          const d = (r.description || "").toLowerCase();
-          return a.includes(q) || d.includes(q); // ✅ search ได้ทั้ง activity + description
-        })
+        const a = (r.activity_type || "").toLowerCase();
+        const d = (r.description || "").toLowerCase();
+        return a.includes(q) || d.includes(q); // ✅ search ได้ทั้ง activity + description
+      })
       : rules;
 
     return [...bySearch].sort((a, b) =>
@@ -85,6 +85,14 @@ const PointRuleModal: React.FC<Props> = ({ open, onClose }) => {
       onCancel={onClose}
       onOk={onClose}
       okText="ปิด"
+      okButtonProps={{
+        style: {
+          background: "linear-gradient(45deg, #FF8008, #FFC837)",
+          borderColor: "transparent",
+          color: "white",
+          fontWeight: 700,
+        },
+      }}
       cancelButtonProps={{ style: { display: "none" } }}
       title="ได้รับแต้มจากอะไรบ้าง ?"
       width={920} // ✅ เพิ่มนิดนึง เผื่อ description

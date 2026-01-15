@@ -24,20 +24,14 @@ type RewardItem = {
 };
 
 type MyStickerItem = {
-  id: number; // member_reward id
+  id: number;
   redeemed_at?: string;
   reward_id?: number;
-
-  // ✅ รองรับ response แบบใหม่ (flat)
   reward_name?: string;
   reward_picture?: string;
   point_required?: number;
-
-  // ✅ รองรับ response แบบเก่า (nested)
   reward?: any;
   Reward?: any;
-
-  // snapshot (เผื่อใช้)
   reward_name_snapshot?: string;
   point_required_snapshot?: number;
 };
@@ -84,7 +78,6 @@ const normalizeReward = (raw: any): RewardItem => {
   };
 };
 
-// ✅ ดึงชื่อ/รูป MySticker ให้รองรับทุกแบบ (flat + nested + snapshot)
 const getStickerName = (it: MyStickerItem) => {
   const rw: any = it?.reward ?? (it as any)?.Reward;
 
@@ -103,7 +96,6 @@ const getStickerImg = (it: MyStickerItem) => {
   return it?.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
 };
 
-// ✅ NEW: ดึงแต้มสติ๊กเกอร์ใน MySticker (flat + nested + snapshot)
 const getStickerPoints = (it: MyStickerItem) => {
   const rw: any = it?.reward ?? (it as any)?.Reward;
 
@@ -124,7 +116,6 @@ const getRewardIdFromSticker = (it: MyStickerItem) => {
   return Number.isFinite(rid) && rid > 0 ? rid : 0;
 };
 
-// ✅ parse helper สำหรับ /member/points (รองรับ object / string / wrapped data)
 const parseTotalPoint = (payload: any): number => {
   try {
     const body = typeof payload === "string" ? JSON.parse(payload) : payload;
@@ -148,25 +139,17 @@ const parseTotalPoint = (payload: any): number => {
 };
 
 const Reward: React.FC = () => {
-  // -------------------- State --------------------
   const [activeTab, setActiveTab] = useState<"shop" | "my">("shop");
   const [myPoints, setMyPoints] = useState<number>(0);
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [myStickers, setMyStickers] = useState<MyStickerItem[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // ✅ Filter/Sort (Shop only)
   const [searchText, setSearchText] = useState("");
   const [sortPoints, setSortPoints] = useState<"asc" | "desc">("asc");
-
-  // ✅ Confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selected, setSelected] = useState<RewardItem | null>(null);
-
-  // ✅ Point Rule popup open/close
   const [ruleOpen, setRuleOpen] = useState(false);
 
-  // -------------------- Load --------------------
   const loadRewards = async () => {
     setLoading(true);
     try {
@@ -214,7 +197,6 @@ const Reward: React.FC = () => {
     loadMyPoints();
   }, []);
 
-  // -------------------- Derived --------------------
   const canBuy = (p: number) => myPoints >= p;
 
   const ownedRewardIds = useMemo(() => {
@@ -242,7 +224,6 @@ const Reward: React.FC = () => {
     return sorted;
   }, [rewards, searchText, sortPoints]);
 
-  // -------------------- Action --------------------
   const handleClickPurchase = (item: RewardItem) => {
     if (isOwned(item.id)) {
       message.info("คุณมีสติ๊กเกอร์นี้แล้ว ✅");
@@ -291,7 +272,6 @@ const Reward: React.FC = () => {
     setSelected(null);
   };
 
-  // -------------------- UI --------------------
   return (
     <main
       style={{
@@ -299,16 +279,20 @@ const Reward: React.FC = () => {
         padding: 30,
         display: "flex",
         justifyContent: "center",
+        // ✅ ไล่สีพื้นหลัง (Gradient) ส้มอ่อนๆ ให้ดู Premium
+        background: "linear-gradient(135deg, #FFF7ED 0%, #FFEEE5 100%)",
       }}
     >
       <div style={{ width: "100%", maxWidth: 1100 }}>
         {/* TOP POINT */}
         <Card
           style={{
-            borderRadius: 20,
+            borderRadius: 24,
             marginBottom: 25,
-            background: "#ffffff",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
+            background: "rgba(255, 255, 255, 0.9)", // Glassy effect
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 20px 40px rgba(255, 154, 102, 0.15)", // Orange glow shadow
+            border: "1px solid rgba(255, 255, 255, 0.6)",
           }}
         >
           <div
@@ -323,10 +307,13 @@ const Reward: React.FC = () => {
                 level={3}
                 style={{
                   margin: 0,
-                  color: "#C42E0A",
-                  fontWeight: 700,
-                  fontSize: 25,
+                  background: "linear-gradient(45deg, #FF512F, #DD2476)", // Gradient Text
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  fontWeight: 800,
+                  fontSize: 32,
                   paddingLeft: 15,
+                  letterSpacing: "0.5px",
                 }}
               >
                 My Points
@@ -336,17 +323,24 @@ const Reward: React.FC = () => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  marginTop: 10,
-                  gap: 10,
+                  marginTop: 12,
+                  gap: 12,
                   paddingLeft: 12,
                 }}
               >
-                <StarsIcon style={{ color: "#FFC107", fontSize: 34 }} />
+                <StarsIcon
+                  style={{
+                    color: "#FFC107",
+                    fontSize: 40,
+                    filter: "drop-shadow(0 2px 4px rgba(255, 193, 7, 0.3))",
+                  }}
+                />
                 <span
                   style={{
-                    fontSize: 34,
+                    fontSize: 40,
                     fontWeight: 700,
                     color: "#FFC107",
+                    textShadow: "0 2px 4px rgba(255, 193, 7, 0.2)",
                   }}
                 >
                   {myPoints}
@@ -354,16 +348,27 @@ const Reward: React.FC = () => {
               </div>
             </div>
 
-            {/* Tabs */}
             <div style={{ display: "flex", gap: 12 }}>
               <Button
                 onClick={() => setActiveTab("shop")}
                 style={{
-                  backgroundColor: "#C42E0A",
-                  color: "white",
-                  borderRadius: 10,
+                  background: activeTab === "shop"
+                    ? "linear-gradient(45deg, #FF512F, #DD2476)"
+                    : "rgba(255, 81, 47, 0.1)", // Light orange tint when inactive
+                  color: activeTab === "shop" ? "white" : "#FF512F",
+                  borderRadius: 20,
                   fontWeight: 700,
-                  opacity: activeTab === "shop" ? 1 : 0.6,
+                  fontSize : 15,
+                  height: 44,
+                  paddingLeft: 28,
+                  paddingRight: 28,
+                  border: "none",
+                  transform: activeTab === "shop" ? "scale(1.05)" : "scale(1)",
+                  boxShadow:
+                    activeTab === "shop"
+                      ? "0 10px 20px rgba(221, 36, 118, 0.3)"
+                      : "none",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
                 Sticker Shop
@@ -376,11 +381,23 @@ const Reward: React.FC = () => {
                   loadMyPoints();
                 }}
                 style={{
-                  backgroundColor: "#C42E0A",
-                  color: "white",
-                  borderRadius: 10,
+                  background: activeTab === "my"
+                    ? "linear-gradient(45deg, #FF512F, #DD2476)"
+                    : "rgba(255, 81, 47, 0.1)",
+                  color: activeTab === "my" ? "white" : "#FF512F",
+                  borderRadius: 20,
                   fontWeight: 700,
-                  opacity: activeTab === "my" ? 1 : 0.6,
+                  fontSize : 15,
+                  height: 44,
+                  paddingLeft: 28,
+                  paddingRight: 28,
+                  border: "none",
+                  transform: activeTab === "my" ? "scale(1.05)" : "scale(1)",
+                  boxShadow:
+                    activeTab === "my"
+                      ? "0 10px 20px rgba(221, 36, 118, 0.3)"
+                      : "none",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
                 My Sticker
@@ -405,7 +422,7 @@ const Reward: React.FC = () => {
             style={{
               color: "#C42E0A",
               fontWeight: 700,
-              fontSize: 20,
+              fontSize: 22,
               margin: 0,
             }}
           >
@@ -427,7 +444,11 @@ const Reward: React.FC = () => {
                   placeholder="Search..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  style={{ width: 260, borderRadius: 10 }}
+                  style={{
+                    width: 260,
+                    borderRadius: 12,
+                    height: 40,
+                  }}
                 />
 
                 <Select
@@ -447,7 +468,7 @@ const Reward: React.FC = () => {
                   padding: 0,
                   height: "auto",
                   fontWeight: 600,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: "#C42E0A",
                 }}
                 onClick={() => setRuleOpen(true)}
@@ -474,74 +495,120 @@ const Reward: React.FC = () => {
               const disabled = owned || !canBuy(it.points);
 
               return (
-                <Card
+                <div
                   key={it.id}
                   style={{
-                    borderRadius: 18,
-                    background: "#ffffff",
-                    height: 280,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                    opacity: owned ? 0.95 : 1,
+                    transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    cursor: "pointer",
                   }}
-                  bodyStyle={{
-                    padding: 18,
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform =
+                      "translateY(-12px) scale(1.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0) scale(1)";
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <StarsIcon style={{ color: "#FFC107", fontSize: 26 }} />
-                    <span
+                  <Card
+                    style={{
+                      borderRadius: 24,
+                      background: "#FFFFFF",
+                      height: 310, // Added height for better spacing
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
+                      border: "1px solid rgba(255, 247, 237, 1)",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                    bodyStyle={{
+                      padding: 20,
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <StarsIcon style={{ color: "#FFC107", fontSize: 26 }} />
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: "#FFC107",
+                          fontSize: 24,
+                        }}
+                      >
+                        {it.points}
+                      </span>
+                    </div>
+
+                    <div
                       style={{
-                        fontWeight: 700,
-                        color: "#FFC107",
-                        fontSize: 24,
+                        transition: "transform 0.3s ease",
+                        position: "relative",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "scale(1.1) rotate(5deg)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "scale(1) rotate(0deg)";
                       }}
                     >
-                      {it.points}
-                    </span>
-                  </div>
+                      <img
+                        src={it.image}
+                        alt={it.name}
+                        style={{
+                          width: 110,
+                          height: 110,
+                          objectFit: "contain",
+                          filter: owned ? "grayscale(50%)" : "none",
+                          transition: "filter 0.3s ease",
+                        }}
+                      />
+                    </div>
 
-                  <img
-                    src={it.image}
-                    alt={it.name}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      objectFit: "contain",
-                    }}
-                  />
+                    <Text
+                      style={{
+                        fontWeight: 700,
+                        color: "#C42E0A",
+                        fontSize: 18,
+                        textAlign: "center",
+                      }}
+                    >
+                      {it.name}
+                    </Text>
 
-                  <Text
-                    style={{
-                      fontWeight: 600,
-                      color: "#C42E0A",
-                      fontSize: 18,
-                    }}
-                  >
-                    {it.name}
-                  </Text>
-
-                  <Button
-                    disabled={disabled}
-                    onClick={() => handleClickPurchase(it)}
-                    style={{
-                      backgroundColor: "#c42e0a",
-                      color: "white",
-                      borderRadius: 10,
-                      height: 30,
-                      padding: "0 18px",
-                      opacity: disabled ? 0.5 : 1,
-                      border: "none",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {owned ? "Owned" : "Purchase"}
-                  </Button>
-                </Card>
+                    <Button
+                      disabled={disabled}
+                      onClick={() => handleClickPurchase(it)}
+                      style={{
+                        background: disabled
+                          ? "#e5e7eb"
+                          : "linear-gradient(45deg, #FF8008, #FFC837)", // Premium Orange Gradient
+                        color: disabled ? "#9ca3af" : "white",
+                        borderRadius: 15,
+                        height: 40,
+                        padding: "0 28px",
+                        border: "none",
+                        fontWeight: 700,
+                        fontSize: 16,
+                        boxShadow: disabled
+                          ? "none"
+                          : "0 5px 15px rgba(255, 128, 8, 0.3)",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!disabled) {
+                          e.currentTarget.style.transform = "scale(1.05)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
+                    >
+                      {owned ? "Owned" : "Purchase"}
+                    </Button>
+                  </Card>
+                </div>
               );
             })}
           </div>
@@ -558,12 +625,14 @@ const Reward: React.FC = () => {
               <Card
                 style={{
                   gridColumn: "1 / -1",
-                  borderRadius: 18,
-                  background: "#ffffff",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                  borderRadius: 20,
+                  background: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(4px)",
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
+                  border: "1px solid rgba(255, 247, 237, 1)",
                 }}
               >
-                <Text style={{ color: "#C42E0A", fontWeight: 600 }}>
+                <Text style={{ color: "#C42E0A", fontWeight: 600, fontSize: 16 }}>
                   ยังไม่มีสติ๊กเกอร์ที่แลกไว้
                 </Text>
               </Card>
@@ -571,97 +640,134 @@ const Reward: React.FC = () => {
               myStickers.map((it) => {
                 const name = getStickerName(it);
                 const img = getStickerImg(it);
-                const pts = getStickerPoints(it); // ✅ NEW
+                const pts = getStickerPoints(it);
 
                 return (
-                  <Card
+                  <div
                     key={it.id}
                     style={{
-                      borderRadius: 18,
-                      background: "#ffffff",
-                      height: 260,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                      transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                      cursor: "pointer",
                     }}
-                    bodyStyle={{
-                      padding: 18,
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "space-between",
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform =
+                        "translateY(-12px) scale(1.02) rotate(2deg)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform =
+                        "translateY(0) scale(1) rotate(0deg)";
                     }}
                   >
-                    {/* ✅ แต้ม (เหมือนหน้า shop) */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <StarsIcon style={{ color: "#FFC107", fontSize: 26 }} />
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color: "#FFC107",
-                          fontSize: 24,
-                        }}
-                      >
-                        {pts}
-                      </span>
-                    </div>
-
-                    {img ? (
-                      <img
-                        src={img}
-                        alt={name}
-                        style={{
-                          width: 110,
-                          height: 110,
-                          objectFit: "contain",
-                        }}
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src =
-                            "https://via.placeholder.com/110?text=Sticker";
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 110,
-                          height: 110,
-                          border: "1px dashed #ddd",
-                          borderRadius: 10,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#999",
-                          fontSize: 12,
-                        }}
-                      >
-                        No Image
-                      </div>
-                    )}
-
-                    <Text
+                    <Card
                       style={{
-                        fontWeight: 700,
-                        color: "#C42E0A",
-                        fontSize: 18,
+                        borderRadius: 24,
+                        background: "#FFFFFF",
+                        height: 290, // Adjusted height
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.06)", // Consistent premium shadow
+                        border: "1px solid rgba(255, 247, 237, 1)",
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                      bodyStyle={{
+                        padding: 20,
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                       }}
                     >
-                      {name}
-                    </Text>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <StarsIcon style={{ color: "#FFC107", fontSize: 26 }} />
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: "#FFC107",
+                            fontSize: 24,
+                          }}
+                        >
+                          {pts}
+                        </span>
+                      </div>
 
-                    {/* ✅ Owned icon ใหม่ */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <DomainVerificationIcon style={{ color: "gray" }} />
-                      <Text style={{ color: "gray", fontWeight: 600 }}>
-                        Owned
+                      {img ? (
+                        <div
+                          style={{
+                            transition: "transform 0.3s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform =
+                              "scale(1.15) rotate(-5deg)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                          }}
+                        >
+                          <img
+                            src={img}
+                            alt={name}
+                            style={{
+                              width: 115,
+                              height: 115,
+                              objectFit: "contain",
+                              filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))",
+                            }}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                "https://via.placeholder.com/115?text=Sticker";
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: 115,
+                            height: 115,
+                            border: "2px dashed #ddd",
+                            borderRadius: 12,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#999",
+                            fontSize: 12,
+                          }}
+                        >
+                          No Image
+                        </div>
+                      )}
+
+                      <Text
+                        style={{
+                          fontWeight: 700,
+                          color: "#C42E0A",
+                          fontSize: 18,
+                          textAlign: "center",
+                        }}
+                      >
+                        {name}
                       </Text>
-                    </div>
-                  </Card>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          marginTop: 10,
+                        }}
+                      >
+                        <DomainVerificationIcon style={{ color: "#10b981", fontSize: 22 }} />
+                        <Text style={{ color: "#10b981", fontWeight: 700, margin: 0, fontSize: 16 }}>
+                          Owned
+                        </Text>
+                      </div>
+                    </Card>
+                  </div>
                 );
               })
             )}
           </div>
         )}
 
-        {/* CONFIRM POPUP (redeem) */}
         <Modal
           open={confirmOpen}
           title="ยืนยันการแลกสติ๊กเกอร์"
@@ -670,7 +776,12 @@ const Reward: React.FC = () => {
           onOk={confirmPurchase}
           onCancel={cancelPurchase}
           okButtonProps={{
-            style: { backgroundColor: "#C42E0A", borderColor: "#C42E0A" },
+            style: {
+              background: "linear-gradient(45deg, #FF8008, #FFC837)",
+              borderColor: "transparent",
+              color: "white",
+              fontWeight: 700,
+            },
           }}
         >
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>

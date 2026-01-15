@@ -17,6 +17,8 @@ type PostController struct {
 	PointTransactionService services.PointTransactionService
 	PointRuleRepo           repository.PointRuleRepository
 	PostStarRepo            repository.PostStarRepository
+	MemberService           services.MemberService // ✅ Add MemberService
+	PointService            services.PointService  // ✅ Add PointService for EarnPoints
 }
 
 func NewPostController(
@@ -24,13 +26,31 @@ func NewPostController(
 	ptService services.PointTransactionService,
 	prRepo repository.PointRuleRepository,
 	psRepo repository.PostStarRepository,
+	mService services.MemberService, // ✅ Add param
+	pService services.PointService, // ✅ Add PointService
 ) *PostController {
 	return &PostController{
 		Service:                 s,
 		PointTransactionService: ptService,
 		PointRuleRepo:           prRepo,
 		PostStarRepo:            psRepo,
+		MemberService:           mService, // ✅ Init
+		PointService:            pService, // ✅ Init
 	}
+}
+
+// Helper to get Profile ID (MemberID) from AccountID (user_id in JWT)
+func (ctl *PostController) getMemberProfileID(c *gin.Context) (uint, bool) {
+	accountID := c.GetUint("user_id")
+	if accountID == 0 {
+		return 0, false
+	}
+	// Call MemberService to get profile
+	m, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		return 0, false
+	}
+	return m.ID, true
 }
 
 // ---- Create Post ----
@@ -97,9 +117,10 @@ func (ctl *PostController) CreatePost(c *gin.Context) {
 		}
 	}
 
-	memberID, ok := getMemberID(c)
+	// ✅ Fix: Get Profile ID (MemberID) instead of AccountID
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized (profile not found)"})
 		return
 	}
 
@@ -158,7 +179,7 @@ func (ctl *PostController) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -239,7 +260,7 @@ func (ctl *PostController) DeletePost(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -270,7 +291,7 @@ func (ctl *PostController) GetLikeStatus(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -301,7 +322,7 @@ func (ctl *PostController) ToggleLike(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -327,7 +348,7 @@ func (ctl *PostController) ToggleBookmark(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -352,7 +373,7 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -371,15 +392,9 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 2. Find PointRule "StarPost"
-	rule, err := ctl.PointRuleRepo.GetByActivityType("StarPost")
-	if err != nil || rule == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "star feature not available"})
-		return
-	}
+	// 2. Check if already starred
+	// (PointRule fetching moved to inside EarnPoints)
 
-	// 3. Check if already starred
-	// 3. Check if already starred using PostStarRepo
 	hasStarred, err := ctl.PostStarRepo.HasStarred(memberID, postID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -390,7 +405,7 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 4. Create PostStar record
+	// 3. Create PostStar record
 	star := &entity.PostStar{
 		MemberID: memberID,
 		PostID:   post.ID,
@@ -400,30 +415,28 @@ func (ctl *PostController) SendStar(c *gin.Context) {
 		return
 	}
 
-	// 5. Create Transaction (Give points to Author)
-	// We want to give points to the AUTHOR.
-	// So calling CreatePointTransaction with memberID = post.AuthorID
-	// And refIDs including post_id
-	refIDs := map[string]uint{
-		"post_id": post.ID,
-	}
+	// 4. ⭐ POINT SYSTEM: Give points to Author (Post Quality)
+	if ctl.PointService != nil {
+		// Idempotency: "Post Quality:<PostID>:<SenderID>"
+		// Ensures points are awarded unique per [Post + Sender] pair
+		idemKey := "Post Quality:" + strconv.FormatUint(uint64(post.ID), 10) + ":" + strconv.FormatUint(uint64(memberID), 10)
 
-	// Note: PointTransactionService checks daily limit for the "receiving" user if validation is standard.
-	// But usually DailyLimit is for EARNING actions. Here Author earns.
-	// We assume StarPost rule is set for the Author.
+		// Author receives points
+		// Source: "POST_STAR", SourceID: star.ID
+		err := ctl.PointService.EarnPoints(
+			post.AuthorID,
+			"Post Quality", // Renamed from StarPost
+			"POST_STAR",
+			star.ID,
+			idemKey,
+		)
 
-	_, err = ctl.PointTransactionService.CreatePointTransaction(post.AuthorID, rule.ID, refIDs)
-	if err != nil {
-		// Log error but maybe don't rollback star? Or rollback?
-		// For simplicity, we just return success with warning or error?
-		// Better to return error.
-		// Ignoring rollback for now (MVP).
-		c.JSON(http.StatusOK, gin.H{
-			"message":     "star created but failed to award points",
-			"is_starred":  true,
-			"point_error": err.Error(),
-		})
-		return
+		if err != nil {
+			// Log error via console/logger used in project?
+			// For now, if daily limit reached or dup, we just ignore client warning
+			// or could return specific message.
+			// But usually we treat star as success even if points failed/maxed out.
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -459,7 +472,7 @@ func (ctl *PostController) CreateComment(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -495,7 +508,7 @@ func (ctl *PostController) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -511,7 +524,7 @@ func (ctl *PostController) DeleteComment(c *gin.Context) {
 
 // GetBookmarkedPosts - GET /api/member/posts/bookmarked
 func (ctl *PostController) GetBookmarkedPosts(c *gin.Context) {
-	memberID, ok := getMemberID(c)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
