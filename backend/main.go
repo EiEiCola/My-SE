@@ -108,8 +108,11 @@ func main() {
 	reviewRepo := repository.NewReviewRepository(db)
 	adminReviewCtl := controller.NewAdminReviewController(reviewRepo)
 
+	// 4.1 Upload Controller
+	uploadCtl := memberCtl.NewUploadController()
+
 	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{

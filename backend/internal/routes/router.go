@@ -16,6 +16,7 @@ func SetupRoutes(
 	adminCategoryController *adminCtl.AdminCategoryController,
 	chatController *memberCtl.ChatController,
 	adminReviewController *adminCtl.AdminReviewController,
+	uploadController *memberCtl.UploadController, // ✅ เพิ่ม UploadController
 ) {
 	r.Static("/uploads", "./uploads")
 
@@ -62,6 +63,9 @@ func SetupRoutes(
 		SetupChatHTTPRoutes(memberAPI, chatController)
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
+		SetupReviewRoutes(memberAPI)
+		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload
+		// SetupChatRoutes(memberAPI)
 
 		// ✅ member reviews (create/delete/vote/my/images) อยู่ใต้ /api/member
 		SetupMemberReviewRoutes(memberAPI)

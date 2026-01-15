@@ -14,6 +14,7 @@ import CrueltyFreeIcon from "@mui/icons-material/CrueltyFree";
 
 // ✅ use separated API
 import { memberAPI } from "../../../../services/http/member_profile";
+import { friendAPI, getImageUrl } from "../../../../services/http/friend";
 
 const { Title, Text } = Typography;
 
@@ -41,26 +42,48 @@ function Profile() {
   const [popupTab, setPopupTab] = useState("friends");
   const [popupList, setPopupList] = useState<any[]>([]);
 
-  // ⭐ mock friend/ follow data
-  const friendList = [
-    { username: "butter", avatar: "", status: "friend" },
-    { username: "nirachahaha", avatar: "", status: "friend" },
-  ];
-  const followerList = [
-    { username: "tanza", avatar: "", status: "follower" },
-    { username: "ussusu", avatar: "", status: "follower" },
-  ];
-  const followingList = [
-    { username: "tawanza", avatar: "", status: "following" },
-    { username: "deereiei", avatar: "", status: "following" },
-  ];
+  // ⭐ Real Data Lists
+  const [friendList, setFriendList] = useState<any[]>([]);
+  const [followerList, setFollowerList] = useState<any[]>([]);
+  const [followingList, setFollowingList] = useState<any[]>([]);
 
   // ✅ โหลดโปรไฟล์จาก backend ด้วย JWT: GET /api/member/me
+  // ✅ โหลดโปรไฟล์จาก backend ด้วย JWT: GET /api/member/me
   useEffect(() => {
-    memberAPI
-      .getMe()
-      .then((res) => {
-        const data = res.data;
+    const fetchData = async () => {
+      try {
+        const [meRes, friendsRes, followersRes, followingRes] = await Promise.all([
+          memberAPI.getMe(),
+          friendAPI.getMyFriends(),
+          friendAPI.getMyFollowers(),
+          friendAPI.getMyFollowing()
+        ]);
+
+        const data = meRes.data;
+
+        // Process Friends
+        const friends = friendsRes.data ? friendsRes.data.map((f: any) => ({
+          username: f.username,
+          avatar: getImageUrl(f.member_picture),
+          status: "friend"
+        })) : [];
+        setFriendList(friends);
+
+        // Process Followers
+        const followers = followersRes.data ? followersRes.data.map((f: any) => ({
+          username: f.username,
+          avatar: getImageUrl(f.member_picture),
+          status: "follower"
+        })) : [];
+        setFollowerList(followers);
+
+        // Process Following
+        const following = followingRes.data ? followingRes.data.map((f: any) => ({
+          username: f.username,
+          avatar: getImageUrl(f.member_picture),
+          status: "following"
+        })) : [];
+        setFollowingList(following);
 
         // map gender จาก gender_id ถ้า string ว่าง
         let genderText: string = data.gender || "";
@@ -72,16 +95,16 @@ function Profile() {
 
         setProfile({
           username: data.username || "",
-          friends: 0,
-          followers: 0,
-          following: 0,
+          friends: friends.length,
+          followers: followers.length,
+          following: following.length,
           bio: data.bio || "",
           gender: genderText,
           dob: data.dob || "",
           avatar: data.member_picture || "",
         });
-      })
-      .catch((err) => {
+
+      } catch (err: any) {
         console.error("Failed to load profile:", err);
 
         if (err?.response?.status === 401) {
@@ -99,7 +122,10 @@ function Profile() {
           dob: "",
           avatar: "",
         }));
-      });
+      }
+    };
+
+    fetchData();
   }, [navigate]);
 
   // ⭐ sync activeTab จาก path ปัจจุบัน
