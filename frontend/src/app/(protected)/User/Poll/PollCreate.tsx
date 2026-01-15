@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import "./PollCreate.css"; // ✅ ให้ไฟล์นี้เป็น CSS ใหม่ (pcx-*)
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
@@ -72,6 +72,7 @@ const toFullUrl = (u?: string) => {
 const PollCreate: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
+  const [searchParams] = useSearchParams()
   const pollId = Number(params.id || 0);
   const isEdit = !!pollId;
 
@@ -89,7 +90,23 @@ const PollCreate: React.FC = () => {
 
   const [catNames, setCatNames] = useState<{ main?: string; sub1?: string; sub2?: string }>({});
 
+  // ✅ Pre-fill categories from URL params (when navigated from Category page)
+  useEffect(() => {
+    if (isEdit) return; // Only apply for create mode, not edit mode
 
+    const mainCatId = searchParams.get("mainCategoryId");
+    const sub1Id = searchParams.get("subCategory1Id");
+    const sub2Id = searchParams.get("subCategory2Id");
+
+    if (mainCatId || sub1Id || sub2Id) {
+      setForm((prev) => ({
+        ...prev,
+        main_category_id: mainCatId ? Number(mainCatId) : null,
+        sub_category_l1_id: sub1Id ? Number(sub1Id) : null,
+        sub_category_l2_id: sub2Id ? Number(sub2Id) : null,
+      }));
+    }
+  }, [isEdit, searchParams]);
   const optionCount = form.options.length;
 
   const errors = useMemo(() => {

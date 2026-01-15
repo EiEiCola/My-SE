@@ -625,6 +625,7 @@ const AdminPollList: React.FC = () => {
                 <th style={{ width: 220 }}>ผู้สร้าง</th>
                 <th>คำถาม</th>
                 <th style={{ width: 170 }}>สถานะ</th>
+                <th style={{ width: 100, textAlign: "center" }}>รายงาน</th>
                 <th style={{ width: 160 }}>วันที่สร้าง</th>
                 <th style={{ width: 380, textAlign: "right" }}>การกระทำ</th>
               </tr>
@@ -697,6 +698,16 @@ const AdminPollList: React.FC = () => {
 
                       <td>
                         <StatusBadge status={s} />
+                      </td>
+
+                      <td style={{ textAlign: "center" }}>
+                        {p.report_count ? (
+                          <span className="chip" style={{ backgroundColor: "#fee2e2", color: "#ef4444", fontWeight: "bold" }}>
+                            🚨 {p.report_count}
+                          </span>
+                        ) : (
+                          <span className="muted">-</span>
+                        )}
                       </td>
 
                       <td className="muted">
@@ -804,6 +815,19 @@ const AdminPollList: React.FC = () => {
                   <div className="detail-label">Status</div>
                   <div className="detail-value">
                     <StatusBadge status={getDisplayStatus(selectedPoll)} />
+                  </div>
+                </div>
+
+                <div className="detail-block">
+                  <div className="detail-label">Reports</div>
+                  <div className="detail-value">
+                    {selectedPoll.report_count ? (
+                      <span className="chip" style={{ backgroundColor: "#fee2e2", color: "#ef4444", fontWeight: "bold" }}>
+                        🚨 {selectedPoll.report_count} Reports
+                      </span>
+                    ) : (
+                      "No reports"
+                    )}
                   </div>
                 </div>
 

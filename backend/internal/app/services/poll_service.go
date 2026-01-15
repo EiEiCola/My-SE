@@ -3,9 +3,9 @@ package services
 import (
 	"errors"
 	"sort"
+	"strconv" // ⭐ POINT SYSTEM: ใช้ทำ idempotency key
 	"strings"
 	"time"
-	"strconv" // ⭐ POINT SYSTEM: ใช้ทำ idempotency key
 
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/dto"
@@ -41,14 +41,16 @@ type PollService interface {
 }
 
 type pollService struct {
-	pollRepo repository.PollRepository
-	pointSvc PointService // ⭐ POINT SYSTEM: inject point service สำหรับให้แต้ม
+	pollRepo   repository.PollRepository
+	pointSvc   PointService                 // ⭐ POINT SYSTEM: inject point service สำหรับให้แต้ม
+	reportRepo *repository.ReportRepository // ✅ NEW
 }
 
-func NewPollService(pollRepo repository.PollRepository, pointSvc PointService) PollService { // ⭐ POINT SYSTEM: เพิ่มพารามิเตอร์ pointSvc
+func NewPollService(pollRepo repository.PollRepository, pointSvc PointService, reportRepo *repository.ReportRepository) PollService { // ⭐ POINT SYSTEM: เพิ่มพารามิเตอร์ pointSvc
 	return &pollService{
-		pollRepo: pollRepo,
-		pointSvc: pointSvc, // ⭐ POINT SYSTEM
+		pollRepo:   pollRepo,
+		pointSvc:   pointSvc,   // ⭐ POINT SYSTEM
+		reportRepo: reportRepo, // ✅ NEW
 	}
 }
 
@@ -647,7 +649,23 @@ func (s *pollService) ListForAdmin(statusID *uint) ([]dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.mapPollsToAdminResponse(polls), nil
+	res := s.mapPollsToAdminResponse(polls)
+
+	// ✅ NEW: Populate Report Count
+	if len(polls) > 0 && s.reportRepo != nil {
+		pollIDs := make([]uint, len(polls))
+		for i := range polls {
+			pollIDs[i] = polls[i].ID
+		}
+		counts, err := s.reportRepo.CountReportsByTarget("Poll", pollIDs)
+		if err == nil {
+			for i := range res {
+				res[i].ReportCount = counts[res[i].ID]
+			}
+		}
+	}
+
+	return res, nil
 }
 
 func (s *pollService) Approve(adminID uint, pollID uint) (*dto.PollResponse, error) {
@@ -802,7 +820,16 @@ func (s *pollService) GetByIDForAdmin(pollID uint) (*dto.PollResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.mapPollToAdminResponse(poll), nil
+	res := s.mapPollToAdminResponse(poll)
+
+	// ✅ NEW: Populate Report Count
+	if s.reportRepo != nil {
+		counts, err := s.reportRepo.CountReportsByTarget("Poll", []uint{pollID})
+		if err == nil {
+			res.ReportCount = counts[pollID]
+		}
+	}
+	return res, nil
 }
 
 func (s *pollService) DeleteForAdmin(adminID uint, pollID uint, reason string) (*dto.PollResponse, error) {
