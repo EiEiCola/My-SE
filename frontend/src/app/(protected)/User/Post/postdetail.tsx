@@ -43,12 +43,22 @@ import {
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import postService from "../../../../services/http/post_service";
+import { memberAPI, type MemberProfileResponse } from "../../../../services/http/member_profile";
 import { getUserIdFromToken } from "../../../../utils/jwt";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const ORANGE = "#ff6a00";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+// Helper function to format avatar URL
+const formatAvatarUrl = (url: string | undefined | null): string => {
+    if (!url) return `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`;
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("/")) return `${API_BASE}${url}`;
+    return `${API_BASE}/${url}`;
+};
 
 interface ImageItem {
     id: number;
@@ -73,6 +83,7 @@ interface PostData {
     createdAt: string;
     ownerName: string;
     ownerAvatar: string;
+    authorId: number | null;
     isAnonymous: boolean;
     isOwner: boolean;
     images: ImageItem[];
@@ -103,6 +114,21 @@ const PostDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<PostData | null>(null);
 
+    // Fetch current user
+    useEffect(() => {
+        const fetchMe = async () => {
+            try {
+                const res = await memberAPI.getMe();
+                if (res.data) {
+                    setCurrentUser(res.data);
+                }
+            } catch (err) {
+                console.error("Failed to load current user:", err);
+            }
+        };
+        fetchMe();
+    }, []);
+
     // Fetch post from API
     useEffect(() => {
         const fetchPost = async () => {
@@ -112,8 +138,10 @@ const PostDetail: React.FC = () => {
             }
             try {
                 setLoading(true);
-                const response = await postService.getById(Number(id));
-                const apiPost = response.data.data;
+
+                const postResponse = await postService.getById(Number(id));
+
+                const apiPost = postResponse.data.data;
 
                 // Map API response to PostData format
                 const createdDate = new Date(apiPost.created_at);
@@ -121,11 +149,11 @@ const PostDetail: React.FC = () => {
 
                 // Get author name and avatar
                 let ownerName = "ไม่เปิดเผยชื่อ";
-                let ownerAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
+                let ownerAvatar = `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`;
 
                 if (!apiPost.is_anonymous && apiPost.author) {
                     ownerName = apiPost.author.username || `${apiPost.author.first_name} ${apiPost.author.last_name}`;
-                    ownerAvatar = apiPost.author.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=${apiPost.author_id}`;
+                    ownerAvatar = formatAvatarUrl(apiPost.author.member_picture);
                 }
 
                 setPost({
@@ -137,6 +165,7 @@ const PostDetail: React.FC = () => {
                     createdAt: createdDate.toLocaleString("th-TH"),
                     ownerName,
                     ownerAvatar,
+                    authorId: apiPost.is_anonymous ? null : apiPost.author_id,
                     isAnonymous: apiPost.is_anonymous,
                     isOwner: currentUserId !== null && currentUserId === apiPost.author_id,
                     images: (apiPost.images || []).map((img: { ID: number; url: string; order_index: number }) => ({
@@ -182,7 +211,7 @@ const PostDetail: React.FC = () => {
                 const currentUserId = getUserIdFromToken();
                 const mappedComments: CommentItem[] = apiComments.map((c) => {
                     let ownerName = "ไม่เปิดเผยชื่อ";
-                    let ownerAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
+                    let ownerAvatar = `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`;
 
                     if (!c.is_anonymous && c.author) {
                         ownerName = c.author.username || `${c.author.first_name} ${c.author.last_name}`;
@@ -243,7 +272,7 @@ const PostDetail: React.FC = () => {
     const [commentAnonymous, setCommentAnonymous] = useState(false);
     const [commentImages, setCommentImages] = useState<UploadFile[]>([]);
     const [commentAttachments, setCommentAttachments] = useState<UploadFile[]>([]);
-
+    const [currentUser, setCurrentUser] = useState<MemberProfileResponse | null>(null);
 
     // state: กำลังตอบกลับคอมเมนต์ไหน
     const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
@@ -252,6 +281,7 @@ const PostDetail: React.FC = () => {
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>(
         {}
     );
+
 
     const handleToggleLikePost = async () => {
         if (!post) return;
@@ -385,10 +415,10 @@ const PostDetail: React.FC = () => {
                 content: newComment.content,
                 likeCount: newComment.like_count,
                 createdAt: new Date(newComment.created_at).toLocaleString("th-TH"),
-                ownerName: newComment.is_anonymous ? "ไม่เปิดเผยชื่อ" : "คุณ",
+                ownerName: newComment.is_anonymous ? "ไม่เปิดเผยชื่อ" : (newComment.author?.username || currentUser?.username || "คุณ"),
                 ownerAvatar: newComment.is_anonymous
-                    ? `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
-                    : `https://api.dicebear.com/7.x/thumbs/svg?seed=${getUserIdFromToken()}`,
+                    ? `https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y&s=128`
+                    : formatAvatarUrl(newComment.author?.member_picture || currentUser?.member_picture),
                 isAnonymous: newComment.is_anonymous,
                 isOwner: true,
                 parentId: replyTo ? replyTo.id : null,
@@ -532,10 +562,10 @@ const PostDetail: React.FC = () => {
                 <Button
                     type="link"
                     icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate("/User/Post")}
+                    onClick={() => navigate(-1)}
                     style={{ paddingLeft: 2, marginBottom: 8 }}
                 >
-                    กลับไปหน้าโพสต์
+                    กลับ
                 </Button>
 
                 {/* การ์ดโพสต์หลัก */}
@@ -768,7 +798,16 @@ const PostDetail: React.FC = () => {
 
                         <Col>
                             <Space size="large">
-                                <Space>
+                                <Space
+                                    style={{
+                                        cursor: post.authorId ? "pointer" : "default"
+                                    }}
+                                    onClick={() => {
+                                        if (post.authorId) {
+                                            navigate(`/User/Profile/${post.authorId}`);
+                                        }
+                                    }}
+                                >
                                     <Avatar
                                         size="small"
                                         src={post.ownerAvatar}
@@ -776,7 +815,17 @@ const PostDetail: React.FC = () => {
                                         style={{ marginRight: 8 }}
                                     />
                                     <div>
-                                        <Text style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#334155" }}>
+                                        <Text style={{
+                                            display: "block",
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            color: "#334155",
+                                            ...(post.authorId ? {
+                                                cursor: "pointer",
+                                            } : {})
+                                        }}
+                                            className={post.authorId ? "hover:text-orange-500 hover:underline" : ""}
+                                        >
                                             {post.ownerName}
                                         </Text>
                                         <Text type="secondary" style={{ fontSize: 11 }}>
@@ -810,7 +859,10 @@ const PostDetail: React.FC = () => {
                 >
                     <Row gutter={12}>
                         <Col flex="40px">
-                            <Avatar icon={<UserOutlined />} />
+                            <Avatar
+                                src={currentUser?.member_picture || undefined}
+                                icon={<UserOutlined />}
+                            />
                         </Col>
                         <Col flex="auto">
                             {replyTo && (

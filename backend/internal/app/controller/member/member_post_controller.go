@@ -138,15 +138,42 @@ func (ctl *PostController) GetPostByID(c *gin.Context) {
 }
 
 // ---- Get All Posts ----
-// GET /posts
+// GET /posts?page=1&limit=20
 func (ctl *PostController) GetAllPosts(c *gin.Context) {
-	posts, err := ctl.Service.GetAllPosts()
+	// Parse pagination params
+	pageStr := c.DefaultQuery("page", "0")
+	limitStr := c.DefaultQuery("limit", "0")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	// If no pagination params, return all (for backward compatibility)
+	if page == 0 && limit == 0 {
+		posts, err := ctl.Service.GetAllPosts()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": posts})
+		return
+	}
+
+	// With pagination
+	posts, total, err := ctl.Service.GetPostsPaginated(page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": posts})
+	hasMore := int64(page*limit) < total
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":    posts,
+		"total":   total,
+		"page":    page,
+		"limit":   limit,
+		"hasMore": hasMore,
+	})
 }
 
 // ---- Update Post ----

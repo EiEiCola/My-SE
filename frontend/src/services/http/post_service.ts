@@ -126,9 +126,22 @@ interface LikeResponse {
     is_liked: boolean;
 }
 
+// Paginated response from backend
+export interface PaginatedPostsResponse {
+    data: Post[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+}
+
 export const postService = {
-    // Get all posts
+    // Get all posts (without pagination - for backward compatibility)
     getAll: () => api.get<ApiResponse<Post[]>>("/member/posts"),
+
+    // Get posts with pagination
+    getPaginated: (page: number, limit: number) =>
+        api.get<PaginatedPostsResponse>(`/member/posts?page=${page}&limit=${limit}`),
 
     // Get post by ID
     getById: (id: number) => api.get<ApiResponse<Post>>(`/member/posts/${id}`),

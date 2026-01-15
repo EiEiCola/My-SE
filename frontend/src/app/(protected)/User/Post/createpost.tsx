@@ -304,7 +304,7 @@ const CreatePost: React.FC = () => {
     };
 
     const handleCancel = () => {
-        navigate("/User/Post");
+        navigate(-1);
     };
 
     return (
@@ -314,10 +314,10 @@ const CreatePost: React.FC = () => {
                 <Button
                     type="link"
                     icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate("/User/Post")}
+                    onClick={() => navigate(-1)}
                     style={{ paddingLeft: 0, marginBottom: 8 }}
                 >
-                    กลับไปหน้าโพสต์
+                    กลับ
                 </Button>
 
                 <Card

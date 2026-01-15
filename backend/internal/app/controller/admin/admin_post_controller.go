@@ -38,8 +38,17 @@ func (ctl *AdminPostController) DeletePost(c *gin.Context) {
 		return
 	}
 
+	// รับเหตุผลการลบจาก Body
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
 	// Admin สามารถลบโพสต์ใครก็ได้ โดยไม่ต้องเช็ค ownership
-	if err := ctl.Service.AdminDeletePost(uint(id)); err != nil {
+	if err := ctl.Service.AdminDeletePost(uint(id), body.Reason); err != nil {
 		if err == services.ErrPostNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
 			return

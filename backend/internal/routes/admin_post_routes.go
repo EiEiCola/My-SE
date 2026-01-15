@@ -18,8 +18,9 @@ func SetupAdminPostRoutes(r *gin.RouterGroup) {
 	likeRepo := repository.NewPostLikeRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	bookmarkRepo := repository.NewBookmarkRepository(db)
+	notificationRepo := repository.NewNotificationRepository(db)
 
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo)
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo)
 	postCtrl := adminctl.NewAdminPostController(postSvc)
 
 	posts := r.Group("/posts")

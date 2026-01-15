@@ -6,6 +6,8 @@ import {
 } from '@mui/icons-material';
 import { memberAPI } from "../../services/http/member_profile";
 import { adminProfileAPI } from "../../services/http/admin_profile";
+import { notificationAPI, type Notification } from "../../services/http/notification";
+import { Badge } from "antd"; // Use Ant Design Badge if available, or custom css
 
 interface HeaderProps {
   role: "admin" | "user";
@@ -18,6 +20,11 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notification State
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const [profileName, setProfileName] = useState(defaultUsername);
   const [profileImage, setProfileImage] = useState("");
@@ -50,13 +57,54 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       }
     };
     fetchProfile();
+    fetchProfile();
   }, [role]);
+
+  // Fetch Notifications
+  useEffect(() => {
+    if (role === 'user') {
+      const fetchNotifs = async () => {
+        try {
+          const res = await notificationAPI.getAll();
+          // Check data structure carefully
+          // API returns { data: Notification[] } based on controller
+          if (res.data && Array.isArray(res.data.data)) {
+            setNotifications(res.data.data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch notifications", err);
+        }
+      };
+      fetchNotifs();
+      // Poll every 30 seconds
+      const interval = setInterval(fetchNotifs, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [role]);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const handleRead = async (n: Notification) => {
+    if (!n.is_read) {
+      try {
+        await notificationAPI.markAsRead(n.ID);
+        setNotifications(prev => prev.map(item => item.ID === n.ID ? { ...item, is_read: true } : item));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    // Navigate or show detail?
+    // For now just mark as read
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -140,12 +188,45 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         {/* RIGHT: Notification Bell + Profile Dropdown */}
         <div className="flex items-center gap-4">
           {/* Notification Bell */}
-          <button
-            className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
-            title="แจ้งเตือน"
-          >
-            <Notifications className="w-6 h-6 text-white" />
-          </button>
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+              title="แจ้งเตือน"
+            >
+              <Badge count={unreadCount} size="small" offset={[5, 0]}>
+                <Notifications className="w-6 h-6 text-white" />
+              </Badge>
+            </button>
+
+            {/* Notification Dropdown */}
+            {isNotifOpen && (
+              <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 border-b border-gray-700 flex justify-between items-center bg-[#242526]">
+                  <h4 className="font-semibold">Notifications</h4>
+                  {unreadCount > 0 && <span className="text-xs bg-red-500 px-2 py-0.5 rounded-full">{unreadCount} new</span>}
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-400">No notifications</div>
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n.ID}
+                        onClick={() => handleRead(n)}
+                        className={`p-3 border-b border-gray-700/50 hover:bg-[#3a3b3c] cursor-pointer transition-colors ${!n.is_read ? 'bg-[#2a3b4c]' : ''}`}
+                      >
+                        <div className="text-sm font-semibold text-orange-400 mb-1">{n.title}</div>
+                        <div className="text-sm text-gray-300 line-clamp-2">{n.message}</div>
+                        <div className="text-xs text-gray-500 mt-2">{new Date(n.CreatedAt).toLocaleString('th-TH')}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>

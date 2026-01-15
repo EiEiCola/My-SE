@@ -217,6 +217,7 @@ const PostManage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostItem | null>(null);
   const [deleteForm] = Form.useForm();
 
@@ -338,42 +339,28 @@ const PostManage: React.FC = () => {
 
       if (!selectedPost) return;
 
-      Modal.confirm({
-        title: "Are you sure?",
-        icon: <ExclamationCircleOutlined style={{ color: "#ef4444" }} />,
-        content: (
-          <>
-            <p>คุณต้องการลบโพสต์นี้จริง ๆ หรือไม่?</p>
-            <p style={{ fontSize: 12, color: "#6b7280" }}>
-              ระบบจะส่งแจ้งเตือนไปยังเจ้าของโพสต์พร้อมเหตุผลการลบ
-            </p>
-          </>
-        ),
-        okText: "Yes, Delete it!",
-        okType: "danger",
-        cancelText: "Cancel",
-        onOk: async () => {
-          try {
-            await adminPostService.delete(selectedPost.id);
-            setPosts((prev) =>
-              prev.map((p) =>
-                p.id === selectedPost.id
-                  ? {
-                    ...p,
-                    status: "deleted",
-                    deletedReason: reason,
-                  }
-                  : p
-              )
-            );
-            setDeleteModalOpen(false);
-            message.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
-          } catch (error) {
-            console.error("Failed to delete post:", error);
-            message.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
-          }
-        },
-      });
+      setDeleting(true);
+      try {
+        await adminPostService.delete(selectedPost.id, reason);
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === selectedPost.id
+              ? {
+                ...p,
+                status: "deleted",
+                deletedReason: reason,
+              }
+              : p
+          )
+        );
+        setDeleteModalOpen(false);
+        message.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
+      } catch (error) {
+        console.error("Failed to delete post:", error);
+        message.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
+      } finally {
+        setDeleting(false);
+      }
     } catch {
       // validation ไม่ผ่าน
     }
@@ -715,6 +702,7 @@ const PostManage: React.FC = () => {
           cancelText="Cancel"
           onCancel={() => setDeleteModalOpen(false)}
           onOk={handleSubmitDelete}
+          confirmLoading={deleting}
           destroyOnClose
         >
           {selectedPost && (

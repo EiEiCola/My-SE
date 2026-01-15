@@ -23,7 +23,7 @@ export const adminPostService = {
     getAll: () => api.get<ApiResponse<AdminPost[]>>("/admin/posts"),
 
     // Delete post by admin
-    delete: (id: number) => api.delete(`/admin/posts/${id}`),
+    delete: (id: number, reason: string) => api.delete(`/admin/posts/${id}`, { data: { reason } }),
 };
 
 export default adminPostService;

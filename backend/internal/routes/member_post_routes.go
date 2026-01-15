@@ -24,9 +24,10 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	pointRuleRepo := repository.NewPointRuleRepository(db)
 	pointTxRepo := repository.NewPointTransactionRepository(db)
 	mpbRepo := repository.NewMemberPointBalanceRepository(db)
+	notificationRepo := repository.NewNotificationRepository(db)
 
 	// Services
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo)
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo)
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 
 	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo)

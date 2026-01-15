@@ -125,21 +125,21 @@ const ConfirmPostModal: React.FC<ConfirmModalProps> = ({
           </div>
 
 
-         {hasImgs && (
-  <div className="crImgStrip">
-    {images.map((u, i) => (
-      <button
-        key={i}
-        type="button"
-        className="crImgTile"
-        onClick={() => openGallery(i)}
-        aria-label={`confirm-open-${i + 1}`}
-      >
-        <img className="crThumb" src={u} alt={`confirm-${i}`} />
-      </button>
-    ))}
-  </div>
-)} 
+          {hasImgs && (
+            <div className="crImgStrip">
+              {images.map((u, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="crImgTile"
+                  onClick={() => openGallery(i)}
+                  aria-label={`confirm-open-${i + 1}`}
+                >
+                  <img className="crThumb" src={u} alt={`confirm-${i}`} />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="crWarn">⚠️ โพสต์แล้วไม่สามารถแก้ไขได้ กรุณาตรวจสอบก่อนยืนยัน</div>
         </div>
@@ -226,6 +226,39 @@ const CreateReviewPage: React.FC = () => {
       setMainCats(rows);
     })();
   }, []);
+
+  // Pre-select from URL query params
+  useEffect(() => {
+    const mainId = searchParams.get("mainCategoryId");
+    if (mainId && mainCats.length > 0) {
+      const id = parseInt(mainId, 10);
+      if (mainCats.some(c => c.id === id)) {
+        setSelectedMainId(id);
+      }
+    }
+  }, [searchParams, mainCats]);
+
+  // Pre-select Sub1 from URL query params (after l1Cats loaded)
+  useEffect(() => {
+    const sub1Id = searchParams.get("subCategory1Id");
+    if (sub1Id && l1Cats.length > 0) {
+      const id = parseInt(sub1Id, 10);
+      if (l1Cats.some(c => c.id === id)) {
+        setSelectedL1Id(id);
+      }
+    }
+  }, [searchParams, l1Cats]);
+
+  // Pre-select Sub2 from URL query params (after l2Cats loaded)
+  useEffect(() => {
+    const sub2Id = searchParams.get("subCategory2Id");
+    if (sub2Id && l2Cats.length > 0) {
+      const id = parseInt(sub2Id, 10);
+      if (l2Cats.some(c => c.id === id)) {
+        setSelectedL2Id(id);
+      }
+    }
+  }, [searchParams, l2Cats]);
 
   useEffect(() => {
     (async () => {
@@ -392,7 +425,7 @@ const CreateReviewPage: React.FC = () => {
               <h1 className="pageTitle">เขียนรีวิว ✍️</h1>
               <p className="pageSub">แบ่งปันประสบการณ์ของคุณให้เพื่อนๆ ได้รับรู้</p>
             </div>
-           
+
           </div>
 
           <div className="warningCard">
@@ -492,8 +525,8 @@ const CreateReviewPage: React.FC = () => {
                 Selected IDs: main={selectedMainId ?? "-"} sub1={selectedL1Id ?? "-"} sub2={selectedL2Id ?? "-"}
               </div>
             </div>
-            
-             {/* Title */}
+
+            {/* Title */}
             <div className="card">
               <div className="cardHead">
                 <div className="cardTitle">
@@ -551,91 +584,91 @@ const CreateReviewPage: React.FC = () => {
             </div>
 
             {/* Images (ดีไซน์ใหม่: แถบรูป + ปุ่มเพิ่ม) */}
-<div className="card">
-  <div className="cardHead">
-    <div className="cardTitle">รูปภาพ (ไม่บังคับ)</div>
-    <div className="pill">{images.length}/{MAX_IMAGES}</div>
-  </div>
+            <div className="card">
+              <div className="cardHead">
+                <div className="cardTitle">รูปภาพ (ไม่บังคับ)</div>
+                <div className="pill">{images.length}/{MAX_IMAGES}</div>
+              </div>
 
-  <input
-    ref={fileInputRef}
-    type="file"
-    accept="image/*"
-    multiple
-    className="hiddenInput"
-    onChange={onPickImages}
-    disabled={submitting}
-  />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hiddenInput"
+                onChange={onPickImages}
+                disabled={submitting}
+              />
 
-  {/* ✅ ถ้ายังไม่มีรูป */}
-  {images.length === 0 ? (
-    <button
-      type="button"
-      className="imgAddBig"
-      onClick={openFilePicker}
-      disabled={submitting}
-    >
-      <div className="imgAddBigIcon">📷</div>
-      <div className="imgAddBigText">+ เพิ่มรูปภาพ</div>
-      <div className="imgAddBigSub">เลือกได้สูงสุด {MAX_IMAGES} รูป</div>
-    </button>
-  ) : (
-    <>
-      {/* ✅ มีรูปแล้ว: โชว์เป็นแถบเลื่อน */}
-     <div className="imgStrip">
-  {images.map((it, idx) => (
-    <div key={idx} className="imgTile">
-      <img src={it.url} alt={`img-${idx}`} />
-      <button type="button" className="imgDel" onClick={() => removeImage(idx)} disabled={submitting}>
-        ✕
-      </button>
-    </div>
-  ))}
+              {/* ✅ ถ้ายังไม่มีรูป */}
+              {images.length === 0 ? (
+                <button
+                  type="button"
+                  className="imgAddBig"
+                  onClick={openFilePicker}
+                  disabled={submitting}
+                >
+                  <div className="imgAddBigIcon">📷</div>
+                  <div className="imgAddBigText">+ เพิ่มรูปภาพ</div>
+                  <div className="imgAddBigSub">เลือกได้สูงสุด {MAX_IMAGES} รูป</div>
+                </button>
+              ) : (
+                <>
+                  {/* ✅ มีรูปแล้ว: โชว์เป็นแถบเลื่อน */}
+                  <div className="imgStrip">
+                    {images.map((it, idx) => (
+                      <div key={idx} className="imgTile">
+                        <img src={it.url} alt={`img-${idx}`} />
+                        <button type="button" className="imgDel" onClick={() => removeImage(idx)} disabled={submitting}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
 
-  {/* ✅ ปุ่มเพิ่มรูปเป็น 1 tile อยู่ท้าย grid (ไม่ดันคอลัมน์) */}
-  {images.length < MAX_IMAGES && (
-    <button type="button" className="imgTile imgAdd" onClick={openFilePicker} disabled={submitting}>
-      <div className="imgAddIcon">＋</div>
-      <div className="imgAddText">เพิ่มรูป</div>
-    </button>
-  )}
-</div>
+                    {/* ✅ ปุ่มเพิ่มรูปเป็น 1 tile อยู่ท้าย grid (ไม่ดันคอลัมน์) */}
+                    {images.length < MAX_IMAGES && (
+                      <button type="button" className="imgTile imgAdd" onClick={openFilePicker} disabled={submitting}>
+                        <div className="imgAddIcon">＋</div>
+                        <div className="imgAddText">เพิ่มรูป</div>
+                      </button>
+                    )}
+                  </div>
 
 
-      {/* ✅ แถวปุ่มล่าง: เพิ่ม / ล้างรูปทั้งหมด */}
-      <div className="imgActionsRow">
-        <button
-          type="button"
-          className={`btnOutline ${images.length >= MAX_IMAGES ? "disabled" : ""}`}
-          onClick={openFilePicker}
-          disabled={images.length >= MAX_IMAGES || submitting}
-        >
-          + เพิ่มรูปภาพ
-        </button>
+                  {/* ✅ แถวปุ่มล่าง: เพิ่ม / ล้างรูปทั้งหมด */}
+                  <div className="imgActionsRow">
+                    <button
+                      type="button"
+                      className={`btnOutline ${images.length >= MAX_IMAGES ? "disabled" : ""}`}
+                      onClick={openFilePicker}
+                      disabled={images.length >= MAX_IMAGES || submitting}
+                    >
+                      + เพิ่มรูปภาพ
+                    </button>
 
-        <button
-          type="button"
-          className="btnGray"
-          onClick={() => {
-            // ล้างรูปทั้งหมดแบบปลอดภัย
-            setImages((prev) => {
-              prev.forEach((it) => it.url && URL.revokeObjectURL(it.url));
-              return [];
-            });
-          }}
-          disabled={submitting}
-        >
-          ล้างรูป
-        </button>
-      </div>
-    </>
-  )}
-</div>
+                    <button
+                      type="button"
+                      className="btnGray"
+                      onClick={() => {
+                        // ล้างรูปทั้งหมดแบบปลอดภัย
+                        setImages((prev) => {
+                          prev.forEach((it) => it.url && URL.revokeObjectURL(it.url));
+                          return [];
+                        });
+                      }}
+                      disabled={submitting}
+                    >
+                      ล้างรูป
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
           </div>
 
           <div className="col">
-       
+
             {/* Content */}
             <div className="card">
               <div className="cardHead">

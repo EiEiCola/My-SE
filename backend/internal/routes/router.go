@@ -86,7 +86,7 @@ func SetupRoutes(
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
 		SetupReviewRoutes(memberAPI)
-		SetupMemberPostRoutes(memberAPI)
+		SetupNotificationRoutes(memberAPI)
 		// SetupChatRoutes(memberAPI)
 
 	}

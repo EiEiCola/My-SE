@@ -36,7 +36,7 @@ import {
   type SubCategoryL2,
 } from "../../../../services/http/admin_category";
 import postService from "../../../../services/http/post_service";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const { Search } = Input;
 
@@ -127,6 +127,7 @@ type PostItem = {
 // ---------------------------------------------
 const Group: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<UserCategory[]>([]);
@@ -255,6 +256,17 @@ const Group: React.FC = () => {
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
+
+  // Auto-select category from URL query parameter
+  useEffect(() => {
+    const categoryId = searchParams.get("category");
+    if (categoryId && categories.length > 0) {
+      const found = categories.find((c) => c.key === categoryId);
+      if (found) {
+        setSelectedCategoryKey(found.key);
+      }
+    }
+  }, [searchParams, categories]);
 
   const selectedCategory = useMemo(() => {
     return selectedCategoryKey
