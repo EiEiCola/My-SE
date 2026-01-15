@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, Send, Smile } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
+import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -26,6 +27,8 @@ interface BirthdayItem extends Friend {
   daysDiff: number;
 }
 
+const EMOJIS = ['😀', '😂', '😍', '🥰', '😘', '😊', '😎', '🤗', '🤔', '😴', '😭', '😡', '🤯', '🥳', '😇', '🤩', '👍', '👏', '🙏', '💪', '❤️', '💔', '🔥', '✨', '🎉', '🎂', '🎁', '🌟', '⭐', '💯'];
+
 const FriendBirthday = () => {
   const navigate = useNavigate();
   const API_URL = "/api";
@@ -35,6 +38,7 @@ const FriendBirthday = () => {
   const [recentBirthdays, setRecentBirthdays] = useState<BirthdayItem[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<BirthdayItem[]>([]);
   const [activeMessages, setActiveMessages] = useState<{ [key: number]: string }>({});
+  const [activeEmojiPicker, setActiveEmojiPicker] = useState<number | null>(null); // Track which picker is open
   const [loading, setLoading] = useState(true);
 
   const headers = {
@@ -112,17 +116,44 @@ const FriendBirthday = () => {
     setUpcomingBirthdays(upcoming);
   };
 
+
+
   const handleQuickMessage = (personId: number, msg: string) => {
     setActiveMessages(prev => ({ ...prev, [personId]: msg }));
   };
 
-  const handleSendMessage = (personId: number) => {
-    const msg = activeMessages[personId];
-    if (msg) {
-      alert(`ส่งข้อความ: "${msg}" ถึงเพื่อน ID: ${personId}`);
-      setActiveMessages(prev => ({ ...prev, [personId]: "" }));
+  const handleEmojiClick = (personId: number, emoji: string) => {
+    setActiveMessages(prev => ({ ...prev, [personId]: (prev[personId] || "") + emoji }));
+    setActiveEmojiPicker(null); // Close after pick
+  };
+
+  const toggleEmojiPicker = (personId: number) => {
+    if (activeEmojiPicker === personId) {
+      setActiveEmojiPicker(null);
     } else {
-      alert(`เปิดห้องแชทกับเพื่อน ID: ${personId}`);
+      setActiveEmojiPicker(personId);
+    }
+  };
+
+  const handleSendMessage = async (personId: number) => {
+    const msg = activeMessages[personId];
+    try {
+      // 1. Create/Get Room
+      const res = await chatService.createRoom({ type: 'private', target_id: personId });
+      if (res.data) {
+        const roomId = res.data.room_id;
+
+        // 2. If there's a quick message, send it first
+        if (msg && msg.trim() !== "") {
+          await chatService.sendMessage(roomId, msg, 'text');
+        }
+
+        // 3. Navigate to Chat
+        navigate('/User/Message', { state: { roomId: roomId } });
+      }
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+      alert("ไม่สามารถเริ่มแชทได้");
     }
   };
 
@@ -180,8 +211,26 @@ const FriendBirthday = () => {
                     </div>
 
                     {/* Message Input */}
-                    <div>
-                      <div className="flex gap-2 items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2">
+                    <div className="relative">
+                      {/* Emoji Picker Popover */}
+                      {activeEmojiPicker === person.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setActiveEmojiPicker(null)}></div>
+                          <div className="absolute left-0 bottom-full mb-2 bg-white border border-gray-200 shadow-xl rounded-2xl p-3 z-20 w-64 grid grid-cols-6 gap-2 animate-in zoom-in-95">
+                            {EMOJIS.map(emoji => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleEmojiClick(person.id, emoji)}
+                                className="text-xl hover:bg-gray-100 p-1 rounded-lg transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      <div className="flex gap-2 items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 relative z-0">
                         <input
                           type="text"
                           placeholder={`อวยพรวันเกิดย้อนหลังให้ ${person.name.split(' ')[0]}...`}
@@ -189,8 +238,11 @@ const FriendBirthday = () => {
                           onChange={(e) => handleQuickMessage(person.id, e.target.value)}
                           className="flex-1 bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400"
                         />
-                        <button className="hover:bg-gray-200 rounded-full p-1.5 transition-colors">
-                          <Smile className="w-5 h-5 text-gray-400 hover:text-orange-500" />
+                        <button
+                          onClick={() => toggleEmojiPicker(person.id)}
+                          className={`hover:bg-gray-200 rounded-full p-1.5 transition-colors ${activeEmojiPicker === person.id ? 'bg-orange-100 text-orange-500' : 'text-gray-400'}`}
+                        >
+                          <Smile className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleSendMessage(person.id)}

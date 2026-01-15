@@ -6,12 +6,16 @@ export interface User {
   last_name?: string;
   username: string;
   avatar?: string; // ตรวจสอบว่า Backend ส่ง key นี้มา หรือเป็น member_picture
+  member_picture?: string; // Correct field from Backend
+  student_id?: string;
+  dob?: string;
 }
 
 export interface RoomMember {
   room_id: number;
   member_id: number;
   rm_role: string; // 'admin' | 'member'
+  request_status?: 'pending' | 'accepted' | 'joined'; // สถานะคำเชิญ
   member?: User;
 }
 
@@ -21,8 +25,21 @@ export interface Room {
   rc_name: string;
   rc_url?: string; // รูปโปรไฟล์ห้อง/เพื่อน
   last_message?: string;
+  last_sender_id?: number; // Added to support "You:" prefix
+  last_sender_name?: string; // Added to support "Name:" prefix in groups
+  unread_count?: number; // ✅ Added
   updated_at?: string; // ใช้เรียงลำดับห้องล่าสุด
+  created_at?: string; // วันที่สร้างห้อง
   member?: RoomMember[]; // จำเป็นสำหรับเช็ค Online Status ในห้อง Private
+}
+
+export interface Attachment {
+  id: number;
+  message_id: number;
+  file_url: string;
+  file_type: string;
+  file_name: string;
+  file_size: string;
 }
 
 export interface Message {
@@ -35,6 +52,7 @@ export interface Message {
   sent_at: string;
   is_deleted?: boolean;
   sender?: User; // ข้อมูลผู้ส่ง (Preload มาจาก Backend)
+  attachments?: Attachment[];
 }
 
 export interface WSMessage {
@@ -43,4 +61,14 @@ export interface WSMessage {
   payload: any; // ใช้ any เพื่อรองรับ Payload หลายรูปแบบ (Message, UserID list ฯลฯ)
   room_id?: number;
   sender_id?: number;
+}
+
+export interface MemberReward {
+  ID: number;
+  reward_id: number;
+  reward: {
+    ID: number;
+    reward_name: string;
+    reward_picture: string;
+  };
 }

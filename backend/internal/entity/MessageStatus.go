@@ -5,12 +5,12 @@ import (
 )
 
 type MessageStatus struct {
-    MessageID uint      `gorm:"primaryKey" json:"message_id"`
-    MemberID  uint      `gorm:"primaryKey" json:"member_id"` // คนที่อ่าน
-    Status    string    `json:"status"` // "read"
-    ReadAt    time.Time `json:"read_at"`
-
-	// ความสัมพันธ์
-    Message Message `gorm:"foreignKey:MessageID;references:ID" json:"message,omitempty"`
-    Member  Member  `gorm:"foreignKey:MemberID;references:ID" json:"member,omitempty"`
+	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	MessageID   uint       `gorm:"column:message_id" json:"message_id"`
+	Message     Message    `gorm:"foreignKey:MessageID" json:"message"`
+	RecipientID uint       `gorm:"column:recipient_id" json:"recipient_id"` // ผู้รับ (Changed from UserID to force migration fix)
+	User        Member     `gorm:"foreignKey:RecipientID" json:"user"`
+	Status      string     `gorm:"type:varchar(20);default:'unread'" json:"status"` // 'unread', 'read'
+	ReadAt      *time.Time `gorm:"column:read_at" json:"read_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }

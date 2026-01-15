@@ -1,11 +1,13 @@
 // \frontend\src\app\(protected)\User\Message\page.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
    Send, Search, MessageCircle, MoreVertical, Paperclip, Smile, Image as ImageIcon,
-   Trash2, LogOut, Eraser, UserPlus, ShieldBan, X, Check, Users, User, Settings, Crown, Edit2, Sticker
+   Trash2, LogOut, Eraser, UserPlus, ShieldBan, X, Check, Users, User, Settings, Crown, Edit2, Sticker, Info,
+   Download, FileText, StickyNote
 } from 'lucide-react';
-import type { Room, Message, WSMessage, User as ChatUser } from '../../../../interfaces/chat';
+import type { Room, Message, WSMessage, User as ChatUser, MemberReward } from '../../../../interfaces/chat';
 import { chatService } from '../../../../services/http/chat';
 import { friendAPI, getImageUrl } from '../../../../services/http/friend';
 
@@ -28,6 +30,9 @@ const STICKERS = [
 ];
 
 const ChatPage: React.FC = () => {
+   const navigate = useNavigate();
+   const location = useLocation();
+
    // --- Data State ---
    const [rooms, setRooms] = useState<Room[]>([]);
    const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
@@ -41,6 +46,11 @@ const ChatPage: React.FC = () => {
    // --- Pickers State ---
    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
    const [showStickerPicker, setShowStickerPicker] = useState(false);
+   const [myStickers, setMyStickers] = useState<MemberReward[]>([]);
+
+   useEffect(() => {
+      chatService.getMyStickers().then(res => setMyStickers(res.data || []));
+   }, []);
 
    // --- Upload State ---
    const [showImagePreview, setShowImagePreview] = useState(false);
@@ -53,9 +63,13 @@ const ChatPage: React.FC = () => {
    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
    const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
    const [showInviteModal, setShowInviteModal] = useState(false);
+   const [showUnblockModal, setShowUnblockModal] = useState(false);
 
    // --- Search/Group Data ---
    const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
+   const [blockedUsers, setBlockedUsers] = useState<Set<number>>(new Set()); // Users we blocked
+   const [blockedByUsers, setBlockedByUsers] = useState<Set<number>>(new Set()); // Users who blocked us
+   const [selectedBlockedUser, setSelectedBlockedUser] = useState<ChatUser | null>(null);
    const [searchUserQuery, setSearchUserQuery] = useState('');
    const [filteredUsers, setFilteredUsers] = useState<ChatUser[]>([]);
    const [searchRoomQuery, setSearchRoomQuery] = useState('');
@@ -63,11 +77,16 @@ const ChatPage: React.FC = () => {
    // --- Group Form ---
    const [groupName, setGroupName] = useState('');
    const [groupImage, setGroupImage] = useState<string | null>(null);
+   const [groupImageFile, setGroupImageFile] = useState<File | null>(null); // ✅ For Upload
    const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
 
    // --- Edit Group Mode ---
    const [isEditingGroup, setIsEditingGroup] = useState(false);
    const [editGroupName, setEditGroupName] = useState('');
+
+   // --- Image Preview Modal State (Lightbox) ---
+   const [showImageModal, setShowImageModal] = useState(false);
+   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
    // --- Config & Refs ---
    const ws = useRef<WebSocket | null>(null);
@@ -85,8 +104,56 @@ const ChatPage: React.FC = () => {
       const storedID = Number(localStorage.getItem('my_user_id'));
       if (storedID) setMyUserID(storedID);
       else if (token) setMyUserID(getUserIdFromToken(token));
-      loadRooms();
+
+      // Load everything together
+      loadInitialData(storedID || myUserID);
    }, [token]);
+
+   const loadInitialData = async (userId: number) => {
+      try {
+         // Fetch both in parallel
+         const [blockedRes, roomsRes] = await Promise.all([
+            friendAPI.getBlockedUsers(),
+            chatService.getRooms()
+         ]);
+
+         // Process blocked users FIRST
+         const blockedData = (blockedRes as any)?.data || [];
+         const blockedIds = new Set<number>();
+         blockedData.forEach((b: any) => blockedIds.add(b.ID || b.id));
+
+         // Update state
+         setBlockedUsers(blockedIds);
+
+         // NOW filter rooms using the blockedIds we just created
+         if (roomsRes.data) {
+            const filteredRooms = roomsRes.data.filter((room: Room) => {
+               if (room.rc_type === 'private') {
+                  // Check if chat partner is blocked
+                  const hasBlockedMember = room.member?.some(m =>
+                     Number(m.member_id) !== userId && blockedIds.has(Number(m.member_id))
+                  );
+                  return !hasBlockedMember;
+               }
+               return true; // Keep all group chats
+            });
+            setRooms(filteredRooms);
+
+            // ✅ Auto-select room from navigation state
+            const state = location.state as { roomId?: number };
+            if (state?.roomId) {
+               const targetRoom = filteredRooms.find(r => r.room_id === state.roomId);
+               if (targetRoom) {
+                  setCurrentRoom(targetRoom);
+                  // Clear state to prevent re-opening on reload (optional, but good UX)
+                  window.history.replaceState({}, document.title);
+               }
+            }
+         }
+      } catch (err) {
+         console.error("Load initial data failed", err);
+      }
+   };
 
    const loadRooms = async () => {
       try {
@@ -105,13 +172,26 @@ const ChatPage: React.FC = () => {
             const msg: WSMessage = JSON.parse(event.data);
             if (msg.type === 'new_message') {
                const newMsg = msg.payload as Message;
-               if (activeRoomIdRef.current === newMsg.room_id) setMessages(prev => [...prev, newMsg]);
-               updateLastMessage(newMsg.room_id, newMsg.content);
+
+               // ⭐ Optimistic Fix: Ignore own messages from WS to prevent duplicates
+               // (Since we add them immediately in handleSendMessage)
+               if (newMsg.sender_id === myUserID) return;
+
+               if (activeRoomIdRef.current === newMsg.room_id) {
+                  setMessages(prev => [...prev, newMsg]);
+                  // Mark read immediately if in room
+                  chatService.markRead(newMsg.room_id).catch(console.error);
+               } else {
+                  // Increment Unread Count for background room
+                  setRooms(prev => prev.map(r => r.room_id === newMsg.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1 } : r));
+               }
+
+               updateLastMessage(newMsg.room_id, newMsg.content, newMsg.sender_id, newMsg.sender?.first_name);
             }
          } catch (error) { console.error("WS Error:", error); }
       };
       return () => ws.current?.close();
-   }, [token]);
+   }, [token, myUserID]);
 
    // Room Selection
    useEffect(() => {
@@ -152,11 +232,18 @@ const ChatPage: React.FC = () => {
       };
    };
 
-   const updateLastMessage = (roomId: number, text: string) => {
+   const updateLastMessage = (roomId: number, text: string, senderId?: number, senderName?: string) => {
       setRooms(prev => {
          const index = prev.findIndex(r => r.room_id === roomId);
          if (index === -1) return prev;
-         const updated = { ...prev[index], last_message: text };
+
+         const updated = {
+            ...prev[index],
+            last_message: text,
+            last_sender_id: senderId !== undefined ? senderId : prev[index].last_sender_id,
+            last_sender_name: senderName !== undefined ? senderName : prev[index].last_sender_name
+         };
+
          const newArr = [...prev];
          newArr.splice(index, 1);
          return [updated, ...newArr];
@@ -164,38 +251,59 @@ const ChatPage: React.FC = () => {
    };
 
    // --- Actions ---
-   const handleSendMessage = async () => {
-      if (!inputText.trim() || !currentRoom) return;
-      try { await chatService.sendMessage(currentRoom.room_id, inputText); setInputText(''); } catch (err) { console.error(err); }
-   };
+   const handleSendMessage = async (text?: string) => {
+      const content = typeof text === 'string' ? text : inputText;
+      if (!content.trim() || !currentRoom) return;
 
-   // --- Group Management Handlers ---
-   const handleSaveGroupInfo = async () => {
-      if (!currentRoom || !editGroupName.trim()) return;
+      // Check if blocked (for private chats)
+      if (currentRoom.rc_type === 'private') {
+         const partner = currentRoom.member?.find(m => Number(m.member_id) !== myUserID);
+         if (partner && blockedUsers.has(partner.member_id)) {
+            alert("ไม่สามารถส่งข้อความได้ เนื่องจากคุณบล็อกผู้ใช้นี้อยู่");
+            return;
+         }
+      }
+
+      // ⭐ Optimistic UI: Create pending message
+      const tempId = Date.now();
+      const optimisticMsg: Message = {
+         message_id: tempId,
+         room_id: currentRoom.room_id,
+         sender_id: myUserID,
+         content: content,
+         type_message: 'text',
+         sent_at: new Date().toISOString(),
+         sender: {
+            id: myUserID,
+            username: "Me", // Placeholder, UI often uses myUserID check anyway
+            avatar: ""
+         }
+      };
+
+      // 1. Clear Input immediately
+      if (!text) setInputText('');
+
+      // 2. Add to messages immediately
+      setMessages(prev => [...prev, optimisticMsg]);
+
+      // 3. Update sidebar immediately
+      updateLastMessage(currentRoom.room_id, content, myUserID, "Me");
+
       try {
-         // Mockup: Replace with actual API call
-         // await chatService.updateGroup(currentRoom.room_id, { name: editGroupName });
-         alert(`เปลี่ยนชื่อกลุ่มเป็น "${editGroupName}" สำเร็จ (Mockup)`);
-         setIsEditingGroup(false);
-         setRooms(prev => prev.map(r => r.room_id === currentRoom.room_id ? { ...r, rc_name: editGroupName } : r));
-         if (currentRoom) setCurrentRoom({ ...currentRoom, rc_name: editGroupName });
-      } catch (err) { alert("เกิดข้อผิดพลาดในการแก้ไขกลุ่ม"); }
-   };
+         await chatService.sendMessage(currentRoom.room_id, content);
+      } catch (err: any) {
+         // Fail: Remove the optimistic message
+         setMessages(prev => prev.filter(m => m.message_id !== tempId));
 
-   const handlePromoteAdmin = async (targetMemberID: number) => {
-      if (!currentRoom) return;
-      if (confirm("ยืนยันการตั้งสมาชิกคนนี้เป็น Admin?")) {
-         try { alert(`ตั้ง Admin เรียบร้อย (Mockup)`); loadRooms(); } catch (err) { alert("ทำรายการไม่สำเร็จ"); }
+         // Check if error is due to being blocked
+         if (err.response?.status === 403 || err.response?.data?.error?.includes('block')) {
+            alert("ไม่สามารถส่งข้อความได้ อาจเป็นเพราะถูกบล็อกหรือบล็อกกัน");
+         }
+         console.error(err);
       }
    };
 
-   const handleDismissAdmin = async (targetMemberID: number) => {
-      if (!currentRoom) return;
-      if (targetMemberID === myUserID) { alert("คุณไม่สามารถปลดตำแหน่งตัวเองได้"); return; }
-      if (confirm("ยืนยันการปลด Admin?")) {
-         try { alert(`ปลด Admin เรียบร้อย (Mockup)`); loadRooms(); } catch (err) { alert("ทำรายการไม่สำเร็จ"); }
-      }
-   };
+   // --- Group Management Handlers (Defined below) ---
 
    const handleLeaveRoom = async () => {
       if (!currentRoom) return;
@@ -226,19 +334,65 @@ const ChatPage: React.FC = () => {
       if (confirm(`ต้องการจัดการ Block ผู้ใช้ ${info.name}?`)) {
          try {
             await friendAPI.blockUser(target.member_id);
-            alert("ดำเนินการเรียบร้อย");
-            window.location.reload();
-         } catch (err) { console.error(err); }
+            // Add to blocked users set
+            setBlockedUsers(prev => {
+               const newSet = new Set(prev);
+               newSet.add(target.member_id);
+               return newSet;
+            });
+            // Remove the room from the list immediately
+            setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+            setCurrentRoom(null);
+            alert("บล็อกผู้ใช้เรียบร้อย");
+         } catch (err) { console.error(err); alert("เกิดข้อผิดพลาด"); }
       }
    };
 
    // --- Search & Create Logic ---
    const loadAllUsers = async () => {
-      if (allUsers.length > 0) return;
       try {
-         const res = await friendAPI.getAllMembers();
-         const usersData = Array.isArray(res) ? res : (res as any)?.data;
+         // Always refresh blocked users to ensure up-to-date status
+         const blockedRes = await friendAPI.getBlockedUsers();
+         const blockedData = (blockedRes as any)?.data || [];
+
+         console.log("Blocked Data from API:", blockedData); // Debug
+
+         // Parse blocked users - the API returns objects with blocker_id and blocked_id
+         const blockedIds = new Set<number>();
+         const blockedByIds = new Set<number>();
+
+         blockedData.forEach((block: any) => {
+            // Only process active blocks (check if status/is_active is true)
+            const isActive = block.is_active === true || block.is_active === 1 ||
+               block.status === true || block.status === 1 ||
+               block.is_blocked === true || block.is_blocked === 1;
+
+            if (!isActive) return; // Skip inactive blocks
+
+            // If I am the blocker, add to blockedIds
+            if (block.blocker_id === myUserID || block.blocker_mem_id === myUserID) {
+               blockedIds.add(block.blocked_id || block.blocked_mem_id || block.BlockedMember?.ID || block.BlockedMember?.id);
+            }
+            // If I am blocked, add to blockedByIds  
+            if (block.blocked_id === myUserID || block.blocked_mem_id === myUserID) {
+               blockedByIds.add(block.blocker_id || block.blocker_mem_id || block.BlockerMember?.ID || block.BlockerMember?.id);
+            }
+         });
+
+         console.log("Blocked IDs (I blocked):", Array.from(blockedIds)); // Debug
+         console.log("Blocked By IDs (They blocked me):", Array.from(blockedByIds)); // Debug
+
+         setBlockedUsers(blockedIds);
+         setBlockedByUsers(blockedByIds);
+
+         // Only fetch all members once
+         if (allUsers.length > 0) return;
+
+         const membersRes = await friendAPI.getAllMembers();
+         const usersData = Array.isArray(membersRes) ? membersRes : (membersRes as any)?.data;
+
          if (Array.isArray(usersData)) {
+            // Keep ALL users (including blocked ones) so they can be found in search
             const mapped = usersData.filter((u: any) => (u.ID || u.id) !== myUserID).map((u: any) => ({
                id: u.ID || u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, avatar: getImageUrl(u.member_picture || u.avatar)
             }));
@@ -248,12 +402,30 @@ const ChatPage: React.FC = () => {
    };
 
    const handleCreateGroup = async () => {
-      if (!groupName.trim() || selectedMembers.length === 0) return alert('กรุณากรอกข้อมูล');
+      if (!groupName.trim() || selectedMembers.length === 0) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
       try {
+         // 1. Create Room (Backend doesn't support image in create, so we update later)
          const res = await chatService.createRoom({ type: 'group', group_name: groupName, member_ids: selectedMembers });
          if (res.data) {
-            setRooms(prev => [res.data, ...prev]); setCurrentRoom(res.data); setShowCreateGroupModal(false);
-            setGroupName(''); setGroupImage(null); setSelectedMembers([]);
+            let roomData = res.data;
+
+            // 2. Upload & Update Image if selected
+            if (groupImageFile) {
+               try {
+                  const uploadRes = await chatService.uploadImage(groupImageFile, 'group'); // ✅ Type: group
+                  if (uploadRes.url) {
+                     await chatService.updateGroup(roomData.room_id, { name: groupName, avatar_url: uploadRes.url });
+                     roomData.rc_url = uploadRes.url; // Update local data
+                  }
+               } catch (e) {
+                  console.error("Upload group image failed", e);
+               }
+            }
+
+            setRooms(prev => [roomData, ...prev]);
+            setCurrentRoom(roomData);
+            setShowCreateGroupModal(false);
+            setGroupName(''); setGroupImage(null); setGroupImageFile(null); setSelectedMembers([]);
          }
       } catch (err) { alert('สร้างกลุ่มไม่สำเร็จ'); }
    };
@@ -261,17 +433,74 @@ const ChatPage: React.FC = () => {
    const handleInviteMembers = async () => {
       if (!currentRoom || selectedMembers.length === 0) return;
       try {
-         alert(`เชิญสมาชิกเพิ่ม ${selectedMembers.length} คนสำเร็จ (Mockup)`);
-         setShowInviteModal(false); setSelectedMembers([]); loadRooms();
+         await chatService.inviteMembers(currentRoom.room_id, selectedMembers);
+         alert(`เชิญสมาชิกเพิ่มเรียบร้อย`);
+         setShowInviteModal(false); setSelectedMembers([]);
+         loadRooms(); // Reload to get updated member list (or optimistically update)
+         // Optimistic update for member count display
+         // Real member data needs fetch from API, simplifying by just reloading room details
+         const updatedRoom = await chatService.getRooms().then(r => r.data.find(rm => rm.room_id === currentRoom.room_id));
+         if (updatedRoom) setCurrentRoom(updatedRoom);
+
       } catch (err) { alert('เชิญไม่สำเร็จ'); }
    }
 
    const handleGroupImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.[0]) {
+         const file = e.target.files[0];
+         setGroupImageFile(file); // ✅ Store file state
          const reader = new FileReader();
          reader.onloadend = () => setGroupImage(reader.result as string);
-         reader.readAsDataURL(e.target.files[0]);
+         reader.readAsDataURL(file);
       }
+   };
+
+   // ✅ New Handlers for Group Management
+   const handleUpdateGroupImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!currentRoom || !e.target.files?.[0]) return;
+      const file = e.target.files[0];
+      try {
+         const uploadRes = await chatService.uploadImage(file, 'group'); // ✅ Type: group
+         // Update Group immediately
+         await chatService.updateGroup(currentRoom.room_id, {
+            name: currentRoom.rc_name,
+            avatar_url: uploadRes.url
+         });
+         const newUrl = uploadRes.url;
+         setCurrentRoom(prev => prev ? { ...prev, rc_url: newUrl } : null);
+         setRooms(prev => prev.map(r => r.room_id === currentRoom.room_id ? { ...r, rc_url: newUrl } : r));
+      } catch (err) { alert('อัปเดตรูปกลุ่มไม่สำเร็จ'); }
+   };
+
+   const handleSaveGroupInfo = async () => {
+      if (!currentRoom || !editGroupName.trim()) return;
+      try {
+         await chatService.updateGroup(currentRoom.room_id, {
+            name: editGroupName,
+            avatar_url: currentRoom.rc_url
+         });
+         setCurrentRoom(prev => prev ? { ...prev, rc_name: editGroupName } : null);
+         setRooms(prev => prev.map(r => r.room_id === currentRoom.room_id ? { ...r, rc_name: editGroupName } : r));
+         setIsEditingGroup(false);
+      } catch (err) { alert('แก้ไขชื่อกลุ่มไม่สำเร็จ'); }
+   };
+
+   const handlePromoteAdmin = async (targetId: number, currentRole: string) => {
+      if (!currentRoom) return;
+      const newRole = currentRole === 'admin' ? 'member' : 'admin';
+      const action = newRole === 'admin' ? 'ตั้งเป็นแอดมิน' : 'ลดสถานะเป็นสมาชิก';
+
+      if (!confirm(`ต้องการ${action}ใช่หรือไม่?`)) return;
+
+      try {
+         await chatService.updateMemberRole(currentRoom.room_id, targetId, newRole as 'admin' | 'member');
+         // Update local state
+         const updatedMembers = currentRoom.member?.map(m =>
+            Number(m.member_id) === targetId ? { ...m, rm_role: newRole } : m
+         );
+         setCurrentRoom(prev => prev ? { ...prev, member: updatedMembers } : null);
+         alert(`${action}สำเร็จ`);
+      } catch (err) { alert('ดำเนินการไม่สำเร็จ'); }
    };
 
    const toggleMemberSelection = (id: number) => {
@@ -325,17 +554,111 @@ const ChatPage: React.FC = () => {
    };
 
    const handleSendImages = async () => {
-      if (!currentRoom) return;
-      alert(`ส่ง ${uploadedImages.length} รูป (Mockup)`);
+      if (!currentRoom || uploadedImages.length === 0) return;
+
+      // ⭐ 1. Optimistic UI: clear preview immediately
+      const tempImages = [...uploadedImages];
       setUploadedImages([]);
       setShowImagePreview(false);
+
+      // ⭐ 2. Optimistic UI: Add temporary message
+      const tempId = Date.now();
+      const optimisticMsg: Message = {
+         message_id: tempId,
+         room_id: currentRoom.room_id,
+         sender_id: myUserID,
+         content: "ส่งรูปภาพ",
+         type_message: 'image',
+         sent_at: new Date().toISOString(),
+         sender: { id: myUserID, username: "Me", avatar: "" },
+         attachments: tempImages.map((img, index) => ({
+            id: tempId + index, // Temp ID
+            message_id: tempId,
+            file_url: img.preview, // Use local blob URL
+            file_type: img.file.type,
+            file_name: img.file.name,
+            file_size: (img.file.size / 1024).toFixed(2) + ' KB'
+         }))
+      };
+
+      setMessages(prev => [...prev, optimisticMsg]);
+      updateLastMessage(currentRoom.room_id, "ส่งรูปภาพ", myUserID, "Me");
+
+      try {
+         const attachments = [];
+         for (const img of tempImages) {
+            const res = await chatService.uploadImage(img.file, 'image'); // ✅ Type: image
+            attachments.push({
+               file_url: res.url,
+               file_type: res.file_type,
+               file_name: res.file_name,
+               file_size: res.file_size
+            });
+         }
+         // Send message with attachments
+         await chatService.sendMessage(currentRoom.room_id, "ส่งรูปภาพ", 'image', undefined, attachments);
+      } catch (err) {
+         console.error(err);
+         alert("ส่งรูปภาพไม่สำเร็จ");
+         // Revert on failure
+         setMessages(prev => prev.filter(m => m.message_id !== tempId));
+         setUploadedImages(tempImages); // Restore preview
+         setShowImagePreview(true);
+      }
    };
 
    const handleSendFiles = async () => {
-      if (!currentRoom) return;
-      alert(`ส่ง ${uploadedFiles.length} ไฟล์ (Mockup)`);
+      if (!currentRoom || uploadedFiles.length === 0) return;
+
+      // ⭐ 1. Optimistic UI: clear preview immediately
+      const tempFiles = [...uploadedFiles];
       setUploadedFiles([]);
       setShowFilePreview(false);
+
+      // ⭐ 2. Optimistic UI: Add temporary message
+      const tempId = Date.now();
+      const optimisticMsg: Message = {
+         message_id: tempId,
+         room_id: currentRoom.room_id,
+         sender_id: myUserID,
+         content: "ส่งไฟล์",
+         type_message: 'file',
+         sent_at: new Date().toISOString(),
+         sender: { id: myUserID, username: "Me", avatar: "" },
+         attachments: tempFiles.map((f, index) => ({
+            id: tempId + index, // Temp ID
+            message_id: tempId,
+            file_url: "", // For files, we might not have a local preview URL unless we create one, but empty is OK for "Downloading..." state simulation or just show name
+            file_type: f.file.type,
+            file_name: f.name,
+            file_size: f.size
+         }))
+      };
+
+      setMessages(prev => [...prev, optimisticMsg]);
+      updateLastMessage(currentRoom.room_id, "ส่งไฟล์", myUserID, "Me");
+
+      try {
+         const attachments = [];
+         for (const f of tempFiles) {
+            const res = await chatService.uploadImage(f.file, 'file'); // ✅ Type: file
+            attachments.push({
+               file_url: res.url,
+               file_type: res.file_type,
+               file_name: res.file_name,
+               file_size: res.file_size
+            });
+         }
+         // Send message with attachments
+         await chatService.sendMessage(currentRoom.room_id, "ส่งไฟล์", 'file', undefined, attachments);
+      } catch (err) {
+         console.error(err);
+         alert("ส่งไฟล์ไม่สำเร็จ");
+         // Revert on failure
+         setMessages(prev => prev.filter(m => m.message_id !== tempId));
+         setUploadedFiles(tempFiles);
+         setShowFilePreview(true);
+      }
    };
 
    // --- Picker Handlers ---
@@ -344,15 +667,53 @@ const ChatPage: React.FC = () => {
       setShowEmojiPicker(false);
    };
 
-   const handleStickerClick = (sticker: any) => {
-      alert(`ส่งสติ๊กเกอร์ ${sticker.name}`);
-      setShowStickerPicker(false);
+   const handleStickerClick = async (stickerId: number) => {
+      if (!currentRoom) return;
+      try {
+         await chatService.sendMessage(currentRoom.room_id, '', 'sticker', stickerId);
+         setShowStickerPicker(false);
+      } catch (err) {
+         console.error(err);
+         alert("ส่งสติ๊กเกอร์ไม่สำเร็จ");
+      }
    };
 
    // --- Other Handlers ---
    const handleUnsend = async (msgId: number) => { if (confirm("ยกเลิกข้อความ?")) try { await chatService.unsendMessage(msgId); } catch (err) { } };
-   const handleClearHistory = async () => { if (currentRoom && confirm("ล้างแชท?")) try { await chatService.clearHistory(currentRoom.room_id); setMessages([]); setShowMenu(false); } catch (err) { } };
+
+   const handleClearHistory = async () => {
+      if (currentRoom && confirm("ล้างแชท?")) {
+         // ⭐ Optimistic Update: Clear UI immediately
+         const previousMessages = [...messages];
+         const roomId = currentRoom.room_id;
+
+         setMessages([]);
+         setShowMenu(false);
+         // Update sidebar immediately: Reset sender to 0 so "You:" prefix doesn't appear
+         updateLastMessage(roomId, "เริ่มการสนทนา", 0, "");
+
+         try {
+            await chatService.clearHistory(roomId);
+         } catch (err) {
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการล้างแชท");
+            // Revert on failure (optional, but good UX)
+            setMessages(previousMessages);
+         }
+      }
+   };
    const handleStartChat = async (targetId: number) => {
+      // Check if we blocked this user
+      if (blockedUsers.has(targetId)) {
+         // Show unblock modal instead
+         const user = allUsers.find(u => u.id === targetId);
+         if (user) {
+            setSelectedBlockedUser(user);
+            setShowUnblockModal(true);
+         }
+         return;
+      }
+
       try {
          const res = await chatService.createRoom({ type: 'private', target_id: targetId });
          if (res.data) {
@@ -361,12 +722,82 @@ const ChatPage: React.FC = () => {
             setCurrentRoom(res.data);
             setShowSearchModal(false);
          }
-      } catch (err) { alert("ไม่สามารถเริ่มแชทได้"); }
+      } catch (err: any) {
+         // Check if blocked by this user
+         const errorMsg = err.response?.data?.error || err.message || "";
+         if (err.response?.status === 403 || errorMsg.toLowerCase().includes('block')) {
+            alert("คุณถูกบล็อกโดยผู้ใช้นี้ ไม่สามารถส่งข้อความได้");
+         } else {
+            alert("ไม่สามารถเริ่มแชทได้");
+         }
+         console.error(err);
+      }
    };
-   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const term = e.target.value;
-      setSearchUserQuery(term);
-      setFilteredUsers(term ? allUsers.filter((u) => (u.first_name + " " + u.last_name).toLowerCase().includes(term.toLowerCase())) : allUsers);
+
+   const handleUnblockUser = async () => {
+      if (!selectedBlockedUser) return;
+      try {
+         await friendAPI.unblockUser(selectedBlockedUser.id);
+         // Remove from blocked users set
+         setBlockedUsers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(selectedBlockedUser.id);
+            return newSet;
+         });
+         setShowUnblockModal(false);
+         setSelectedBlockedUser(null);
+         alert("ปลดบล็อกเรียบร้อย");
+      } catch (err) {
+         console.error(err);
+         alert("เกิดข้อผิดพลาดในการปลดบล็อก");
+      }
+   };
+
+   const handleViewProfile = async (userId: number) => {
+      try {
+         // Fetch user's friend requests (received) and friends list
+         const [friendsRes, receivedReqRes] = await Promise.all([
+            friendAPI.getMyFriends(),
+            friendAPI.getReceivedRequests()
+         ]);
+
+         const friendsData = (friendsRes as any)?.data || [];
+         const receivedReqData = (receivedReqRes as any)?.data || [];
+
+         console.log("🔍 Checking relationship for userId:", userId);
+         console.log("Friends data:", friendsData);
+         console.log("Received requests data:", receivedReqData);
+
+         // Check if user is a friend
+         const isFriend = friendsData.some((f: any) =>
+            (f.ID || f.id || f.friend_id || f.FriendID) === userId
+         );
+
+         // Check if there's a pending received request from this user
+         const hasReceivedRequest = receivedReqData.some((req: any) => {
+            // The sender info is in sent_member object or sent_mem_id field
+            const senderId = req.sent_mem_id ||
+               req.sent_member?.ID ||
+               req.sent_member?.id ||
+               req.sender_id ||
+               req.SenderId ||
+               req.SenderID ||
+               req.sender_mem_id || req.SenderMember?.ID || req.SenderMember?.id;
+            return senderId === userId;
+         });
+
+         if (isFriend) {
+            navigate('/User/Friends/FriendRelation', { state: { selectedId: userId } });
+         } else if (hasReceivedRequest) {
+            navigate('/User/Friends/Request', { state: { selectedId: userId } });
+         } else {
+            navigate('/User/Friends/Popular', { state: { selectedId: userId } });
+         }
+      } catch (err) {
+         console.error("Failed to check relationship:", err);
+
+         navigate('/User/Friends/Popular', { state: { selectedId: userId } });
+      }
    };
 
    // ==========================================
@@ -394,7 +825,7 @@ const ChatPage: React.FC = () => {
                         {amIAdmin && (
                            <label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full text-white cursor-pointer hover:bg-blue-600 shadow-md transition-transform hover:scale-110">
                               <Edit2 size={14} />
-                              <input type="file" className="hidden" accept="image/*" />
+                              <input type="file" className="hidden" accept="image/*" onChange={handleUpdateGroupImage} />
                            </label>
                         )}
                      </div>
@@ -416,7 +847,7 @@ const ChatPage: React.FC = () => {
                            <div className="flex items-center gap-2">
                               <h2 className="text-xl font-bold text-gray-800">{currentRoom.rc_name}</h2>
                               {amIAdmin && (
-                                 <button onClick={() => setIsEditingGroup(true)} className="text-gray-400 hover:text-blue-500 transition">
+                                 <button onClick={() => { setIsEditingGroup(true); setEditGroupName(currentRoom.rc_name); }} className="text-gray-400 hover:text-blue-500 transition">
                                     <Edit2 size={16} />
                                  </button>
                               )}
@@ -457,8 +888,9 @@ const ChatPage: React.FC = () => {
                                           <p className="font-medium text-gray-800 text-sm">
                                              {user?.first_name} {user?.last_name}
                                           </p>
-                                          {isMe && <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">ฉัน</span>}
+                                          {isAdmin && <Crown size={14} className="text-yellow-500 fill-yellow-500" />}
                                        </div>
+                                       <p className="text-xs text-gray-500">@{user?.username}</p>
                                        {isAdmin ? (
                                           <p className="text-xs text-yellow-600 flex items-center gap-1 mt-0.5 font-medium">
                                              <Crown size={12} className="fill-yellow-500" /> Admin
@@ -471,28 +903,24 @@ const ChatPage: React.FC = () => {
 
                                  <div className="flex items-center gap-2">
                                     {amIAdmin && !isMe && (
-                                       <div className="relative group/menu">
-                                          <button className="p-2 text-gray-400 hover:bg-gray-200 rounded-full opacity-0 group-hover:opacity-100 transition">
-                                             <MoreVertical size={16} />
+                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                          <button
+                                             title={isAdmin ? "ลดสถานะ" : "ตั้งเป็นแอดมิน"}
+                                             onClick={() => handlePromoteAdmin(Number(m.member_id), m.rm_role)}
+                                             className={`p-1.5 rounded-lg ${isAdmin ? 'text-gray-400 hover:bg-red-50 hover:text-red-500' : 'text-gray-400 hover:bg-yellow-50 hover:text-yellow-500'}`}
+                                          >
+                                             <Crown size={16} />
                                           </button>
-                                          <div className="absolute right-0 top-full hidden group-hover/menu:block w-36 bg-white shadow-xl rounded-lg border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95">
-                                             {isAdmin ? (
-                                                <button onClick={() => handleDismissAdmin(m.member_id)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 text-gray-700">⬇️ ปลด Admin</button>
-                                             ) : (
-                                                <button onClick={() => handlePromoteAdmin(m.member_id)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 text-gray-700">⬆️ ตั้งเป็น Admin</button>
-                                             )}
-                                             <div className="border-t border-gray-100 my-0.5"></div>
-                                             <button className="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50">เตะออกจากกลุ่ม</button>
-                                          </div>
                                        </div>
                                     )}
+                                    {isMe && <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">ฉัน</span>}
                                  </div>
                               </div>
                            );
                         })}
                      </div>
                   </div>
-               </div>
+               </div >
 
                <div className="p-4 border-t bg-gray-50">
                   <button
@@ -502,8 +930,8 @@ const ChatPage: React.FC = () => {
                      <LogOut size={18} /> ออกจากกลุ่ม
                   </button>
                </div>
-            </div>
-         </div>
+            </div >
+         </div >
       );
    };
 
@@ -524,8 +952,26 @@ const ChatPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                {rooms.filter(r => getChatInfo(r).name.toLowerCase().includes(searchRoomQuery.toLowerCase())).map(room => {
                   const info = getChatInfo(room);
+
+                  // Last Message Format Logic
+                  let displayMessage = room.last_message || "เริ่มการสนทนา";
+                  if (room.last_message) {
+                     if (Number(room.last_sender_id) === Number(myUserID)) {
+                        displayMessage = `คุณ: ${room.last_message}`;
+                     } else if (room.rc_type === 'group' && room.last_sender_name) {
+                        displayMessage = `${room.last_sender_name}: ${room.last_message}`;
+                     }
+                  }
+
                   return (
-                     <div key={room.room_id} onClick={() => setCurrentRoom(room)} className={`flex items-center p-3 mx-2 my-1 rounded-xl cursor-pointer transition-all border-l-4 ${currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-orange-500 shadow-sm' : 'border-transparent hover:bg-gray-50'}`}>
+                     <div key={room.room_id} onClick={() => {
+                        setCurrentRoom(room);
+                        if (room.unread_count && room.unread_count > 0) {
+                           // ⭐ Clear Unread Count Optimistically
+                           setRooms(prev => prev.map(r => r.room_id === room.room_id ? { ...r, unread_count: 0 } : r));
+                           chatService.markRead(room.room_id).catch(console.error);
+                        }
+                     }} className={`flex items-center p-3 mx-2 my-1 rounded-xl cursor-pointer transition-all border-l-4 ${currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-orange-500 shadow-sm' : 'border-transparent hover:bg-gray-50'}`}>
                         <div className="relative mr-3">
                            <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
                               {info.image ? <img src={info.image} className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} /> : (info.type === 'group' ? <Users className="text-gray-400" /> : <User className="text-gray-400" />)}
@@ -533,8 +979,15 @@ const ChatPage: React.FC = () => {
                            {info.isOnline && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>}
                         </div>
                         <div className="flex-1 min-w-0">
-                           <h3 className="font-semibold text-gray-900 truncate text-sm">{info.name}</h3>
-                           <p className={`text-xs truncate ${currentRoom?.room_id === room.room_id ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>{room.last_message || "เริ่มการสนทนา"}</p>
+                           <div className="flex justify-between items-center">
+                              <h3 className="font-semibold text-gray-900 truncate text-sm">{info.name}</h3>
+                              {room.unread_count && room.unread_count > 0 ? (
+                                 <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center shadow-sm animate-in zoom-in-50">
+                                    {room.unread_count > 99 ? '99+' : room.unread_count}
+                                 </span>
+                              ) : null}
+                           </div>
+                           <p className={`text-xs truncate ${currentRoom?.room_id === room.room_id ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>{displayMessage}</p>
                         </div>
                      </div>
                   );
@@ -589,103 +1042,282 @@ const ChatPage: React.FC = () => {
                   })()}
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 flex flex-col space-y-3">
-                     {messages.map((msg, idx) => {
-                        const isMe = Number(msg.sender_id) === Number(myUserID);
+                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 flex flex-col">
+                     {(() => {
+                        const info = getChatInfo(currentRoom);
+                        const partner = currentRoom.rc_type === 'private'
+                           ? currentRoom.member?.find((m) => Number(m.member_id) !== Number(myUserID))
+                           : null;
+                        const user = partner?.member;
+
                         return (
-                           <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                              {!isMe && (
-                                 <div className="w-8 h-8 mr-2 rounded-full bg-gray-300 overflow-hidden flex-shrink-0 self-end mb-6 shadow-sm">
-                                    {msg.sender?.avatar ? <img src={msg.sender.avatar} className="w-full h-full object-cover" /> : <User className="p-1 text-gray-500 w-full h-full" />}
+                           <>
+                              {/* Profile Info Header (Always Visible at Top of Scroll) */}
+                              <div className="flex flex-col items-center justify-center pt-8 pb-8 shrink-0 select-none">
+                                 {/* Avatar */}
+                                 <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-gray-100 flex items-center justify-center overflow-hidden shadow-sm mb-4">
+                                    {info.image ? (
+                                       <img src={info.image} className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                    ) : (
+                                       info.type === 'group' ? <Users size={56} className="text-gray-400" /> : <User size={56} className="text-gray-400" />
+                                    )}
                                  </div>
-                              )}
-                              <div className={`flex flex-col max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                 {!isMe && currentRoom.rc_type === 'group' && <span className="text-[11px] text-gray-500 ml-1 mb-1 font-medium">{msg.sender?.first_name}</span>}
-                                 <div className={`px-4 py-2 text-sm shadow-sm break-words relative ${isMe ? 'bg-orange-500 text-white rounded-2xl rounded-br-none' : 'bg-white text-gray-800 rounded-2xl rounded-bl-none border border-gray-200'}`}>
-                                    {msg.is_deleted ? <span className="italic opacity-70 flex gap-1 items-center text-xs"><Trash2 size={12} /> ข้อความถูกลบ</span> : msg.content}
-                                 </div>
-                                 <div className="text-[10px] text-gray-400 mt-1 flex gap-2 items-center">
-                                    {isMe && !msg.is_deleted && <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition font-medium">ยกเลิก</button>}
-                                    <span>{new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                 </div>
+
+                                 {/* Name */}
+                                 <h2 className="text-2xl font-bold text-gray-800 mb-1">{info.name}</h2>
+
+                                 {/* Subtext: Student ID / Creator Info */}
+                                 {currentRoom.rc_type === 'group' ? (
+                                    <div className="text-center space-y-1">
+                                       {(() => {
+                                          const creator = currentRoom.member?.find(m => m.rm_role === 'admin')?.member;
+                                          const isCreator = currentRoom.member?.find(m => m.member_id === myUserID)?.rm_role === 'admin';
+                                          const createdDate = currentRoom.created_at || currentRoom.updated_at
+                                             ? new Date(currentRoom.created_at || currentRoom.updated_at!).toLocaleDateString('th-TH', {
+                                                day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                             })
+                                             : '-';
+
+                                          return (
+                                             <>
+                                                <p className="text-sm text-gray-500 font-medium">
+                                                   {isCreator ? 'คุณเป็นคนสร้างกลุ่มนี้' : `${creator?.first_name || 'Admin'} เป็นคนสร้างกลุ่ม`}
+                                                </p>
+                                                <p className="text-xs text-gray-400">{createdDate}</p>
+                                             </>
+                                          );
+                                       })()}
+                                    </div>
+                                 ) : (
+                                    user && (
+                                       <div className="text-center">
+                                          <p className="text-sm text-gray-400 mb-3">
+                                             {user.student_id ? `${user.student_id}` : ''} {user.student_id && '-'} {user.username}
+                                          </p>
+                                          <button
+                                             className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors shadow-sm text-sm"
+                                             onClick={() => {
+                                                if (partner) handleViewProfile(partner.member_id);
+                                             }}
+                                          >
+                                             ดูโปรไฟล์
+                                          </button>
+                                       </div>
+                                    )
+                                 )}
                               </div>
-                           </div>
+
+                              {/* Message List */}
+                              <div className="flex flex-col space-y-3 pb-4">
+                                 {messages.map((msg, idx) => {
+                                    const isMe = Number(msg.sender_id) === Number(myUserID);
+                                    const avatarUrl = msg.sender?.member_picture || msg.sender?.avatar;
+
+                                    return (
+                                       <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group animate-in slide-in-from-bottom-1 fade-in duration-300`}>
+                                          {!isMe && (
+                                             <div className="w-8 h-8 mr-2 rounded-full bg-gray-300 overflow-hidden flex-shrink-0 self-end mb-6 shadow-sm">
+                                                {avatarUrl ? <img src={getImageUrl(avatarUrl)} className="w-full h-full object-cover" /> : <User className="p-1 text-gray-500 w-full h-full" />}
+                                             </div>
+                                          )}
+                                          <div className={`flex flex-col max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
+                                             {!isMe && currentRoom.rc_type === 'group' && <span className="text-[11px] text-gray-500 ml-1 mb-1 font-medium">{msg.sender?.first_name}</span>}
+
+                                             {/* Message Bubble Logic */}
+                                             {msg.type_message === 'image' ? (
+                                                // --- Image Message Style (No Bubble Background) ---
+                                                <div className="relative">
+                                                   {msg.attachments && (
+                                                      <div className={`grid gap-1 ${msg.attachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                                         {msg.attachments.map((att) => (
+                                                            <div key={att.id} className="relative group/img overflow-hidden rounded-2xl cursor-pointer shadow-sm hover:shadow-md transition-all border border-gray-100" onClick={() => { setSelectedImage(att.file_url); setShowImageModal(true); }}>
+                                                               <img src={att.file_url} alt="attachment" className={`object-cover ${msg.attachments && msg.attachments.length > 1 ? 'w-40 h-32' : 'w-60 h-auto max-h-80'}`} />
+                                                               <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+                                                                  <Download size={24} className="text-white drop-shadow-lg scale-90 group-hover/img:scale-100 transition-transform" onClick={(e) => { e.stopPropagation(); window.open(att.file_url, '_blank'); }} />
+                                                               </div>
+                                                            </div>
+                                                         ))}
+                                                      </div>
+                                                   )}
+                                                </div>
+                                             ) : msg.type_message === 'file' ? (
+                                                // --- File Message Style (Standalone Card) ---
+                                                <div className="flex flex-col gap-2">
+                                                   {msg.attachments?.map((att) => (
+                                                      <div key={att.id} onClick={() => window.open(att.file_url, '_blank')} className="w-64 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl p-3 flex items-center gap-3 cursor-pointer transition-all shadow-sm">
+                                                         <div className="w-10 h-10 bg-blue-100/50 rounded-full flex items-center justify-center text-blue-600 shrink-0">
+                                                            <FileText size={20} />
+                                                         </div>
+                                                         <div className="flex-1 min-w-0">
+                                                            <p className="font-semibold text-gray-800 text-sm truncate">{att.file_name}</p>
+                                                            <p className="text-[10px] text-gray-500 uppercase">{att.file_type.split('/').pop() || 'FILE'} • {att.file_size} KB</p>
+                                                         </div>
+                                                         <div className="bg-white rounded-full p-1.5 shadow-sm text-gray-500 hover:text-blue-600 transition">
+                                                            <Download size={14} />
+                                                         </div>
+                                                      </div>
+                                                   ))}
+                                                </div>
+                                             ) : (
+                                                // --- Text Message Style (Standard Bubble) ---
+                                                <div className={`px-4 py-2 text-sm shadow-sm break-words relative ${isMe ? 'bg-blue-500 text-white rounded-2xl rounded-br-none' : 'bg-white text-gray-800 rounded-2xl rounded-bl-none border border-gray-200'}`}>
+                                                   {msg.is_deleted ? (
+                                                      <span className="italic opacity-70 flex gap-1 items-center text-xs"><Trash2 size={12} /> ข้อความถูกลบ</span>
+                                                   ) : (
+                                                      <p>{msg.content}</p>
+                                                   )}
+                                                </div>
+                                             )}
+
+                                             <div className="text-[10px] text-gray-400 mt-1 flex gap-2 items-center">
+                                                {isMe && !msg.is_deleted && <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition font-medium">ยกเลิก</button>}
+                                                <span>{new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                             </div>
+                                          </div>
+                                       </div>
+                                    );
+                                 })}
+                                 <div ref={messagesEndRef} />
+                              </div>
+                           </>
                         );
-                     })}
-                     <div ref={messagesEndRef} />
+                     })()}
                   </div>
 
                   {/* Input Area */}
-                  <div className="bg-white border-t border-gray-100 px-4 py-3 relative">
-                     {/* Pickers */}
-                     {showEmojiPicker && (
-                        <div className="absolute bottom-20 right-20 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 z-50 animate-in zoom-in-95">
-                           <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-gray-700">อีโมจิ</h3><button onClick={() => setShowEmojiPicker(false)}><X size={16} /></button></div>
-                           <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto custom-scrollbar">
-                              {EMOJIS.map((e, i) => <button key={i} onClick={() => handleEmojiClick(e)} className="text-xl hover:bg-gray-100 p-1 rounded transition">{e}</button>)}
+                  {(() => {
+                     // Check current user status in the group
+                     const myMemberInfo = currentRoom.member?.find(m => Number(m.member_id) === Number(myUserID));
+                     const isGroup = currentRoom.rc_type === 'group';
+                     const isPending = isGroup && myMemberInfo?.request_status === 'pending';
+                     const hasLeft = isGroup && !myMemberInfo; // If undefined, means not in member list (left/kicked)
+
+                     if (hasLeft) {
+                        return (
+                           <div className="bg-gray-100 p-4 text-center text-gray-500 text-sm border-t border-gray-200">
+                              คุณไม่ได้เป็นสมาชิกของกลุ่มนี้แล้ว
+                           </div>
+                        );
+                     }
+
+                     if (isPending) {
+                        return (
+                           <div className="bg-white border-t border-gray-200 p-4 flex flex-col items-center justify-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                              <p className="text-gray-600 font-medium text-sm">คุณได้รับเชิญให้เข้าร่วมกลุ่มนี้</p>
+                              <div className="flex gap-4 w-full max-w-sm">
+                                 <button
+                                    onClick={async () => {
+                                       if (confirm("ต้องการออกจากกลุ่ม?")) {
+                                          await chatService.leaveRoom(currentRoom.room_id);
+                                          loadRooms();
+                                          setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+                                          setCurrentRoom(null);
+                                       }
+                                    }}
+                                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+                                 >
+                                    ปฏิเสธ
+                                 </button>
+                                 <button
+                                    onClick={async () => {
+                                       try {
+                                          await chatService.joinGroup(currentRoom.room_id);
+                                          // Update local state to accepted immediately
+                                          const updatedMembers = currentRoom.member?.map(m =>
+                                             m.member_id === myUserID ? { ...m, request_status: 'joined' as const } : m
+                                          );
+                                          setCurrentRoom({ ...currentRoom, member: updatedMembers });
+                                       } catch (err) {
+                                          console.error("Failed to join group:", err);
+                                          alert("เกิดข้อผิดพลาดในการเข้าร่วมกลุ่ม");
+                                       }
+                                    }}
+                                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 shadow-md transition"
+                                 >
+                                    ยอมรับคำเชิญ
+                                 </button>
+                              </div>
+                           </div>
+                        );
+                     }
+
+                     // Standard Input Area for Joined Members & Private Chat
+                     return (
+                        <div className="bg-white border-t border-gray-100 px-4 py-3 relative">
+                           {/* Pickers */}
+                           {showEmojiPicker && (
+                              <div className="absolute bottom-20 right-20 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72 z-50 animate-in zoom-in-95">
+                                 <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-gray-700">อีโมจิ</h3><button onClick={() => setShowEmojiPicker(false)}><X size={16} /></button></div>
+                                 <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                    {EMOJIS.map((e, i) => <button key={i} onClick={() => handleEmojiClick(e)} className="text-xl hover:bg-gray-100 p-1 rounded transition">{e}</button>)}
+                                 </div>
+                              </div>
+                           )}
+                           {showStickerPicker && (
+                              <div className="absolute bottom-16 left-12 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-80 z-50 animate-in zoom-in-95 origin-bottom-left">
+                                 <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-gray-700">สติ๊กเกอร์ของฉัน</h3><button onClick={() => setShowStickerPicker(false)}><X size={16} /></button></div>
+                                 {myStickers.length === 0 ? (
+                                    <div className="text-center text-gray-400 py-4 text-sm">ไม่มีสติ๊กเกอร์<br />(แลกได้ที่หน้ารางวัล)</div>
+                                 ) : (
+                                    <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                       {myStickers.map((ms) => (
+                                          <button key={ms.ID} onClick={() => handleStickerClick(ms.reward.ID)} className="hover:bg-gray-50 p-2 rounded-xl flex flex-col items-center transition">
+                                             <img src={getImageUrl(ms.reward.reward_picture)} alt={ms.reward.reward_name} className="w-16 h-16 object-contain" />
+                                             <span className="text-[10px] text-gray-500 mt-1 truncate w-full text-center">{ms.reward.reward_name}</span>
+                                          </button>
+                                       ))}
+                                    </div>
+                                 )}
+                              </div>
+                           )}
+
+                           <div className="flex items-center gap-2">
+                              {/* Attachment */}
+                              <button onClick={() => document.getElementById('fileInput')?.click()} className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-300 transition-colors shadow-sm">
+                                 <Paperclip size={20} />
+                              </button>
+                              <input id="fileInput" type="file" multiple className="hidden" onChange={handleFileSelect} />
+
+                              {/* Image */}
+                              <button onClick={() => document.getElementById('imageInput')?.click()} className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-300 transition-colors shadow-sm">
+                                 <ImageIcon size={20} />
+                              </button>
+                              <input id="imageInput" type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
+
+                              {/* Input Box */}
+                              <div className="flex-1 relative">
+                                 <input
+                                    type="text"
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                    placeholder="พิมพ์ข้อความ..."
+                                    className="w-full bg-white border border-gray-200 text-gray-800 rounded-full px-5 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all placeholder:text-gray-400"
+                                 />
+                                 {/* Emoji Inside Input */}
+                                 <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                                    <Smile size={20} />
+                                 </button>
+                              </div>
+
+                              {/* Sticker (hidden in reference but useful to keep, styling consistent) */}
+                              {/* Sticker Button */}
+                              <button onClick={() => setShowStickerPicker(!showStickerPicker)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${showStickerPicker ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                 <StickyNote size={20} />
+                              </button>
+
+                              {/* Send Button */}
+                              <button
+                                 onClick={() => handleSendMessage()}
+                                 disabled={!inputText.trim()}
+                                 className={`w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-all transform ${inputText.trim() ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                              >
+                                 <Send size={18} className={inputText.trim() ? 'ml-0.5' : ''} />
+                              </button>
                            </div>
                         </div>
-                     )}
-                     {showStickerPicker && (
-                        <div className="absolute bottom-20 right-32 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-80 z-50 animate-in zoom-in-95">
-                           <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-gray-700">สติ๊กเกอร์</h3><button onClick={() => setShowStickerPicker(false)}><X size={16} /></button></div>
-                           <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto custom-scrollbar">
-                              {STICKERS.map((s) => <button key={s.id} onClick={() => handleStickerClick(s)} className="hover:bg-gray-100 p-2 rounded flex flex-col items-center"><span className="text-3xl">{s.emoji}</span><span className="text-xs text-gray-500">{s.name}</span></button>)}
-                           </div>
-                        </div>
-                     )}
-
-                     <div className="flex items-center gap-3">
-                        {/* Attach File */}
-                        <label className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-2 hover:bg-gray-50 rounded-full">
-                           <Paperclip size={22} />
-                           <input type="file" multiple className="hidden" onChange={handleFileSelect} />
-                        </label>
-
-                        {/* Attach Image */}
-                        <label className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-2 hover:bg-gray-50 rounded-full">
-                           <ImageIcon size={22} />
-                           <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
-                        </label>
-
-                        {/* Input Box */}
-                        <div className="flex-1 bg-gray-100 rounded-full flex items-center px-4 py-2 transition-all focus-within:ring-2 focus-within:ring-orange-200">
-                           <input
-                              type="text"
-                              value={inputText}
-                              onChange={e => setInputText(e.target.value)}
-                              onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                              placeholder=""
-                              className="flex-1 bg-transparent focus:outline-none text-gray-800 text-sm"
-                           />
-                        </div>
-
-                        {/* Sticker Button */}
-                        <button
-                           onClick={() => { setShowStickerPicker(!showStickerPicker); setShowEmojiPicker(false); }}
-                           className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-50 rounded-full"
-                        >
-                           <Sticker size={22} />
-                        </button>
-
-                        {/* Emoji Button */}
-                        <button
-                           onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowStickerPicker(false); }}
-                           className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-50 rounded-full"
-                        >
-                           <Smile size={22} />
-                        </button>
-
-                        {/* Send Button */}
-                        <button
-                           onClick={handleSendMessage}
-                           disabled={!inputText.trim()}
-                           className={`p-3 rounded-xl text-white shadow-sm transition-all flex items-center justify-center ${inputText.trim() ? 'bg-blue-500 hover:bg-blue-600 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
-                        >
-                           <Send size={20} className="ml-0.5" />
-                        </button>
-                     </div>
-                  </div>
+                     );
+                  })()}
                </>
             ) : (
                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 select-none">
@@ -766,9 +1398,76 @@ const ChatPage: React.FC = () => {
 
          {/* Other Modals */}
          {showGroupInfoModal && renderGroupSettingsModal()}
-         {showSearchModal && ( /* Search Modal */ <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]"><div className="p-4 bg-orange-500 text-white flex justify-between items-center"><h3 className="font-bold">เริ่มแชทใหม่</h3><button onClick={() => setShowSearchModal(false)}><X size={20} /></button></div><div className="p-4 bg-gray-50"><input autoFocus type="text" placeholder="ค้นหาเพื่อน..." value={searchUserQuery} onChange={(e) => { setSearchUserQuery(e.target.value); setFilteredUsers(e.target.value ? allUsers.filter(u => u.first_name.includes(e.target.value)) : allUsers) }} className="w-full p-2 rounded-xl border" /></div><div className="flex-1 overflow-y-auto p-2">{filteredUsers.map(u => (<div key={u.id} className="p-3 hover:bg-gray-100 cursor-pointer flex gap-3 items-center" onClick={async () => { try { const r = await chatService.createRoom({ type: 'private', target_id: u.id }); if (r.data) { setRooms(p => [r.data, ...p]); setCurrentRoom(r.data); setShowSearchModal(false); } } catch (e) { alert('Error'); } }}> <div className="w-8 h-8 rounded-full bg-gray-200"><img src={u.avatar} className="w-full h-full rounded-full object-cover" /></div> {u.first_name} {u.last_name} </div>))}</div><div className="p-4 border-t"><button onClick={() => { setShowSearchModal(false); setShowCreateGroupModal(true); }} className="w-full p-3 bg-green-500 text-white rounded-xl">สร้างกลุ่มใหม่</button></div></div></div>)}
+
+         {showSearchModal && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+                  <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
+                     <h3 className="font-bold">เริ่มแชทใหม่</h3>
+                     <button onClick={() => setShowSearchModal(false)}><X size={20} /></button>
+                  </div>
+
+                  <div className="p-4 bg-gray-50">
+                     <input
+                        autoFocus
+                        type="text"
+                        placeholder="ค้นหาเพื่อน..."
+                        value={searchUserQuery}
+                        onChange={(e) => {
+                           setSearchUserQuery(e.target.value);
+                           setFilteredUsers(e.target.value ? allUsers.filter(u => (u.first_name + " " + u.last_name).toLowerCase().includes(e.target.value.toLowerCase())) : allUsers)
+                        }}
+                        className="w-full p-2 rounded-xl border"
+                     />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-2">
+                     {filteredUsers.map(u => {
+                        const isBlocked = blockedUsers.has(u.id);
+                        const isBlockedBy = blockedByUsers.has(u.id);
+
+                        return (
+                           <div
+                              key={u.id}
+                              className="p-3 hover:bg-gray-100 cursor-pointer flex gap-3 items-center justify-between rounded-xl transition"
+                              onClick={() => handleStartChat(u.id)}
+                           >
+                              <div className="flex items-center gap-3">
+                                 <div className="w-10 h-10 rounded-full bg-gray-200">
+                                    {u.avatar && <img src={u.avatar} className="w-full h-full rounded-full object-cover" />}
+                                 </div>
+                                 <span className="font-medium">{u.first_name} {u.last_name}</span>
+                              </div>
+
+                              {isBlocked && (
+                                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">
+                                    บล็อกแล้ว
+                                 </span>
+                              )}
+
+                              {isBlockedBy && !isBlocked && (
+                                 <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs font-medium rounded-full">
+                                    โดนบล็อก
+                                 </span>
+                              )}
+                           </div>
+                        );
+                     })}
+                  </div>
+
+                  <div className="p-4 border-t">
+                     <button
+                        onClick={() => { setShowSearchModal(false); setShowCreateGroupModal(true); }}
+                        className="w-full p-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition"
+                     >
+                        สร้างกลุ่มใหม่
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
          {showCreateGroupModal && (<div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl p-6"><div className="flex justify-between items-center mb-6"><h3 className="font-bold text-lg text-gray-800">สร้างกลุ่มใหม่</h3><button onClick={() => setShowCreateGroupModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><div className="flex justify-center mb-6"><div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 relative border-2 border-dashed border-gray-300">{groupImage ? <img src={groupImage} className="w-full h-full rounded-full object-cover" /> : <ImageIcon size={32} />}<label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full text-white cursor-pointer hover:bg-blue-600 shadow-md"><Paperclip size={14} /><input type="file" className="hidden" accept="image/*" onChange={handleGroupImageUpload} /></label></div></div><input className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 mb-4" placeholder="ชื่อกลุ่ม" value={groupName} onChange={e => setGroupName(e.target.value)} /><div className="max-h-48 overflow-y-auto border rounded-xl p-2 mb-4">{allUsers.map(u => (<div key={u.id} onClick={() => toggleMemberSelection(u.id)} className={`p-2 flex justify-between items-center rounded-lg cursor-pointer ${selectedMembers.includes(u.id) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">{u.avatar && <img src={u.avatar} className="w-full h-full object-cover" />}</div><span>{u.first_name} {u.last_name}</span></div>{selectedMembers.includes(u.id) && <Check size={16} className="text-blue-500" />}</div>))}</div><button onClick={handleCreateGroup} className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">สร้างกลุ่ม</button></div></div>)}
-         {showInviteModal && ( // ✅ Invite Modal (Now Beautiful & Functional)
+         {showInviteModal && (
             <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl flex flex-col max-h-[85vh]">
                   <div className="flex justify-between items-center mb-6">
@@ -813,6 +1512,68 @@ const ChatPage: React.FC = () => {
                      </button>
                   </div>
                </div>
+            </div>
+         )}
+
+         {/* Unblock Confirmation Modal */}
+         {showUnblockModal && selectedBlockedUser && (
+            <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-in zoom-in-95">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+                     คุณบล็อกสมาชิกนี้
+                  </h3>
+
+                  <div className="flex flex-col items-center mb-6">
+                     <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mb-3 border-2 border-gray-100">
+                        {selectedBlockedUser.avatar && (
+                           <img src={selectedBlockedUser.avatar} className="w-full h-full object-cover" />
+                        )}
+                     </div>
+                     <p className="font-semibold text-gray-800">{selectedBlockedUser.first_name} {selectedBlockedUser.last_name}</p>
+                     <p className="text-sm text-gray-500">@{selectedBlockedUser.username}</p>
+                  </div>
+
+                  <p className="text-center text-gray-600 mb-6">
+                     ต้องการปลดบล็อคหรือไม่
+                  </p>
+
+                  <div className="flex gap-3">
+                     <button
+                        onClick={() => {
+                           setShowUnblockModal(false);
+                           setSelectedBlockedUser(null);
+                        }}
+                        className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium"
+                     >
+                        ยกเลิก
+                     </button>
+                     <button
+                        onClick={handleUnblockUser}
+                        className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium shadow-md"
+                     >
+                        ปลดบล็อก
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+         {/* Image Lightbox Modal */}
+         {showImageModal && selectedImage && (
+            <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center animate-in fade-in duration-200" onClick={() => setShowImageModal(false)}>
+               <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition" onClick={() => setShowImageModal(false)}>
+                  <X size={32} />
+               </button>
+               <img src={selectedImage} alt="Full Preview" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+               <a
+                  href={selectedImage}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={e => { e.stopPropagation(); }}
+                  className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white text-gray-900 shadow-xl hover:bg-gray-100 font-bold px-8 py-3 rounded-full transition-all transform hover:scale-105 active:scale-95 flex items-center gap-3 text-lg"
+               >
+                  <Download size={24} /> ดาวน์โหลด
+               </a>
             </div>
          )}
       </div>

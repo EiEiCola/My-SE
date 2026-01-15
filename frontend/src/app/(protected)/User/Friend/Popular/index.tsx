@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import dayjs from "dayjs";
+import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
 
@@ -320,6 +321,19 @@ const FriendPopular: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
+  const handleMessageClick = async () => {
+    if (!selectedProfile) return;
+    try {
+      const res = await chatService.createRoom({ type: 'private', target_id: selectedProfile.id });
+      if (res.data) {
+        navigate('/User/Message', { state: { roomId: res.data.room_id } });
+      }
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+      alert("ไม่สามารถเริ่มแชทได้");
+    }
+  };
+
   const handleEditProfile = () => {
     navigate('/User/Profile/Edit');
   };
@@ -587,7 +601,10 @@ const FriendPopular: React.FC = () => {
               {/* 3. ส่งข้อความ & Block (ซ่อนถ้าเป็นตัวเอง) */}
               {selectedProfile.status !== 'self' && (
                 <div className="flex gap-2 w-full">
-                  <button className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors">
+                  <button
+                    onClick={handleMessageClick}
+                    className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors"
+                  >
                     <MessageCircle size={20} />
                     <span className="text-sm">ส่งข้อความ</span>
                   </button>
