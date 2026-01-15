@@ -10,6 +10,9 @@ func SetupAdminCategoryRoutes(api *gin.RouterGroup, ctl *controller.AdminCategor
 	categories := api.Group("/categories")
 	// No additional auth middleware needed - parent group already has JWTAuthMiddleware + RequireAdminMiddleware
 
+	// Category Stats -> /api/admin/categories/stats
+	categories.GET("/stats", ctl.GetCategoryStats)
+
 	// Main Category -> /api/admin/categories/main
 	categories.GET("/main", ctl.ListMainCategories)
 	categories.GET("/main/:id", ctl.GetMainCategory)

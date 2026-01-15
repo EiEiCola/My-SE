@@ -150,6 +150,7 @@ func Connect() *gorm.DB {
 		&entity.Bookmark{},
 		&entity.PostStar{},
 		&entity.AnnouncementRead{},
+		&entity.Notification{},
 	); err != nil {
 		log.Println("AutoMigrate error (ignored): ", err)
 	}
