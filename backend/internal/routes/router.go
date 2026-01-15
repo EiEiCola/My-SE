@@ -63,7 +63,6 @@ func SetupRoutes(
 		SetupChatHTTPRoutes(memberAPI, chatController)
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
-		SetupReviewRoutes(memberAPI)
 		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload
 		// SetupChatRoutes(memberAPI)
 
