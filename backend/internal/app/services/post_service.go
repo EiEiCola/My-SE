@@ -23,13 +23,14 @@ var (
 )
 
 type PostService struct {
-	DB             *gorm.DB
-	PostRepo       *repository.PostRepository
-	ImageRepo      *repository.PostImageRepository
-	AttachmentRepo *repository.PostAttachmentRepository
-	LikeRepo       *repository.PostLikeRepository
-	CommentRepo    *repository.CommentRepository
-	BookmarkRepo   *repository.BookmarkRepository
+	DB               *gorm.DB
+	PostRepo         *repository.PostRepository
+	ImageRepo        *repository.PostImageRepository
+	AttachmentRepo   *repository.PostAttachmentRepository
+	LikeRepo         *repository.PostLikeRepository
+	CommentRepo      *repository.CommentRepository
+	BookmarkRepo     *repository.BookmarkRepository
+	NotificationRepo *repository.NotificationRepository
 	// --- Added by Point System ---
 	PointService PointService
 }
@@ -42,17 +43,20 @@ func NewPostService(
 	likeRepo *repository.PostLikeRepository,
 	commentRepo *repository.CommentRepository,
 	bookmarkRepo *repository.BookmarkRepository,
+	notificationRepo *repository.NotificationRepository,
 	// --- Added by Point System ---
 	pointService PointService,
+
 ) *PostService {
 	return &PostService{
-		DB:             db,
-		PostRepo:       postRepo,
-		ImageRepo:      imgRepo,
-		AttachmentRepo: attRepo,
-		LikeRepo:       likeRepo,
-		CommentRepo:    commentRepo,
-		BookmarkRepo:   bookmarkRepo,
+		DB:               db,
+		PostRepo:         postRepo,
+		ImageRepo:        imgRepo,
+		AttachmentRepo:   attRepo,
+		LikeRepo:         likeRepo,
+		CommentRepo:      commentRepo,
+		BookmarkRepo:     bookmarkRepo,
+		NotificationRepo: notificationRepo,
 		// --- Added by Point System ---
 		PointService: pointService,
 	}
@@ -223,6 +227,43 @@ func (s *PostService) GetAllPosts() ([]entity.Post, error) {
 	return s.PostRepo.FindAll()
 }
 
+// ดึงโพสต์แบบแบ่งหน้า (pagination)
+func (s *PostService) GetPostsPaginated(page, limit int) ([]entity.Post, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	var total int64
+	if err := s.DB.Model(&entity.Post{}).Where("status = ?", "Active").Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var posts []entity.Post
+	if err := s.DB.Preload("Author").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		Preload("Attachments", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		Where("status = ?", "Active").
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&posts).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return posts, total, nil
+}
+
 // อัปเดตโพสต์ (เฉพาะเจ้าของโพสต์เท่านั้น)
 func (s *PostService) UpdatePost(
 	userID uint,
@@ -387,7 +428,8 @@ func (s *PostService) DeletePost(userID, postID uint) error {
 }
 
 // ลบโพสต์โดย Admin (ไม่ต้องเช็ค ownership)
-func (s *PostService) AdminDeletePost(postID uint) error {
+// ลบโพสต์โดย Admin (ไม่ต้องเช็ค ownership)
+func (s *PostService) AdminDeletePost(postID uint, reason string) error {
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -396,6 +438,24 @@ func (s *PostService) AdminDeletePost(postID uint) error {
 		return err
 	}
 
+	// 🔔 Create Notification for Post Owner
+	notification := &entity.Notification{
+		UserID:    post.AuthorID,
+		Title:     "โพสต์ของคุณถูกลบ",
+		Message:   fmt.Sprintf("โพสต์ \"%s\" ถูกลบโดยผู้ดูแลระบบ เนื่องจาก: %s", post.Title, reason),
+		Type:      "post_deleted",
+		RelatedID: post.ID,
+		IsRead:    false,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.NotificationRepo.Create(notification); err != nil {
+		// Log error but continue deletion? Or fail?
+		// For now, let's just log print (since we don't have logger setup handy)
+		fmt.Printf("Failed to create notification: %v\n", err)
+	}
+
+	// ลบ image, attachment ที่เกี่ยวข้อง
 	if err := s.ImageRepo.DeleteByPostID(post.ID); err != nil {
 		return err
 	}
@@ -449,10 +509,62 @@ func (s *PostService) GetComments(postID uint) ([]entity.Comment, error) {
 	return s.CommentRepo.FindByPostID(postID)
 }
 
-func (s *PostService) CreateComment(postID, userID uint, content string, isAnonymous bool) (*entity.Comment, error) {
+// CreateComment creates a new comment on a post
+func (s *PostService) CreateComment(
+	postID, userID uint,
+	content string,
+	isAnonymous bool,
+	imageFiles []*multipart.FileHeader,
+	attachmentFiles []*multipart.FileHeader,
+) (*entity.Comment, error) {
+	// Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
 		return nil, ErrPostNotFound
+	}
+
+	// File validation constants
+	const maxImageSize = 5 * 1024 * 1024       // 5 MB
+	const maxAttachmentSize = 20 * 1024 * 1024 // 20 MB
+	const maxImages = 5
+	const maxAttachments = 2
+
+	// Validate image count
+	if len(imageFiles) > maxImages {
+		return nil, fmt.Errorf("จำนวนรูปภาพต้องไม่เกิน %d รูป", maxImages)
+	}
+
+	// Validate attachment count
+	if len(attachmentFiles) > maxAttachments {
+		return nil, fmt.Errorf("จำนวนไฟล์แนบต้องไม่เกิน %d ไฟล์", maxAttachments)
+	}
+
+	// Validate image files
+	allowedImageTypes := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".webp": true,
+	}
+	for _, f := range imageFiles {
+		if f.Size > maxImageSize {
+			return nil, fmt.Errorf("รูปภาพ %s มีขนาดเกิน 5 MB", f.Filename)
+		}
+		ext := strings.ToLower(filepath.Ext(f.Filename))
+		if !allowedImageTypes[ext] {
+			return nil, fmt.Errorf("รูปภาพ %s ไม่ใช่ไฟล์ที่รองรับ (JPG, PNG, WEBP)", f.Filename)
+		}
+	}
+
+	// Validate attachment files
+	allowedAttachmentTypes := map[string]bool{
+		".pdf": true, ".docx": true, ".xlsx": true, ".zip": true,
+	}
+	for _, f := range attachmentFiles {
+		if f.Size > maxAttachmentSize {
+			return nil, fmt.Errorf("ไฟล์ %s มีขนาดเกิน 20 MB", f.Filename)
+		}
+		ext := strings.ToLower(filepath.Ext(f.Filename))
+		if !allowedAttachmentTypes[ext] {
+			return nil, fmt.Errorf("ไฟล์ %s ไม่ใช่ไฟล์ที่รองรับ (PDF, DOCX, XLSX, ZIP)", f.Filename)
+		}
 	}
 
 	comment := &entity.Comment{
@@ -467,9 +579,77 @@ func (s *PostService) CreateComment(postID, userID uint, content string, isAnony
 		return nil, err
 	}
 
+	// Create upload directories if needed
+	if len(imageFiles) > 0 || len(attachmentFiles) > 0 {
+		imageDir := fmt.Sprintf("uploads/comments/%d/images", comment.ID)
+		attachmentDir := fmt.Sprintf("uploads/comments/%d/attachments", comment.ID)
+		os.MkdirAll(imageDir, 0755)
+		os.MkdirAll(attachmentDir, 0755)
+
+		// Save images
+		for idx, f := range imageFiles {
+			ext := strings.ToLower(filepath.Ext(f.Filename))
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(imageDir, newFilename)
+
+			if err := saveUploadedFile(f, filePath); err != nil {
+				return nil, fmt.Errorf("ไม่สามารถบันทึกรูปภาพ %s: %v", f.Filename, err)
+			}
+
+			img := &entity.CommentImage{
+				CommentID:  comment.ID,
+				URL:        "/" + filePath,
+				OrderIndex: idx,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			if err := s.DB.Create(img).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		// Save attachments
+		for idx, f := range attachmentFiles {
+			ext := strings.ToLower(filepath.Ext(f.Filename))
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(attachmentDir, newFilename)
+
+			if err := saveUploadedFile(f, filePath); err != nil {
+				return nil, fmt.Errorf("ไม่สามารถบันทึกไฟล์ %s: %v", f.Filename, err)
+			}
+
+			att := &entity.CommentAttachment{
+				CommentID:  comment.ID,
+				FileURL:    "/" + filePath,
+				FileName:   f.Filename,
+				FileSize:   f.Size,
+				OrderIndex: idx,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			if err := s.DB.Create(att).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Update post comment count
 	s.DB.Model(post).Update("comment_count", post.CommentCount+1)
 
-	return comment, nil
+	// Reload comment with Author and relations
+	var createdComment entity.Comment
+	if err := s.DB.Preload("Author").
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		Preload("Attachments", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		First(&createdComment, comment.ID).Error; err != nil {
+		return nil, err
+	}
+
+	return &createdComment, nil
 }
 
 func (s *PostService) DeleteComment(commentID, userID uint) error {

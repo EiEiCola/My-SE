@@ -19,6 +19,8 @@ func (r *CommentRepository) FindByPostID(postID uint) ([]entity.Comment, error) 
 	var comments []entity.Comment
 	err := r.db.Where("post_id = ?", postID).
 		Preload("Author").
+		Preload("Images").
+		Preload("Attachments").
 		Order("created_at DESC").
 		Find(&comments).Error
 	return comments, err

@@ -54,6 +54,12 @@ func SetupRoutes(
 		SetupAdminCategoryRoutes(adminAPI, adminCategoryController)
 		SetupAdminUserManageRoutes(adminAPI, adminUserController)
 		SetupAdminReviewRoutes(adminAPI, adminReviewController)
+
+		// ✅ admin post management
+		SetupAdminPostRoutes(adminAPI)
+
+		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
+
 	}
 
 	{
@@ -63,7 +69,7 @@ func SetupRoutes(
 		SetupChatHTTPRoutes(memberAPI, chatController)
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
-		SetupReviewRoutes(memberAPI)
+		SetupNotificationRoutes(memberAPI)
 		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload
 		// SetupChatRoutes(memberAPI)
 

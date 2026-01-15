@@ -159,15 +159,42 @@ func (ctl *PostController) GetPostByID(c *gin.Context) {
 }
 
 // ---- Get All Posts ----
-// GET /posts
+// GET /posts?page=1&limit=20
 func (ctl *PostController) GetAllPosts(c *gin.Context) {
-	posts, err := ctl.Service.GetAllPosts()
+	// Parse pagination params
+	pageStr := c.DefaultQuery("page", "0")
+	limitStr := c.DefaultQuery("limit", "0")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	// If no pagination params, return all (for backward compatibility)
+	if page == 0 && limit == 0 {
+		posts, err := ctl.Service.GetAllPosts()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": posts})
+		return
+	}
+
+	// With pagination
+	posts, total, err := ctl.Service.GetPostsPaginated(page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": posts})
+	hasMore := int64(page*limit) < total
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":    posts,
+		"total":   total,
+		"page":    page,
+		"limit":   limit,
+		"hasMore": hasMore,
+	})
 }
 
 // ---- Update Post ----
@@ -465,6 +492,7 @@ func (ctl *PostController) GetComments(c *gin.Context) {
 }
 
 // CreateComment - POST /api/member/posts/:id/comments
+// Supports both JSON and multipart/form-data
 func (ctl *PostController) CreateComment(c *gin.Context) {
 	postID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -478,17 +506,51 @@ func (ctl *PostController) CreateComment(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Content     string `json:"content" binding:"required,min=1"`
-		IsAnonymous bool   `json:"is_anonymous"`
+	var content string
+	var isAnonymous bool
+	var imageFiles []*multipart.FileHeader
+	var attachmentFiles []*multipart.FileHeader
+
+	contentType := c.ContentType()
+	isMultipart := contentType == "multipart/form-data" || (len(contentType) > 19 && contentType[:19] == "multipart/form-data")
+
+	if isMultipart {
+		// Manual parsing for multipart/form-data
+		content = c.PostForm("content")
+		isAnonymous = c.PostForm("is_anonymous") == "true"
+
+		// Validate content
+		if len(content) < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "content is required"})
+			return
+		}
+
+		// Get files
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			if files, ok := form.File["images"]; ok {
+				imageFiles = files
+			}
+			if files, ok := form.File["attachments"]; ok {
+				attachmentFiles = files
+			}
+		}
+	} else {
+		// JSON binding
+		var req struct {
+			Content     string `json:"content" binding:"required,min=1"`
+			IsAnonymous bool   `json:"is_anonymous"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		content = req.Content
+		isAnonymous = req.IsAnonymous
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	comment, err := ctl.Service.CreateComment(postID, memberID, req.Content, req.IsAnonymous)
+	comment, err := ctl.Service.CreateComment(postID, memberID, content, isAnonymous, imageFiles, attachmentFiles)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

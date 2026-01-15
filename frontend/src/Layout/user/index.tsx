@@ -4,7 +4,16 @@ import SideBar from "../../components/SideBar";
 import Header from "../../components/Header";
 
 const AdminLayout: React.FC = () => {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Start collapsed by default, expand on hover
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
+    const handleMouseEnter = () => {
+        setIsCollapsed(false);
+    };
+
+    const handleMouseLeave = () => {
+        setIsCollapsed(true);
+    };
 
     const toggleSidebar = () => {
         setIsCollapsed(!isCollapsed);
@@ -13,10 +22,12 @@ const AdminLayout: React.FC = () => {
     return (
         <div className="min-h-screen relative">
 
-            {/* Sidebar - Fixed Position */}
+            {/* Sidebar - Fixed Position with Auto-expand on Hover */}
             <div
                 className="fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-30"
                 style={{ width: isCollapsed ? '80px' : '260px' }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
             >
                 <SideBar
                     role="user"
