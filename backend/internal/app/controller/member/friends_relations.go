@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sut68/team12/backend/internal/entity" // ⭐ เช็ค Path
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
+	"github.com/sut68/team12/backend/internal/entity" // ⭐ เช็ค Path
 )
 
 type FriendshipController struct {
@@ -22,7 +22,7 @@ func NewFriendshipController(s *services.FriendService) *FriendshipController {
 func (c *FriendshipController) getMemberID(ctx *gin.Context) (int, error) {
 	accountID := ctx.MustGet("user_id").(uint)
 	var member entity.Member
-	if err := c.Service.Repo.DB.Where("id = ?", accountID).First(&member).Error; err != nil {
+	if err := c.Service.Repo.DB.Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
 		return 0, err
 	}
 	return int(member.ID), nil
@@ -110,7 +110,7 @@ func (c *FriendshipController) GetPopularMembers(ctx *gin.Context) {
 	var myID int
 	if _, exists := ctx.Get("user_id"); exists {
 		// ต้องหา MemberID จริงจาก AccountID ก่อน (ใช้ Helper Function เดิม)
-		memberID, err := c.getMemberID(ctx) 
+		memberID, err := c.getMemberID(ctx)
 		if err == nil {
 			myID = memberID
 		}

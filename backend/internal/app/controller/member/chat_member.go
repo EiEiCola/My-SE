@@ -26,7 +26,7 @@ func NewChatController(service *services.ChatService, hub *ws.Hub) *ChatControll
 
 // GetMyRooms: ดึงรายการห้องของฉัน
 func (c *ChatController) GetMyRooms(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -71,7 +71,7 @@ func (c *ChatController) GetRoomDetails(ctx *gin.Context) {
 
 // LeaveRoom: ออกจากห้อง
 func (c *ChatController) LeaveRoom(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -93,7 +93,7 @@ func (c *ChatController) LeaveRoom(ctx *gin.Context) {
 
 // SendMessage: ส่งข้อความ
 func (c *ChatController) SendMessage(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -118,7 +118,7 @@ func (c *ChatController) SendMessage(ctx *gin.Context) {
 
 // GetRoomHistory: ดึงประวัติแชท
 func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -141,7 +141,7 @@ func (c *ChatController) GetRoomHistory(ctx *gin.Context) {
 
 // ClearChatHistory: ล้างแชท (ฝั่งตัวเอง)
 func (c *ChatController) ClearChatHistory(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -159,7 +159,7 @@ func (c *ChatController) ClearChatHistory(ctx *gin.Context) {
 
 // UnsendMessage: ยกเลิกข้อความ (ลบข้อความเฉพาะอันที่ตัวเองส่ง)
 func (c *ChatController) UnsendMessage(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -177,7 +177,7 @@ func (c *ChatController) UnsendMessage(ctx *gin.Context) {
 
 // GetMyStickers: ดึงสติ๊กเกอร์ที่ฉันมี
 func (c *ChatController) GetMyStickers(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -211,13 +211,21 @@ func (c *ChatController) ConnectWebSocket(ctx *gin.Context) {
 		return
 	}
 
+	// Resolve Member ID from Account ID
+	memberID, err := c.service.GetMemberIDByAccountID(claims.UserID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Member profile not found"})
+		return
+	}
+
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		return
 	}
 
 	// ⭐ FIX: Check buffer size! Unbuffered channel + select default = Instant Disconnect on heavy load
-	client := &ws.Client{UserID: claims.UserID, Conn: conn, Send: make(chan ws.WSMessage, 256)}
+	// ✅ Logic Update: Use memberID instead of claims.UserID (AccountID)
+	client := &ws.Client{UserID: memberID, Conn: conn, Send: make(chan ws.WSMessage, 256)}
 	c.hub.Register <- client
 
 	// Start goroutines for read/write
@@ -238,18 +246,28 @@ func convertToUint(val interface{}) uint {
 	}
 }
 
-// ถ้า getUserIdFromContext แดง (Redeclared) ให้ลบฟังก์ชันด้านล่างนี้ทิ้งครับ
-func getUserIdFromContext(ctx *gin.Context) (uint, error) {
-	userIdVal, exists := ctx.Get("user_id")
+// Helper: Resolve Member ID from Account ID
+func (c *ChatController) getMemberID(ctx *gin.Context) (uint, error) {
+	accountID, exists := ctx.Get("user_id")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
 		return 0, http.ErrNoCookie
 	}
-	return convertToUint(userIdVal), nil
+
+	// Convert accountID to uint
+	accIDUint := convertToUint(accountID)
+
+	// Call Repository to get real MemberID
+	memberID, err := c.service.GetMemberIDByAccountID(accIDUint)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Member profile not found"})
+		return 0, err
+	}
+	return memberID, nil
 }
 
 func (c *ChatController) CreateRoom(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}
@@ -272,7 +290,7 @@ func (c *ChatController) CreateRoom(ctx *gin.Context) {
 
 // UpdateGroupInfo
 func (c *ChatController) UpdateGroup(ctx *gin.Context) {
-	userID, _ := getUserIdFromContext(ctx)
+	userID, _ := c.getMemberID(ctx)
 	roomID, _ := parseUintParam(ctx, "id")
 
 	var req struct {
@@ -293,7 +311,7 @@ func (c *ChatController) UpdateGroup(ctx *gin.Context) {
 
 // Invite Members
 func (c *ChatController) InviteMembers(ctx *gin.Context) {
-	userID, _ := getUserIdFromContext(ctx)
+	userID, _ := c.getMemberID(ctx)
 	roomID, _ := parseUintParam(ctx, "id")
 
 	var req struct {
@@ -312,7 +330,7 @@ func (c *ChatController) InviteMembers(ctx *gin.Context) {
 
 // Update Role
 func (c *ChatController) UpdateMemberRole(ctx *gin.Context) {
-	userID, _ := getUserIdFromContext(ctx)
+	userID, _ := c.getMemberID(ctx)
 	roomID, _ := parseUintParam(ctx, "id")
 	targetID, _ := parseUintParam(ctx, "member_id")
 
@@ -332,7 +350,7 @@ func (c *ChatController) UpdateMemberRole(ctx *gin.Context) {
 
 // Mark Read
 func (c *ChatController) MarkRead(ctx *gin.Context) {
-	userId, err := getUserIdFromContext(ctx)
+	userId, err := c.getMemberID(ctx)
 	if err != nil {
 		return
 	}

@@ -45,7 +45,7 @@ func Connect() *gorm.DB {
 		logger.Config{
 			SlowThreshold:             time.Second, // ⭐ ต้องช้าเกิน 1 วินาที ถึงจะบ่น (เดิม 200ms)
 			LogLevel:                  logger.Warn, // ระดับการแจ้งเตือน
-			IgnoreRecordNotFoundError: false,       // ⭐ ปิด error "record not found" (รก Log)
+			IgnoreRecordNotFoundError: true,        // ⭐ ปิด error "record not found" (รก Log)
 			Colorful:                  true,        // สีสันสดใส
 		},
 	)
@@ -69,7 +69,7 @@ func Connect() *gorm.DB {
 	// s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
-
+	
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(
