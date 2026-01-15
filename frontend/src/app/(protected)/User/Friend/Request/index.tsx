@@ -23,11 +23,17 @@ import {
   Ban,
 } from "lucide-react";
 
+
+import {
+  friendAPI,
+  getImageUrl
+} from "../../../../../services/http/friend";
+
 // Config Dayjs
 dayjs.extend(buddhistEra);
 dayjs.locale("th");
 
-// --- Interfaces ---
+// --- Interfaces (เฉพาะหน้านี้ เพราะมี field พิเศษที่ไม่ได้อยู่ใน Service กลาง) ---
 interface FriendRequestItem {
   id: number;
   member_id: number;
@@ -52,7 +58,6 @@ interface FriendRequestItem {
 const FriendRequest: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const API_URL = "/api";
   const token = localStorage.getItem("token");
 
   // Data State
@@ -69,18 +74,6 @@ const FriendRequest: React.FC = () => {
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-
-  // ⭐ Helper: จัดการ URL รูปภาพ
-  const getImageUrl = (path: string | undefined | null) => {
-    if (!path) return "";
-    if (path.startsWith("http") || path.startsWith("data:")) return path;
-    return `${API_URL.replace("/api", "")}${path.startsWith("/") ? "" : "/"}${path}`;
-  };
-
   useEffect(() => {
     if (!token) {
       navigate("/login");
@@ -95,6 +88,7 @@ const FriendRequest: React.FC = () => {
     setShowMoreMenu(false);
   }, [selectedProfile]);
 
+  // Handle auto-selection from navigation state
   useEffect(() => {
     if (location.state?.selectedId && receivedRequests.length > 0) {
       const targetId = location.state.selectedId;
@@ -102,6 +96,7 @@ const FriendRequest: React.FC = () => {
 
       if (targetProfile) {
         setSelectedProfile(targetProfile);
+        // Clear state to prevent re-selection on refresh
         window.history.replaceState({}, document.title);
       }
     }
@@ -110,25 +105,23 @@ const FriendRequest: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. My Following
+      // ✅ Use Service Methods
+      const [followData, receivedData, sentData] = await Promise.all([
+        friendAPI.getMyFollowing(),
+        friendAPI.getReceivedRequests(),
+        friendAPI.getSentRequests()
+      ]);
+
+      // 1. My Following Set
       const followingIds = new Set<number>();
-      try {
-        const followRes = await fetch(`${API_URL}/member/my/following`, { headers });
-        if (followRes.ok) {
-          const followData = await followRes.json();
-          if (followData.data) {
-            followData.data.forEach((f: any) => followingIds.add(f.ID || f.id));
-          }
-        }
-      } catch (e) { console.log("Fetch following error", e); }
+      if (followData && followData.data) {
+        followData.data.forEach((f: any) => followingIds.add(f.ID || f.id));
+      }
 
       // 2. Received Requests
-      const resRecv = await fetch(`${API_URL}/member/my/friend-requests/received`, { headers });
-      const dataRecv = await resRecv.json();
-
-      if (dataRecv.data) {
+      if (receivedData && receivedData.data) {
         setReceivedRequests(
-          dataRecv.data.map((r: any) => {
+          receivedData.data.map((r: any) => {
             const m = r.sent_member || {};
             const memberId = m.ID || m.id || r.sent_mem_id;
 
@@ -137,7 +130,7 @@ const FriendRequest: React.FC = () => {
               member_id: memberId,
               name: m.first_name ? `${m.first_name} ${m.last_name}` : "Unknown User",
               username: m.username || "-",
-              // ⭐ ใช้ Helper จัดการรูป
+              // ⭐ ใช้ Helper จาก Service
               avatar: getImageUrl(m.member_picture),
               date: dayjs(r.created_at).format("D MMM BB"),
               subText: "ต้องการเป็นเพื่อนกับคุณ",
@@ -158,18 +151,16 @@ const FriendRequest: React.FC = () => {
       }
 
       // 3. Sent Requests
-      const resSent = await fetch(`${API_URL}/member/my/friend-requests/sent`, { headers });
-      const dataSent = await resSent.json();
-      if (dataSent.data) {
+      if (sentData && sentData.data) {
         setSentRequests(
-          dataSent.data.map((r: any) => {
+          sentData.data.map((r: any) => {
             const m = r.recive_member || r.receive_member || {};
             return {
               id: r.rf_id,
               member_id: m.ID || r.receive_mem_id,
               name: m.first_name ? `${m.first_name} ${m.last_name}` : "Unknown User",
               username: m.username || "-",
-              // ⭐ ใช้ Helper จัดการรูป
+              // ⭐ ใช้ Helper จาก Service
               avatar: getImageUrl(m.member_picture),
               date: dayjs(r.created_at).format("D MMM BB"),
               subText: "รอการตอบรับ",
@@ -188,20 +179,18 @@ const FriendRequest: React.FC = () => {
         );
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching data:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Handlers ---
+  // --- Handlers (Updated to use Service) ---
 
   const handleAccept = async (reqId: number) => {
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/respond`, {
-        method: "PUT", headers, body: JSON.stringify({ accept: true }),
-      });
-      if (res.ok) {
+      const res = await friendAPI.respondRequest(reqId, true);
+      if (res.status === 200 || res.status === 201) {
         setReceivedRequests((prev) =>
           prev.map((req) => req.id === reqId ? { ...req, status: "accepted" } : req)
         );
@@ -214,10 +203,8 @@ const FriendRequest: React.FC = () => {
 
   const handleReject = async (reqId: number) => {
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/respond`, {
-        method: "PUT", headers, body: JSON.stringify({ accept: false }),
-      });
-      if (res.ok) {
+      const res = await friendAPI.respondRequest(reqId, false);
+      if (res.status === 200 || res.status === 201) {
         setReceivedRequests((prev) => prev.filter((req) => req.id !== reqId));
         if (selectedProfile?.id === reqId) setSelectedProfile(null);
       }
@@ -227,10 +214,8 @@ const FriendRequest: React.FC = () => {
   const handleCancelRequest = async (reqId: number) => {
     if (!window.confirm("ต้องการยกเลิกคำขอ?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, {
-        method: "PUT", headers,
-      });
-      if (res.ok) {
+      const res = await friendAPI.cancelRequest(reqId);
+      if (res.status === 200 || res.status === 201) {
         setSentRequests((prev) => prev.filter((req) => req.id !== reqId));
       }
     } catch (err) { console.error(err); }
@@ -243,19 +228,15 @@ const FriendRequest: React.FC = () => {
 
     try {
       if (isCurrentlyFollowing) {
-        const res = await fetch(`${API_URL}/member/follows/${targetId}/unfollow`, {
-          method: "PUT", headers
-        });
-        if (res.ok) {
+        const res = await friendAPI.unfollowUser(targetId);
+        if (res.status === 200 || res.status === 201) {
           const updatedProfile = { ...selectedProfile, isFollowing: false };
           setSelectedProfile(updatedProfile);
           setReceivedRequests(prev => prev.map(r => r.member_id === targetId ? { ...r, isFollowing: false } : r));
         }
       } else {
-        const res = await fetch(`${API_URL}/member/follows`, {
-          method: "POST", headers, body: JSON.stringify({ followed_id: targetId })
-        });
-        if (res.ok) {
+        const res = await friendAPI.followUser(targetId);
+        if (res.status === 200 || res.status === 201) {
           const updatedProfile = { ...selectedProfile, isFollowing: true };
           setSelectedProfile(updatedProfile);
           setReceivedRequests(prev => prev.map(r => r.member_id === targetId ? { ...r, isFollowing: true } : r));
@@ -267,10 +248,8 @@ const FriendRequest: React.FC = () => {
   const handleBlockUser = async () => {
     if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
     try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.member_id })
-      });
-      if (res.ok) {
+      const res = await friendAPI.blockUser(selectedProfile.member_id);
+      if (res.status === 200 || res.status === 201) {
         alert("บล็อกเรียบร้อย");
         setReceivedRequests(prev => prev.filter(r => r.member_id !== selectedProfile.member_id));
         setSelectedProfile(null);
@@ -279,7 +258,7 @@ const FriendRequest: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-full bg-gray-100 overflow-hidden">
 
       {/* ----------------- LEFT SIDEBAR ----------------- */}
       <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
@@ -518,8 +497,8 @@ const FriendRequest: React.FC = () => {
                   <button
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
                     className={`py-2 px-3 rounded-xl flex justify-center border transition-all ${showMoreMenu
-                        ? "bg-slate-100 text-slate-600 border-slate-300"
-                        : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                      ? "bg-slate-100 text-slate-600 border-slate-300"
+                      : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
                       }`}
                   >
                     <MoreHorizontal size={20} />

@@ -42,7 +42,6 @@ const FriendBirthday = () => {
     "Content-Type": "application/json",
   };
 
-  // ⭐ Helper: จัดการ URL รูปภาพ
   const getImageUrl = (path: string | undefined | null) => {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("data:")) return path;
@@ -64,7 +63,6 @@ const FriendBirthday = () => {
         const friends: Friend[] = data.data.map((m: any) => ({
           id: m.ID || m.id,
           name: `${m.first_name} ${m.last_name}`,
-          // ⭐ ใช้ Helper จัดการรูป
           avatar: getImageUrl(m.member_picture),
           birthday: m.dob || "",
           age: m.dob ? dayjs().diff(dayjs(m.dob), 'year') : 0
@@ -80,7 +78,7 @@ const FriendBirthday = () => {
   };
 
   // ----------------------------------------------------------------
-  // 🧠 Logic การคำนวณวันเกิด
+  // Logic การคำนวณวันเกิด
   // ----------------------------------------------------------------
   const processBirthdays = (friendsList: Friend[]) => {
     const today = dayjs().startOf('day');
@@ -90,7 +88,7 @@ const FriendBirthday = () => {
       .filter(f => f.birthday && f.birthday !== "")
       .map(friend => {
         const birthDate = dayjs(friend.birthday);
-        let thisYearBday = dayjs(`${currentYear}-${birthDate.format('MM-DD')}`);
+        const thisYearBday = dayjs(`${currentYear}-${birthDate.format('MM-DD')}`);
         const diff = thisYearBday.diff(today, 'day');
 
         return {
@@ -131,7 +129,7 @@ const FriendBirthday = () => {
   if (loading) return <div className="flex h-screen items-center justify-center text-slate-500">กำลังโหลดข้อมูลวันเกิด...</div>;
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-2xl mx-auto p-6">
 

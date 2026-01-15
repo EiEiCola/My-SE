@@ -21,6 +21,7 @@ import FriendBirthday from "../app/(protected)/User/Friend/Birthday";
 
 import Group from "../app/(protected)/User/Category";
 import ReviewListPage from "../app/(protected)/User/Review/ReviewListPage";
+import MyReviews from "../app/(protected)/User/Review/MyReviews";
 import CreateReviewPage from "../app/(protected)/User/Review/CreateReviewPage";
 import Voting from "../app/(protected)/User/Voting";
 import Announcement from "../app/(protected)/User/Announcement";
@@ -31,6 +32,14 @@ import Post from "../app/(protected)/User/Post";
 import PostDetail from "../app/(protected)/User/Post/postdetail";
 import CreatePost from "../app/(protected)/User/Post/createpost";
 import EditPost from "../app/(protected)/User/Post/editpost";
+
+// Poll System
+import PollList from "../app/(protected)/User/Poll/PollList";
+import MyPolls from "../app/(protected)/User/Poll/MyPolls";
+import PollCreate from "../app/(protected)/User/Poll/PollCreate";
+import PollDetail from "../app/(protected)/User/Poll/PollDetail";
+//import PollArchive from "../app/(protected)/User/Poll/PollArchive";
+
 
 function UserRoutes() {
   return (
@@ -69,10 +78,20 @@ function UserRoutes() {
         <Route path="/User/Post/edit/:id" element={<EditPost />} />
 
         <Route path="/User/Review" element={<ReviewListPage />} />
+        <Route path="/User/Review/my" element={<MyReviews />} />
         <Route path="/User/Review/createreview" element={<CreateReviewPage />} />
 
 
-        <Route path="/User/Voting" element={<Voting />} />
+        {/* <Route path="/User/Voting" element={<Voting />} /> */}
+
+        {/* Poll System Routes */}
+        <Route path="/User/Polls" element={<PollList />} />
+        <Route path="/User/Polls/my" element={<MyPolls />} />
+        <Route path="/User/Polls/create" element={<PollCreate />} />
+        <Route path="/User/Polls/edit/:id" element={<PollCreate />} />
+        <Route path="/User/Polls/:id" element={<PollDetail />} />
+
+
 
         <Route path="/User/Announcement" element={<Announcement />} />
 

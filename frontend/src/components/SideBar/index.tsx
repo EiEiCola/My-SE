@@ -56,7 +56,15 @@ const UserItems: MenuItem[] = [
     { name: "ฟีด", path: "/User/Post", icon: <BroadcastOnPersonal /> },
     { name: "หมวดหมู่", path: "/User/Group", icon: <Groups /> },
     { name: "รีวิว", path: "/User/Review", icon: <Reviews /> },
-    { name: "โพล", path: "/User/Voting", icon: <InsertChartOutlined /> },
+    {
+        name: "โพล",
+        path: "/User/Polls",
+        icon: <InsertChartOutlined />,
+        
+          
+           
+        
+    },
     { name: "ประชาสัมพันธ์", path: "/User/Announcement", icon: <Campaign /> },
     { name: "รายงานปัญหา", path: "/User/Report", icon: <ReportProblem /> },
 ];
@@ -70,7 +78,7 @@ const AdminItems: MenuItem[] = [
     { name: "จัดการโพสต์", path: "/Admin/PostManage", icon: <BroadcastOnPersonal /> },
     { name: "จัดการกลุ่ม", path: "/Admin/GroupManage", icon: <Groups /> },
     { name: "จัดการรีวิว", path: "/Admin/ReviewManage", icon: <Reviews /> },
-    { name: "จัดการโพล", path: "/Admin/VotingManage", icon: <InsertChartOutlined /> },
+    { name: "จัดการโพล", path: "/Admin/PollManage", icon: <InsertChartOutlined /> },
     { name: "จัดการประชาสัมพันธ์", path: "/Admin/AnnouncementManage", icon: <Campaign /> },
     { name: "จัดการรายงานปัญหา", path: "/Admin/ReportManage", icon: <ReportProblem /> },
 ];

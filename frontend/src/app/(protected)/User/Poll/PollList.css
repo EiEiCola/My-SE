@@ -1,0 +1,1274 @@
+/* =============================
+   Theme (เหมือน MyPolls)
+============================= */
+.pf-page {
+  --accent: #ff7a18;
+  --bg: #fff7f0;
+  --text: #1f2328;
+  --muted: rgba(31, 35, 40, .62);
+  --border: rgba(31, 35, 40, .08);
+
+  min-height: 100%;
+  padding: 18px;
+  background: #ffe8cc;
+}
+
+/* HERO - Banner Style */
+.pf-hero {
+  max-width: 980px;
+  margin: 0 auto 32px;
+  padding: 32px 36px 36px;
+
+  /* Soft Pastel Orange Gradient */
+  background: linear-gradient(120deg, #fff7ed 0%, #ffedd5 100%);
+  border-radius: 32px;
+  border: 1px solid rgba(254, 215, 170, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(255, 138, 76, 0.15);
+
+  display: block;
+  /* Changed from flex to block to stack content */
+  position: relative;
+  overflow: visible;
+}
+
+.pf-kicker {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 8px;
+
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: #ea580c;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.pf-title {
+  font-size: 36px;
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.pf-emoji {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+}
+
+.pf-sub {
+  margin-top: 8px;
+  color: #4b5563;
+  font-size: 15px;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.pf-hero-actions {
+  position: absolute;
+  top: 32px;
+  right: 36px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* STATS in Hero */
+.pf-stats {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  min-width: 100px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid rgba(31, 35, 40, .06);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.stat .k {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 2px;
+}
+
+.stat .v {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* TOOLBAR - Floating Island */
+.pf-sticky {
+  position: relative;
+  /* Remove sticky */
+  top: auto;
+  z-index: 10;
+  max-width: 980px;
+  margin: 0 auto 24px;
+  padding: 0;
+}
+
+.pf-toolbar {
+  padding: 20px;
+  border: 1px solid rgba(31, 35, 40, .06);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.08);
+  /* Island shadow */
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pf-search {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 2px solid transparent;
+  /* Prepare for focus border */
+  border-radius: 16px;
+  padding: 14px 20px;
+  background: #f3f4f6;
+  /* Search bg */
+  transition: all .2s ease;
+}
+
+.pf-search:focus-within {
+  background: #fff;
+  border-color: #ff7a18;
+  box-shadow: 0 4px 12px rgba(255, 122, 24, 0.15);
+}
+
+.pf-search-ico {
+  color: #9ca3af;
+  font-size: 20px;
+  font-weight: normal;
+}
+
+.pf-search:focus-within .pf-search-ico {
+  color: #ff7a18;
+}
+
+.pf-search input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f2937;
+  background: transparent;
+}
+
+.pf-search input::placeholder {
+  color: #9ca3af;
+}
+
+.pf-toolbar-row {
+  margin-top: 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* chips */
+.pf-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* sort select */
+.pf-select {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  transition: all .2s ease;
+}
+
+.pf-select:hover {
+  background: #f9fafb;
+}
+
+.pf-select-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.pf-select select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* FEED */
+.pf-feed {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.pf-loading {
+  padding: 20px 0;
+  color: rgba(31, 35, 40, .62);
+  font-weight: 700;
+}
+
+.pf-empty {
+  margin-top: 18px;
+  padding: 48px 18px;
+  text-align: center;
+  border: 1px dashed rgba(31, 35, 40, .18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .6);
+}
+
+.empty-box {
+  font-size: 28px;
+}
+
+.empty-title {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-sub {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+/* =============================
+   Poll Card (feed post)
+============================= */
+.pc-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .06);
+  padding: 14px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.pc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .10);
+}
+
+.pc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.pc-left {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.pc-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #6b7280;
+  overflow: hidden;
+  border: none;
+  box-shadow: none;
+  /* ✅ ป้องกันรูปล้น และไม่มีขอบ */
+}
+
+.pc-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pc-author {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ✅ Clickable author (for non-anonymous polls) */
+.pc-author-clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.pc-author-clickable:hover {
+  color: #fb923c;
+  text-decoration: underline;
+}
+
+.pc-meta {
+  margin-top: 2px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgba(31, 35, 40, .55);
+}
+
+/* ✅ วันเวลาให้ชัดขึ้น */
+.pc-date {
+  font-weight: 600;
+  color: rgba(31, 35, 40, .75);
+}
+
+.pc-hint {
+  color: rgba(31, 35, 40, .62);
+}
+
+.pc-question {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+
+.pc-desc {
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* vote area */
+.pc-vote {
+  border-top: 1px solid rgba(31, 35, 40, .08);
+  padding-top: 12px;
+}
+
+.pc-vote-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: rgba(31, 35, 40, .80);
+  margin-bottom: 10px;
+}
+
+.pc-loading {
+  font-size: 12px;
+  color: rgba(31, 35, 40, .55);
+}
+
+.pc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* =============================
+   OPTION (single style for all)
+============================= */
+.opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 12px 12px;
+  border-radius: 14px;
+
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #fff;
+
+  text-align: left;
+  cursor: pointer;
+
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .05s ease;
+}
+
+.opt:hover {
+  background: #fff7ed;
+  border-color: rgba(255, 122, 24, 0.28);
+}
+
+.opt:active {
+  transform: translateY(1px);
+}
+
+.opt:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+/* ===== selected state: กรอบเข้ม + เงา + พื้นหลังอ่อน ===== */
+.opt-selected {
+  border: 2px solid rgba(255, 122, 24, 0.70);
+  background: rgba(255, 122, 24, 0.10);
+  box-shadow: 0 12px 28px rgba(255, 122, 24, 0.18);
+}
+
+/* ===== checkbox badge (always same) ===== */
+.opt-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  border: 2px solid rgba(15, 23, 42, 0.25);
+  background: #fff;
+  color: transparent;
+
+  transition: all .15s ease;
+}
+
+.opt-selected .opt-dot {
+  border-color: rgba(255, 122, 24, 0.80);
+  background: linear-gradient(135deg, #ff7a18, #ff9a3c);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(255, 122, 24, 0.22);
+}
+
+/* ===== thumbnail ===== */
+.opt-thumb {
+  width: 56px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.opt-selected .opt-thumb {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  transform: scale(1.01);
+}
+
+/* ===== text ===== */
+.opt-text {
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.link-btn {
+  margin-top: 10px;
+  border: none;
+  background: transparent;
+  color: #b45309;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pc-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pc-toast {
+  margin-top: 10px;
+  font-weight: 600;
+  color: rgb(22, 163, 74);
+}
+
+/* results */
+.pc-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rs-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 500;
+  color: rgba(31, 35, 40, .80);
+}
+
+.rs-label {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rs-val {
+  color: rgba(31, 35, 40, .62);
+  font-weight: 600;
+}
+
+.rs-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(31, 35, 40, .08);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.rs-fill {
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 122, 24, .90);
+  border-radius: 999px;
+}
+
+/* =============================
+   Buttons / chips / badges
+============================= */
+.btn {
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(255, 122, 24, .22);
+}
+
+.btn-outline {
+  background: #fff;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: #fff;
+  cursor: pointer;
+}
+
+.chip-active {
+  background: rgba(255, 122, 24, .12);
+  border-color: rgba(255, 122, 24, .25);
+  color: #b45309;
+}
+
+.chip-orange {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 122, 24, .22);
+  background: rgba(255, 122, 24, .10);
+  color: rgba(31, 35, 40, .78);
+}
+
+/* =============================
+   FEED STATUS BADGE (SOLID)
+   put this at VERY END of PollList.css
+============================= */
+
+.pc-row .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+
+  border: 1px solid transparent;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+}
+
+/* OPEN */
+.pc-row .badge-open {
+  background: #E9FBEF;
+  color: #16A34A;
+  border-color: #BEECCB;
+}
+
+/* UPCOMING */
+.pc-row .badge-upcoming {
+  background: #EAF2FF;
+  color: #2563EB;
+  border-color: #C7D7FF;
+}
+
+/* CLOSED */
+.pc-row .badge-closed {
+  background: #FEECEC;
+  color: #DC2626;
+  border-color: #F7C6C6;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 0;
+}
+
+/* =============================
+   Category Dropdown
+============================= */
+.dd {
+  position: relative;
+}
+
+.dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: rgba(31, 35, 40, .80);
+}
+
+.dd-label {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dd-caret {
+  opacity: .75;
+}
+
+.dd-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 320px;
+  max-width: 80vw;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .12);
+  padding: 10px;
+  z-index: 99;
+}
+
+.dd-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(31, 35, 40, .10);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+.dd-search-ico {
+  opacity: .65;
+  font-weight: 500;
+}
+
+.dd-search input {
+  border: none;
+  outline: none;
+  width: 100%;
+}
+
+.dd-list {
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.dd-item {
+  text-align: left;
+  border: 1px solid rgba(31, 35, 40, .08);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 500;
+  color: rgba(31, 35, 40, .78);
+}
+
+.dd-item:hover {
+  background: rgba(255, 122, 24, .06);
+  border-color: rgba(255, 122, 24, .20);
+}
+
+.dd-item-active {
+  background: rgba(255, 122, 24, .12);
+  border-color: rgba(255, 122, 24, .25);
+  color: #b45309;
+}
+
+/* ✅ Poll Card Top Right Container */
+.pc-topRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ✅ Delete button for poll owner */
+.pc-del {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: #fff;
+  color: #9ca3af;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all .15s ease;
+}
+
+.pc-del:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+}
+
+.pc-delIcon {
+  width: 14px;
+  height: 14px;
+}
+
+
+.opt-thumb-click {
+  cursor: zoom-in;
+}
+
+/* ===== image modal (keep only this one) ===== */
+.img-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.img-modal-body {
+  position: relative;
+  width: min(980px, 96vw);
+  max-height: 92vh;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .35);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-modal-img {
+  display: block;
+  max-width: 100%;
+  max-height: 92vh;
+  object-fit: contain;
+}
+
+/* ===== delete modal - closeBtn ===== */
+.img-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 35, 40, .10);
+  background: rgba(255, 255, 255, .90);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background .15s ease, color .15s ease;
+}
+
+.img-modal-close:hover {
+  background: #fff;
+  color: #0f172a;
+}
+
+
+.opt-thumbWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+}
+
+
+
+
+/* ===== results show thumbnail (bigger) ===== */
+.rs-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rs-thumb {
+  width: 110px;
+  /* เดิม 56px */
+  height: 86px;
+  /* เดิม 44px */
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #fff;
+  flex: 0 0 auto;
+  cursor: zoom-in;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.rs-thumb:hover {
+  transform: scale(1.03);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+}
+
+
+/* ===== feed status badge (more colorful) ===== */
+/* ===== FEED STATUS BADGE (final aligned) ===== */
+/* =============================
+   BADGE (Feed status) — SOLID COLOR
+============================= */
+/* ===== badge base ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+
+  border: 1px solid transparent;
+}
+
+/* ===== OPEN (เหมือนตัวอย่าง) ===== */
+.badge-open {
+  background: #E9FBEF;
+  /* เขียวอ่อนแบบในรูป */
+  color: #16A34A;
+  /* เขียวเข้ม */
+  border-color: #BEECCB;
+  /* ขอบเขียวอ่อน */
+}
+
+/* ===== UPCOMING (ฟ้า/น้ำเงินพาสเทล) ===== */
+.badge-upcoming {
+  background: #EAF2FF;
+  color: #2563EB;
+  border-color: #C7D7FF;
+}
+
+/* ===== CLOSED (แดงพาสเทล) ===== */
+.badge-closed {
+  background: #FEECEC;
+  color: #DC2626;
+  border-color: #F7C6C6;
+}
+
+.badge {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+}
+
+
+/* =============================
+   Category badge (top-right)
+============================= */
+.pc-card {
+  position: relative;
+  /* ✅ สำคัญ: ให้ badge วางแบบ absolute ได้ */
+}
+
+.pc-catBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  max-width: 62%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  border: 1px solid rgba(255, 122, 24, 0.22);
+  background: rgba(255, 122, 24, 0.10);
+  color: rgba(31, 35, 40, .82);
+
+  box-shadow: 0 10px 22px rgba(255, 122, 24, .14);
+}
+
+/* ===== category pill at top-right ===== */
+.pc-head {
+  position: relative;
+}
+
+.pc-topRight {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pc-catPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  border: 1px solid rgba(255, 122, 24, .22);
+  background: rgba(255, 122, 24, .10);
+  color: rgba(31, 35, 40, .78);
+
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* locked option style (not clickable selection, but still visible) */
+.opt-disabled {
+  opacity: .70;
+  cursor: not-allowed;
+}
+
+.opt-disabled:hover {
+  background: #fff;
+  /* ไม่ไฮไลต์ส้มเวลา hover */
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+/* owner sees more faded */
+.pc-options-ownerLocked .opt {
+  opacity: .55;
+}
+
+/* small summary at bottom */
+.pc-voteSummary {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(31, 35, 40, .70);
+}
+
+.pc-voteSummary-owner {
+  color: rgba(220, 38, 38, .85);
+}
+
+
+.opt-ownerLocked {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.opt-ownerLocked:hover {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+/* owner: ห้ามคลิกทุกอย่างในปุ่ม option + รูป */
+.pc-options-ownerLocked .opt,
+.pc-options-ownerLocked .opt * {
+  pointer-events: none;
+}
+
+/* ให้ดูจางทั้งบล็อค */
+.pc-options-ownerLocked .opt {
+  opacity: .55;
+}
+
+/* กัน hover ส้ม */
+.pc-options-ownerLocked .opt:hover {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+/* ✅ owner: ตัดโอกาสคลิกทุกอย่างใน option */
+.pc-options-ownerLocked {
+  pointer-events: none;
+  opacity: .60;
+}
+
+/* กัน hover ส้ม */
+.pc-options-ownerLocked .opt:hover {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+.pc-voteSummary {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(31, 35, 40, .70);
+}
+
+.pc-voteSummary-owner {
+  color: rgba(220, 38, 38, .90);
+}
+
+
+/* owner locked: ดูกดไม่ได้จริง */
+.opt-ownerLocked {
+  cursor: not-allowed;
+  opacity: .70;
+}
+
+.opt-ownerLocked:hover {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+
+.pf-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 50;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 999px;
+
+  background: #ff7a18;
+  color: #fff;
+
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: .2px;
+
+  box-shadow: 0 16px 40px rgba(255, 122, 24, .35);
+  cursor: pointer;
+}
+
+.pf-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 55px rgba(255, 122, 24, .45);
+}
+
+.pf-fab:active {
+  transform: translateY(0);
+}
+
+/* ไอคอน + */
+.pf-fab-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ข้อความ */
+.pf-fab-text {
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* ✅ Delete Confirmation Modal */
+.delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.delete-modal {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px 32px;
+  width: min(420px, 90vw);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9) translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.delete-modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+}
+
+.delete-icon-svg {
+  width: 40px;
+  height: 40px;
+}
+
+.delete-modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.delete-modal-desc {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delete-modal-btn {
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-modal-btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.delete-modal-btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.delete-modal-btn-danger:active {
+  transform: translateY(0);
+}
+
+.delete-modal-btn-cancel {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.delete-modal-btn-cancel:hover {
+  background: #e5e7eb;
+}

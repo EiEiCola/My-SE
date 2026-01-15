@@ -1,0 +1,29 @@
+      {/* Actions */}
+      <div className="pcx-actions">
+        <button type="button" className="pcx-btn pcx-btnGhost" onClick={handleSaveDraft} disabled={submitting}>
+          💾 บันทึกแบบร่าง
+        </button>
+
+        <button type="button" className="pcx-btn pcx-btnPrimary" onClick={handleSubmitForReview} disabled={submitting}>
+          📤 ส่งตรวจสอบ
+        </button>
+      </div>
+
+      {/* ✅ Success Modal */}
+      {successOpen && (
+        <div className="pcx-modalBackdrop">
+          <div className="pcx-modal">
+            <div className="pcx-modalIcon">🎉</div>
+            <div className="pcx-modalTitle">{successTitle}</div>
+            <div className="pcx-modalDesc">{successDesc}</div>
+            <button className="pcx-btn pcx-btnPrimary" onClick={handleSuccessClose} style={{ width: "100%", marginTop: 20 }}>
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PollCreate;

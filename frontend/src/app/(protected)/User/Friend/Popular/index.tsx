@@ -325,7 +325,7 @@ const FriendPopular: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-full bg-gray-100 overflow-hidden">
 
       {/* ----------------- LEFT SIDEBAR ----------------- */}
       <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
@@ -596,8 +596,8 @@ const FriendPopular: React.FC = () => {
                     <button
                       onClick={() => setShowMoreMenu(!showMoreMenu)}
                       className={`py-2 px-3 rounded-xl flex justify-center border transition-all ${showMoreMenu
-                          ? "bg-slate-100 text-slate-600 border-slate-300"
-                          : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                        ? "bg-slate-100 text-slate-600 border-slate-300"
+                        : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
                         }`}
                     >
                       <MoreHorizontal size={20} />

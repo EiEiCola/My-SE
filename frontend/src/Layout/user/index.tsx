@@ -38,11 +38,11 @@ const AdminLayout: React.FC = () => {
 
             {/* Main Content Area with Dynamic Padding */}
             <div
-                className="transition-all duration-300 ease-in-out"
+                className="transition-all duration-300 ease-in-out flex flex-col h-screen"
                 style={{ paddingLeft: isCollapsed ? '80px' : '260px' }}
             >
-                {/* Header - Full Width ของพื้นที่ที่เหลือ */}
-                <div className="sticky top-0 z-20">
+                {/* Header - Full Width */}
+                <div className="z-20 flex-none">
                     <Header
                         role="user"
                         username="User"
@@ -51,7 +51,7 @@ const AdminLayout: React.FC = () => {
                 </div>
 
                 {/* Main Content */}
-                <main className=" bg-slate-50 p-2 min-h-screen">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 p-2">
                     <Outlet />
                 </main>
             </div>
