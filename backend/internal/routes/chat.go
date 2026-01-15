@@ -10,6 +10,7 @@ func SetupChatHTTPRoutes(api *gin.RouterGroup, chatCtl *m.ChatController) {
 	chat := api.Group("/chat")
 	{
 		// Room Management
+		chat.GET("/stickers", chatCtl.GetMyStickers) // ✅ Added
 		chat.GET("/rooms", chatCtl.GetMyRooms)
 
 		chat.GET("/rooms/:id", chatCtl.GetRoomDetails)
@@ -30,6 +31,7 @@ func SetupChatHTTPRoutes(api *gin.RouterGroup, chatCtl *m.ChatController) {
 		// Actions
 		chat.DELETE("/rooms/:id/history", chatCtl.ClearChatHistory)
 		chat.DELETE("/messages/:message_id", chatCtl.UnsendMessage)
+		chat.PUT("/rooms/:id/read", chatCtl.MarkRead) // ✅ Mark Read Endpoint
 	}
 }
 

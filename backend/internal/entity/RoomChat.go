@@ -16,4 +16,10 @@ type RoomChat struct {
 	// ความสัมพันธ์
 	Member   []RoomMember `gorm:"foreignKey:RoomID;references:ID" json:"member"`
 	Messages []Message    `gorm:"foreignKey:RoomID;references:ID" json:"message"`
+
+	// Fields for API Response (Computed)
+	LastMessage    string `gorm:"-" json:"last_message"`
+	LastSenderID   uint   `gorm:"-" json:"last_sender_id"`
+	LastSenderName string `gorm:"-" json:"last_sender_name"`
+	UnreadCount    int    `gorm:"-" json:"unread_count"`
 }

@@ -16,9 +16,9 @@ type ChatRepository interface {
 	FindPrivateRoom(user1, user2 uint) (*entity.RoomChat, error)
 
 	UpdateRoom(room *entity.RoomChat) error
-    UpdateMemberRole(roomID, memberID uint, role string) error
-    IsRoomAdmin(roomID, userID uint) (bool, error)
-    IsRoomMember(roomID, userID uint) (bool, error) // เช็คว่าเป็นสมาชิกไหม
+	UpdateMemberRole(roomID, memberID uint, role string) error
+	IsRoomAdmin(roomID, userID uint) (bool, error)
+	IsRoomMember(roomID, userID uint) (bool, error) // เช็คว่าเป็นสมาชิกไหม
 
 	// Member Management
 	AddRoomMember(roomMember *entity.RoomMember) error
@@ -27,13 +27,21 @@ type ChatRepository interface {
 
 	// Message Management
 	CreateMessage(msg *entity.Message) error
+	CreateAttachment(attachment *entity.AttachmentChat) error // ✅ Added
 	GetRoomMessages(userID, roomID uint) ([]entity.Message, error)
 	GetMessageByID(msgID uint) (*entity.Message, error)
 	UnsendMessage(msg *entity.Message) error
 	ClearChatHistory(memberID, roomID uint) error
 
 	// Utils (Sticker Ownership)
+	// Utils (Sticker Ownership)
 	CountMemberReward(memberID, rewardID uint) (int64, error)
+	GetOwnedRewards(memberID uint) ([]entity.MemberReward, error) // ✅ Added
+
+	// Message Status
+	CreateMessageStatuses(statuses []entity.MessageStatus) error
+	MarkMessagesAsRead(userID, roomID uint) error
+	GetUnreadCount(userID, roomID uint) (int64, error)
 }
 
 type chatRepository struct {
@@ -81,7 +89,34 @@ func (r *chatRepository) GetMyRooms(userID uint) ([]entity.RoomChat, error) {
 		}).
 		Find(&rooms).Error
 
-	return rooms, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate Last Message Info
+	for i := range rooms {
+		var lastMsgs []entity.Message
+		// Get latest message
+		// Use Find instead of First to avoid "record not found" error logs when no message exists
+		if err := r.db.Where("room_id = ?", rooms[i].ID).Preload("Sender").Order("sent_at desc").Limit(1).Find(&lastMsgs).Error; err == nil && len(lastMsgs) > 0 {
+			lastMsg := lastMsgs[0]
+			rooms[i].LastMessage = lastMsg.Content
+			rooms[i].LastSenderID = lastMsg.SenderID
+			if lastMsg.Sender.ID != 0 {
+				rooms[i].LastSenderName = lastMsg.Sender.FirstName
+			}
+		}
+
+		// Get Unread Count
+		var unreadCount int64
+		r.db.Model(&entity.MessageStatus{}).
+			Joins("JOIN messages ON messages.id = message_statuses.message_id").
+			Where("message_statuses.recipient_id = ? AND messages.room_id = ? AND message_statuses.status = 'unread'", userID, rooms[i].ID).
+			Count(&unreadCount)
+		rooms[i].UnreadCount = int(unreadCount)
+	}
+
+	return rooms, nil
 }
 
 func (r *chatRepository) FindPrivateRoom(user1, user2 uint) (*entity.RoomChat, error) {
@@ -154,6 +189,10 @@ func (r *chatRepository) CreateMessage(msg *entity.Message) error {
 	})
 }
 
+func (r *chatRepository) CreateAttachment(attachment *entity.AttachmentChat) error {
+	return r.db.Create(attachment).Error
+}
+
 func (r *chatRepository) GetRoomMessages(userID, roomID uint) ([]entity.Message, error) {
 	var messages []entity.Message
 	var member entity.RoomMember
@@ -171,16 +210,17 @@ func (r *chatRepository) GetRoomMessages(userID, roomID uint) ([]entity.Message,
 
 	// 3. ดึงข้อความ
 	err := r.db.Where("room_id = ? AND sent_at > ?", roomID, cutoffTime).
-        Order("sent_at ASC").
-        
-        // ✅ Preload คนส่งข้อความ (เอาแค่รูปกับชื่อพอ ไม่เอาวันเกิด/รหัสนศ. ก็ได้ถ้าไม่ใช้)
-        Preload("Sender", func(db *gorm.DB) *gorm.DB {
-             return db.Select("id, first_name, last_name, username, member_picture") 
-        }).
-        Preload("Sticker").
-        Find(&messages).Error
+		Order("sent_at ASC").
 
-    return messages, err
+		// ✅ Preload คนส่งข้อความ (เอาแค่รูปกับชื่อพอ ไม่เอาวันเกิด/รหัสนศ. ก็ได้ถ้าไม่ใช้)
+		Preload("Sender", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, first_name, last_name, username, member_picture")
+		}).
+		Preload("Sticker").
+		Preload("AttachmentsChat"). // ✅ Correct Field Name
+		Find(&messages).Error
+
+	return messages, err
 }
 
 func (r *chatRepository) GetMessageByID(msgID uint) (*entity.Message, error) {
@@ -191,6 +231,7 @@ func (r *chatRepository) GetMessageByID(msgID uint) (*entity.Message, error) {
 			return db.Select("id, first_name, last_name, username, member_picture")
 		}).
 		Preload("Sticker").
+		Preload("AttachmentsChat"). // ✅ Correct Field Name
 		First(&msg, msgID).Error
 	return &msg, err
 }
@@ -207,6 +248,31 @@ func (r *chatRepository) ClearChatHistory(memberID, roomID uint) error {
 		Update("cleared_at", time.Now()).Error
 }
 
+func (r *chatRepository) CreateMessageStatuses(statuses []entity.MessageStatus) error {
+	return r.db.Create(&statuses).Error
+}
+
+func (r *chatRepository) MarkMessagesAsRead(userID, roomID uint) error {
+	// Update all 'unread' messages in this room for this user to 'read'
+	// Use subquery instead of JOIN for UPDATE to avoid "missing FROM-clause entry" error in Postgres
+	return r.db.Model(&entity.MessageStatus{}).
+		Where("recipient_id = ? AND status = 'unread'", userID).
+		Where("message_id IN (?)", r.db.Model(&entity.Message{}).Select("id").Where("room_id = ?", roomID)).
+		Updates(map[string]interface{}{
+			"status":  "read",
+			"read_at": time.Now(),
+		}).Error
+}
+
+func (r *chatRepository) GetUnreadCount(userID, roomID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&entity.MessageStatus{}).
+		Joins("JOIN messages ON messages.id = message_statuses.message_id").
+		Where("message_statuses.recipient_id = ? AND messages.room_id = ? AND message_statuses.status = 'unread'", userID, roomID).
+		Count(&count).Error
+	return count, err
+}
+
 // ------------------------------------------------------------------
 // Utilities
 // ------------------------------------------------------------------
@@ -220,6 +286,13 @@ func (r *chatRepository) CountMemberReward(memberID, rewardID uint) (int64, erro
 	return count, err
 }
 
+func (r *chatRepository) GetOwnedRewards(memberID uint) ([]entity.MemberReward, error) {
+	var rewards []entity.MemberReward
+	err := r.db.Preload("Reward"). // Preload Reward to get picture/name
+					Where("member_id = ?", memberID).
+					Find(&rewards).Error
+	return rewards, err
+}
 
 // ลบห้อง (Soft Delete หรือ Hard Delete แล้วแต่ Design)
 func (r *chatRepository) DeleteRoom(roomID uint) error {
@@ -227,27 +300,27 @@ func (r *chatRepository) DeleteRoom(roomID uint) error {
 }
 
 func (r *chatRepository) UpdateRoom(room *entity.RoomChat) error {
-    return r.db.Save(room).Error
+	return r.db.Save(room).Error
 }
 
 func (r *chatRepository) UpdateMemberRole(roomID, memberID uint, role string) error {
-    return r.db.Model(&entity.RoomMember{}).
-        Where("room_id = ? AND member_id = ?", roomID, memberID).
-        Update("role", role).Error
+	return r.db.Model(&entity.RoomMember{}).
+		Where("room_id = ? AND member_id = ?", roomID, memberID).
+		Update("role", role).Error
 }
 
 func (r *chatRepository) IsRoomAdmin(roomID, userID uint) (bool, error) {
-    var count int64
-    err := r.db.Model(&entity.RoomMember{}).
-        Where("room_id = ? AND member_id = ? AND role = 'admin'", roomID, userID).
-        Count(&count).Error
-    return count > 0, err
+	var count int64
+	err := r.db.Model(&entity.RoomMember{}).
+		Where("room_id = ? AND member_id = ? AND role = 'admin'", roomID, userID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *chatRepository) IsRoomMember(roomID, userID uint) (bool, error) {
-    var count int64
-    err := r.db.Model(&entity.RoomMember{}).
-        Where("room_id = ? AND member_id = ?", roomID, userID).
-        Count(&count).Error
-    return count > 0, err
+	var count int64
+	err := r.db.Model(&entity.RoomMember{}).
+		Where("room_id = ? AND member_id = ?", roomID, userID).
+		Count(&count).Error
+	return count > 0, err
 }

@@ -140,18 +140,60 @@ func (s *ChatService) SendMessage(senderID, roomID uint, req dto.SendMessageRequ
 		return nil, err
 	}
 
+	// 3.1 บันทึก Attachments (ถ้ามี)
+	if len(req.Attachments) > 0 {
+		for _, att := range req.Attachments {
+			attachment := entity.AttachmentChat{
+				MessageID: msg.ID,
+				FileURL:   att.FileURL,
+				FileType:  att.FileType,
+				FileName:  att.FileName,
+				FileSize:  att.FileSize,
+			}
+			s.repo.CreateAttachment(&attachment)
+		}
+	}
+
 	// 4. ดึงข้อมูลเต็ม (พร้อมรูปโปรไฟล์/สติ๊กเกอร์)
 	fullMsg, err := s.repo.GetMessageByID(msg.ID)
 	if err != nil {
 		fullMsg = &msg // Fallback
 	}
 
-	// 5. Broadcast
-	s.hub.Broadcast <- websocket.WSMessage{
-		Type:     "new_message",
-		Payload:  fullMsg,
-		RoomID:   roomID,
-		SenderID: senderID,
+	// 5. Create Message Status (Unread) for all other members
+	members, _ := s.repo.GetRoomMembers(roomID)
+	var statuses []entity.MessageStatus
+	var targetIDs []uint
+
+	for _, m := range members {
+		// Prepare target IDs for broadcast
+		targetIDs = append(targetIDs, uint(m.MemberID))
+
+		// Create status for recipients (exclude sender)
+		if uint(m.MemberID) != senderID {
+			statuses = append(statuses, entity.MessageStatus{
+				MessageID:   msg.ID,
+				RecipientID: uint(m.MemberID), // Recipient
+				Status:      "unread",
+				CreatedAt:   time.Now(),
+			})
+		}
+	}
+
+	if len(statuses) > 0 {
+		s.repo.CreateMessageStatuses(statuses)
+	}
+
+	// 6. Broadcast (Targeted)
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type:     "new_message",
+			Payload:  fullMsg,
+			RoomID:   roomID,
+			SenderID: senderID,
+		},
 	}
 
 	return fullMsg, nil
@@ -212,14 +254,37 @@ func (s *ChatService) UnsendMessage(userID, messageID uint) error {
 		return err
 	}
 
-	// Broadcast Update
-	s.hub.Broadcast <- websocket.WSMessage{
-		Type:     "message_update",
-		Payload:  msg,
-		RoomID:   msg.RoomID,
-		SenderID: userID,
+	// Broadcast Update (Targeted)
+	members, _ := s.repo.GetRoomMembers(msg.RoomID)
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type:     "message_update",
+			Payload:  msg,
+			RoomID:   msg.RoomID,
+			SenderID: userID,
+		},
 	}
 	return nil
+}
+
+// ----------------------------------------------------------------
+// 4. Mark Read
+// ----------------------------------------------------------------
+func (s *ChatService) MarkMessagesAsRead(userID, roomID uint) error {
+	return s.repo.MarkMessagesAsRead(userID, roomID)
+}
+
+// ----------------------------------------------------------------
+// 6. Sticker Ownership
+// ----------------------------------------------------------------
+func (s *ChatService) GetMyStickers(memberID uint) ([]entity.MemberReward, error) {
+	return s.repo.GetOwnedRewards(memberID)
 }
 
 func (s *ChatService) GetRoomByID(roomID uint) (*entity.RoomChat, error) {
@@ -295,36 +360,40 @@ func (s *ChatService) UpdateGroupInfo(userID, roomID uint, name, avatarURL strin
 		return nil, err
 	}
 
-	if name != "" { room.Name = name }
-	if avatarURL != "" { room.AvatarURL = avatarURL }
+	if name != "" {
+		room.Name = name
+	}
+	if avatarURL != "" {
+		room.AvatarURL = avatarURL
+	}
 
 	// 3. บันทึก (สมมติว่ามี repo.UpdateRoom)
 	if err := s.repo.UpdateRoom(room); err != nil {
 		return nil, err
 	}
-	
+
 	return room, nil
 }
 
 // เชิญคนเข้ากลุ่มเพิ่ม
 func (s *ChatService) AddMembersToGroup(userID, roomID uint, newMemberIDs []uint) error {
-    // 1. เช็คว่าเป็นสมาชิกในห้องไหม (Member เชิญได้)
-    isMember, _ := s.repo.IsRoomMember(roomID, userID)
-    if !isMember {
-        return errors.New("you are not a member of this group")
-    }
+	// 1. เช็คว่าเป็นสมาชิกในห้องไหม (Member เชิญได้)
+	isMember, _ := s.repo.IsRoomMember(roomID, userID)
+	if !isMember {
+		return errors.New("you are not a member of this group")
+	}
 
-    // 2. Loop เพิ่มสมาชิก
-    for _, memberID := range newMemberIDs {
-        // เช็คก่อนว่ามีอยู่แล้วไหม (กัน Error Duplicate Key)
-        exists, _ := s.repo.IsRoomMember(roomID, memberID)
-        if !exists {
-            s.repo.AddRoomMember(&entity.RoomMember{
-                RoomID: roomID, MemberID: memberID, Role: "member", JoinedAt: time.Now(),
-            })
-        }
-    }
-    return nil
+	// 2. Loop เพิ่มสมาชิก
+	for _, memberID := range newMemberIDs {
+		// เช็คก่อนว่ามีอยู่แล้วไหม (กัน Error Duplicate Key)
+		exists, _ := s.repo.IsRoomMember(roomID, memberID)
+		if !exists {
+			s.repo.AddRoomMember(&entity.RoomMember{
+				RoomID: roomID, MemberID: memberID, Role: "member", JoinedAt: time.Now(),
+			})
+		}
+	}
+	return nil
 }
 
 // จัดการ Admin (แต่งตั้ง/ปลด)
