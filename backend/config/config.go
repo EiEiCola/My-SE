@@ -45,7 +45,7 @@ func Connect() *gorm.DB {
 		logger.Config{
 			SlowThreshold:             time.Second, // ⭐ ต้องช้าเกิน 1 วินาที ถึงจะบ่น (เดิม 200ms)
 			LogLevel:                  logger.Warn, // ระดับการแจ้งเตือน
-			IgnoreRecordNotFoundError: false,       // ⭐ ปิด error "record not found" (รก Log)
+			IgnoreRecordNotFoundError: true,        // ⭐ ปิด error "record not found" (รก Log)
 			Colorful:                  true,        // สีสันสดใส
 		},
 	)
@@ -69,7 +69,6 @@ func Connect() *gorm.DB {
 	// s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
-
 	
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
@@ -144,7 +143,7 @@ func Connect() *gorm.DB {
 		// --- 10. ตาราง Poll (ต้องอยู่ท้ายสุดเพราะอ้างอิงหลายตาราง) ---
 		&entity.PollOption{},
 		&entity.PollVote{},
-		&entity.PollVoteOption{}, 
+		&entity.PollVoteOption{},
 		&entity.PollHistory{}, // <--- อ้างอิง Admin, Poll, PollStatus (ควรอยู่ท้ายสุด)
 
 		// --- 11. ตาราง Bookmark และ PostStar ---
@@ -178,7 +177,6 @@ func Connect() *gorm.DB {
 	// s.SeedPRSystem(db)
 	s.SeedReviewSystem(db)
 	s.SeedPollSystem(db)
-
 
 	log.Println("Master data seeding completed.")
 	//hello

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sut68/team12/backend/internal/entity" // ⭐ เช็ค Path
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
+	"github.com/sut68/team12/backend/internal/entity" // ⭐ เช็ค Path
 )
 
 type FollowController struct {
@@ -22,7 +22,8 @@ func NewFollowController(s *services.FriendService) *FollowController {
 func (c *FollowController) getMemberID(ctx *gin.Context) (int, error) {
 	accountID := ctx.MustGet("user_id").(uint)
 	var member entity.Member
-	if err := c.Service.Repo.DB.Where("id = ?", accountID).First(&member).Error; err != nil {
+	// Fix: Query by member_account_id, not id
+	if err := c.Service.Repo.DB.Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
 		return 0, err
 	}
 	return int(member.ID), nil
@@ -66,7 +67,7 @@ func (c *FollowController) Unfollow(ctx *gin.Context) {
 	}
 
 	dto := dto.UnfollowDTO{FollowerID: memberID, FollowedID: followedID}
-	
+
 	// หมายเหตุ: Service Unfollow ของคุณใช้อัปเดตสถานะเป็น 3
 	if err := c.Service.Unfollow(dto); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

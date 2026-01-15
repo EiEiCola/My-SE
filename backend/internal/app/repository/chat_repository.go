@@ -42,6 +42,9 @@ type ChatRepository interface {
 	CreateMessageStatuses(statuses []entity.MessageStatus) error
 	MarkMessagesAsRead(userID, roomID uint) error
 	GetUnreadCount(userID, roomID uint) (int64, error)
+
+	// Helper
+	GetMemberIDByAccountID(accountID uint) (uint, error)
 }
 
 type chatRepository struct {
@@ -307,6 +310,14 @@ func (r *chatRepository) UpdateMemberRole(roomID, memberID uint, role string) er
 	return r.db.Model(&entity.RoomMember{}).
 		Where("room_id = ? AND member_id = ?", roomID, memberID).
 		Update("role", role).Error
+}
+
+func (r *chatRepository) GetMemberIDByAccountID(accountID uint) (uint, error) {
+	var member entity.Member
+	if err := r.db.Select("id").Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
+		return 0, err
+	}
+	return member.ID, nil
 }
 
 func (r *chatRepository) IsRoomAdmin(roomID, userID uint) (bool, error) {
