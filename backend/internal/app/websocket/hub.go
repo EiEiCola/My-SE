@@ -19,18 +19,28 @@ type Hub struct {
 	Unregister chan *Client
 	Broadcast  chan WSMessage
 
+	// ⭐ New: Channel for targeted matched broadcasting (prevents global spam)
+	TargetedBroadcast chan WSMessageWithTargets
+
 	// เก็บสถานะ Online: UserID -> จำนวน Device ที่ต่ออยู่
 	OnlineUsers map[uint]int
 	mu          sync.RWMutex
 }
 
+// Wrapper to carry target IDs
+type WSMessageWithTargets struct {
+	Msg       WSMessage
+	TargetIDs []uint
+}
+
 func NewHub() *Hub {
 	return &Hub{
-		Register:    make(chan *Client),
-		Unregister:  make(chan *Client),
-		Clients:     make(map[*Client]bool),
-		Broadcast:   make(chan WSMessage),
-		OnlineUsers: make(map[uint]int),
+		Register:          make(chan *Client),
+		Unregister:        make(chan *Client),
+		Clients:           make(map[*Client]bool),
+		Broadcast:         make(chan WSMessage),
+		TargetedBroadcast: make(chan WSMessageWithTargets),
+		OnlineUsers:       make(map[uint]int),
 	}
 }
 
@@ -43,6 +53,28 @@ func (h *Hub) Run() {
 			h.unregister(client)
 		case msg := <-h.Broadcast:
 			h.broadcast(msg)
+		case targetMsg := <-h.TargetedBroadcast:
+			h.broadcastToTargets(targetMsg.TargetIDs, targetMsg.Msg)
+		}
+	}
+}
+
+// ✅ Efficiently send to specific users only
+func (h *Hub) broadcastToTargets(targetIDs []uint, msg WSMessage) {
+	// Create a Set for fast lookup
+	targetSet := make(map[uint]bool)
+	for _, id := range targetIDs {
+		targetSet[id] = true
+	}
+
+	for client := range h.Clients {
+		if targetSet[client.UserID] {
+			select {
+			case client.Send <- msg:
+			default:
+				close(client.Send)
+				delete(h.Clients, client)
+			}
 		}
 	}
 }

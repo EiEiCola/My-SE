@@ -28,6 +28,7 @@ import {
   friendAPI,
   getImageUrl
 } from "../../../../../services/http/friend";
+import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 
 // Config Dayjs
 dayjs.extend(buddhistEra);
@@ -92,7 +93,7 @@ const FriendRequest: React.FC = () => {
   useEffect(() => {
     if (location.state?.selectedId && receivedRequests.length > 0) {
       const targetId = location.state.selectedId;
-      const targetProfile = receivedRequests.find(r => r.id === targetId);
+      const targetProfile = receivedRequests.find(r => r.member_id === targetId);
 
       if (targetProfile) {
         setSelectedProfile(targetProfile);
@@ -186,6 +187,21 @@ const FriendRequest: React.FC = () => {
   };
 
   // --- Handlers (Updated to use Service) ---
+
+
+
+  const handleMessageClick = async () => {
+    if (!selectedProfile) return;
+    try {
+      const res = await chatService.createRoom({ type: 'private', target_id: selectedProfile.member_id });
+      if (res.data) {
+        navigate('/User/Message', { state: { roomId: res.data.room_id } });
+      }
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+      alert("ไม่สามารถเริ่มแชทได้");
+    }
+  };
 
   const handleAccept = async (reqId: number) => {
     try {
@@ -488,7 +504,10 @@ const FriendRequest: React.FC = () => {
 
               {/* 3. ปุ่มส่งข้อความ & More */}
               <div className="flex gap-2 w-full">
-                <button className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors">
+                <button
+                  onClick={handleMessageClick}
+                  className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 flex justify-center items-center gap-2 font-medium transition-colors"
+                >
                   <MessageCircle size={20} />
                   <span className="text-sm">ส่งข้อความ</span>
                 </button>

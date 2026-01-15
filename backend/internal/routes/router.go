@@ -17,6 +17,7 @@ func SetupRoutes(
 	adminCategoryController *adminCtl.AdminCategoryController,
 	chatController *memberCtl.ChatController, // ✅ เพิ่ม ChatController ตรงนี้
 	adminReviewController *adminCtl.AdminReviewController,
+	uploadController *memberCtl.UploadController, // ✅ เพิ่ม UploadController
 ) {
 	// static files
 	r.Static("/uploads", "./uploads")
@@ -83,6 +84,7 @@ func SetupRoutes(
 		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
 		SetupReviewRoutes(memberAPI)
+		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload
 		// SetupChatRoutes(memberAPI)
 
 	}
