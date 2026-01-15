@@ -14,6 +14,7 @@ type RoomChat struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// ความสัมพันธ์
+	Creator  *Member      `gorm:"foreignKey:CreatedBy;references:ID" json:"creator"` // ✅ Persist Creator Info
 	Member   []RoomMember `gorm:"foreignKey:RoomID;references:ID" json:"member"`
 	Messages []Message    `gorm:"foreignKey:RoomID;references:ID" json:"message"`
 

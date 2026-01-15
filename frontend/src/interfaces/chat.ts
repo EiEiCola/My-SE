@@ -27,9 +27,11 @@ export interface Room {
   last_message?: string;
   last_sender_id?: number; // Added to support "You:" prefix
   last_sender_name?: string; // Added to support "Name:" prefix in groups
-  unread_count?: number; // ✅ Added
+  unread_count?: number; // ✅ Added (Restore)
   updated_at?: string; // ใช้เรียงลำดับห้องล่าสุด
   created_at?: string; // วันที่สร้างห้อง
+  created_by?: number; // ✅ ID คนสร้างห้อง (Restore: Required for TypeScript to access backend data)
+  creator?: User; // ✅ Persisted Creator Info from Backend
   member?: RoomMember[]; // จำเป็นสำหรับเช็ค Online Status ในห้อง Private
 }
 
