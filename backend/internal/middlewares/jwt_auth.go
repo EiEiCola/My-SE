@@ -11,7 +11,7 @@ import (
 // ✅ ชื่อที่ routes.go เรียกใช้
 func JWTAuthMiddleware() gin.HandlerFunc { return JWTAuth() }
 
-// ✅ ชื่อเดิม (ถ้าโค้ดเก่าบางจุดยังเรียก JWTAuth())
+// ✅ ชื่อเดิม
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := strings.TrimSpace(c.GetHeader("Authorization"))
@@ -33,7 +33,11 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
+		// เซตไว้หลายชื่อเพื่อให้ Controller ทุกตัวดึงไปใช้ได้ถูกต้อง
 		c.Set("user_id", claims.UserID)
+		c.Set("userID", claims.UserID)
+		c.Set("memberID", claims.UserID)
+		
 		c.Set("role", claims.Role)
 		c.Next()
 	}

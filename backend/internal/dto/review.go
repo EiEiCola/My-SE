@@ -16,6 +16,8 @@ type CreateReviewRequest struct {
     //แล้วแก้ field MemberID จากเดิมที่เป็น binding:"required" ให้เป็น ไม่ต้อง required หรือให้ Gin “ไม่ต้อง bind/validate” field นี้
   MemberID uint `json:"member_id" binding:"-"`
 
+  MemberPicture   string   `json:"member_picture"`
+
     // #tags (แบบ Twitter)
     // ถ้า tag มีอยู่แล้ว → ผูกกับ review
     // ถ้าไม่มี → service จะสร้างใหม่
@@ -55,6 +57,7 @@ type VoteReviewResponse struct {
 // ------------------------------
 
 type ReviewResponse struct {
+    
     ID        uint   `json:"id"`
     Title     string `json:"title"`
     Content   string `json:"content"`

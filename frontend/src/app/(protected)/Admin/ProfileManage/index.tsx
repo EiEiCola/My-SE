@@ -245,9 +245,8 @@ const ProfileManage: React.FC = () => {
   const confirmUnlock = (record: AdminUserAccountDTO) => {
     modal.confirm({
       title: "ยืนยันการปลดล็อกบัญชี",
-      content: `ต้องการปลดล็อกผู้ใช้: ${
-        record.username || record.email || record.id
-      } ?`,
+      content: `ต้องการปลดล็อกผู้ใช้: ${record.username || record.email || record.id
+        } ?`,
       okText: "ปลดล็อก",
       cancelText: "ยกเลิก",
       onOk: async () => {
@@ -280,6 +279,16 @@ const ProfileManage: React.FC = () => {
 
   const columns: ColumnsType<AdminUserAccountDTO> = useMemo(
     () => [
+      {
+        title: <span style={headerStyle}>รูปโปรไฟล์</span>,
+        dataIndex: "profile_picture",
+        width: 100,
+        render: (url, record) => (
+          <Avatar src={url} size={40}>
+            {(record.username || "U")[0]?.toUpperCase()}
+          </Avatar>
+        ),
+      },
       { title: <span style={headerStyle}>ID</span>, dataIndex: "id", width: 90 },
       {
         title: <span style={headerStyle}>Username</span>,
@@ -292,20 +301,20 @@ const ProfileManage: React.FC = () => {
         render: (v) => v || "—",
       },
       {
-        title: <span style={headerStyle}>รหัส</span>,
+        title: <span style={headerStyle}>Student ID</span>,
         dataIndex: "code",
         width: 160,
         render: (v) => v || "—",
       },
       {
-        title: <span style={headerStyle}>สถานะ</span>,
+        title: <span style={headerStyle}>Status</span>,
         dataIndex: "is_locked",
         width: 140,
         render: (v) =>
           isLocked(v) ? <Tag color="red">Locked</Tag> : <Tag color="green">Active</Tag>,
       },
       {
-        title: <span style={headerStyle}>จัดการ</span>,
+        title: <span style={headerStyle}>Action</span>,
         key: "actions",
         width: 320,
         render: (_, record) => {

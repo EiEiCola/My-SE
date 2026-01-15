@@ -170,6 +170,8 @@ const ReviewListPage: React.FC = () => {
               r.AvatarURL ??
               "";
 
+
+
             // ✅ ถ้า anonymous = ห้ามส่งรูปจริงออกมา
             const avatarUrl = isAnonymous ? ANON_AVATAR : toFullUrl(rawPic);
 

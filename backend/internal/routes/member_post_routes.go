@@ -26,10 +26,20 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	mpbRepo := repository.NewMemberPointBalanceRepository(db)
 
 	// Services
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo)
+	// --- Added by Point System ---
+	// สร้าง pointService เพื่อส่งเข้าไปใน PostService ตามโครงสร้างใหม่
+	pointService := services.NewPointService(db)
+
+	// แก้ไขบรรทัดนี้โดยส่ง pointService เข้าไปเป็นลำดับสุดท้าย
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, pointService)
+	
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 
-	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo)
+	// ✅ Needed for resolving Profile ID from Account ID
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
+	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo, memberSvc, pointService)
 
 	posts := r.Group("/posts")
 	{

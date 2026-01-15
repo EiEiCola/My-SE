@@ -14,7 +14,6 @@ type Reward struct {
 	PointRequired int    `json:"point_required" gorm:"not null"`
 	RewardPicture string `json:"reward_picture" gorm:"type:text"`
 
-	// ✅ admin_id = member_accounts.id ของแอดมินที่สร้าง reward
 	AdminID uint          `json:"admin_id" gorm:"not null;index"`
 	Admin   MemberAccount `json:"admin,omitempty" gorm:"foreignKey:AdminID;references:ID" valid:"-"`
 }
