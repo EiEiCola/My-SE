@@ -22,7 +22,9 @@ func SetupChatHTTPRoutes(api *gin.RouterGroup, chatCtl *m.ChatController) {
 		// ใน routes.go
 		chat.PUT("/rooms/:id", chatCtl.UpdateGroup)
 		chat.POST("/rooms/:id/members", chatCtl.InviteMembers)
+
 		chat.PUT("/rooms/:id/members/:member_id/role", chatCtl.UpdateMemberRole)
+		chat.DELETE("/rooms/:id/members/:member_id", chatCtl.KickMember) // ✅ Kick Member Route
 
 		// Messaging
 		chat.GET("/rooms/:id/messages", chatCtl.GetRoomHistory)

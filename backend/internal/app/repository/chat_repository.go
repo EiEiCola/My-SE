@@ -68,6 +68,9 @@ func (r *chatRepository) GetRoomByID(roomID uint) (*entity.RoomChat, error) {
 
 	// ✅ ใช้ Preload แบบระบุ Select เพื่อดึงเฉพาะฟิลด์ที่ต้องการของ Member (Optimization)
 	err := r.db.
+		Preload("Creator", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, first_name, last_name, username, member_picture") // Optimization
+		}).
 		Preload("Member"). // Preload ตารางกลาง (RoomMember) เพื่อเอา Role/JoinedAt
 		Preload("Member.Member", func(db *gorm.DB) *gorm.DB {
 			// เลือกเฉพาะฟิลด์ที่จำเป็นสำหรับการแสดงผลหน้าแชท
@@ -86,6 +89,9 @@ func (r *chatRepository) GetMyRooms(userID uint) ([]entity.RoomChat, error) {
 		Where("room_members.member_id = ?", userID).
 		Order("room_chats.updated_at DESC").
 		// ✅ Preload แบบประหยัด (Optimization)
+		Preload("Creator", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, first_name, last_name, username") // Optimization
+		}).
 		Preload("Member").
 		Preload("Member.Member", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id, first_name, last_name, username, member_picture, student_id, dob")
@@ -98,10 +104,23 @@ func (r *chatRepository) GetMyRooms(userID uint) ([]entity.RoomChat, error) {
 
 	// Populate Last Message Info
 	for i := range rooms {
+		// 1. Find Current User's Member Info (to get ClearedAt)
+		var clearedAt time.Time
+		for _, m := range rooms[i].Member {
+			if m.MemberID == userID {
+				clearedAt = m.ClearedAt
+				break
+			}
+		}
+
+		// 2. Get latest message (Respecting ClearedAt)
 		var lastMsgs []entity.Message
-		// Get latest message
-		// Use Find instead of First to avoid "record not found" error logs when no message exists
-		if err := r.db.Where("room_id = ?", rooms[i].ID).Preload("Sender").Order("sent_at desc").Limit(1).Find(&lastMsgs).Error; err == nil && len(lastMsgs) > 0 {
+		query := r.db.Where("room_id = ?", rooms[i].ID)
+		if !clearedAt.IsZero() {
+			query = query.Where("sent_at > ?", clearedAt)
+		}
+
+		if err := query.Preload("Sender").Order("sent_at desc").Limit(1).Find(&lastMsgs).Error; err == nil && len(lastMsgs) > 0 {
 			lastMsg := lastMsgs[0]
 			rooms[i].LastMessage = lastMsg.Content
 			rooms[i].LastSenderID = lastMsg.SenderID
@@ -110,12 +129,17 @@ func (r *chatRepository) GetMyRooms(userID uint) ([]entity.RoomChat, error) {
 			}
 		}
 
-		// Get Unread Count
+		// 3. Get Unread Count (Respecting ClearedAt)
 		var unreadCount int64
-		r.db.Model(&entity.MessageStatus{}).
+		unreadQuery := r.db.Model(&entity.MessageStatus{}).
 			Joins("JOIN messages ON messages.id = message_statuses.message_id").
-			Where("message_statuses.recipient_id = ? AND messages.room_id = ? AND message_statuses.status = 'unread'", userID, rooms[i].ID).
-			Count(&unreadCount)
+			Where("message_statuses.recipient_id = ? AND messages.room_id = ? AND message_statuses.status = 'unread'", userID, rooms[i].ID)
+
+		if !clearedAt.IsZero() {
+			unreadQuery = unreadQuery.Where("messages.sent_at > ?", clearedAt)
+		}
+
+		unreadQuery.Count(&unreadCount)
 		rooms[i].UnreadCount = int(unreadCount)
 	}
 

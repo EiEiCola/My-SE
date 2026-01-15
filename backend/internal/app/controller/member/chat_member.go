@@ -348,6 +348,19 @@ func (c *ChatController) UpdateMemberRole(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Role updated"})
 }
 
+// Kick Member
+func (c *ChatController) KickMember(ctx *gin.Context) {
+	adminID, _ := c.getMemberID(ctx)
+	roomID, _ := parseUintParam(ctx, "id")
+	targetID, _ := parseUintParam(ctx, "member_id")
+
+	if err := c.service.KickMember(adminID, roomID, targetID); err != nil {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Member kicked"})
+}
+
 // Mark Read
 func (c *ChatController) MarkRead(ctx *gin.Context) {
 	userId, err := c.getMemberID(ctx)
