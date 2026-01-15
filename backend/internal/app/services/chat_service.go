@@ -379,6 +379,22 @@ func (s *ChatService) UpdateGroupInfo(userID, roomID uint, name, avatarURL strin
 		return nil, err
 	}
 
+	// 4. Broadcast Room Update
+	members, _ := s.repo.GetRoomMembers(roomID)
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type:    "room_update", // ✅ New Event Type
+			Payload: room,          // ✅ Send updated room info
+			RoomID:  roomID,
+		},
+	}
+
 	return room, nil
 }
 

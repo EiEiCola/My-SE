@@ -42,6 +42,10 @@ const ChatPage: React.FC = () => {
    // --- UI State ---
    const [inputText, setInputText] = useState('');
    const [showMenu, setShowMenu] = useState(false);
+   const [headerImgError, setHeaderImgError] = useState(false); // ✅ Fix: Add state here
+
+   // Reset Image Error when room changes
+   useEffect(() => { setHeaderImgError(false); }, [currentRoom?.room_id]);
 
    // --- Pickers State ---
    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -236,6 +240,14 @@ const ChatPage: React.FC = () => {
                } else {
                   // Room doesn't exist locally (likely new chat from non-friend) -> Reload all rooms
                   loadRooms();
+               }
+            } else if (msg.type === 'room_update') { // ✅ Handle Room Update (Image/Name)
+               const updatedRoom = msg.payload as Room;
+               setRooms(prev => prev.map(r => r.room_id === updatedRoom.room_id ? { ...r, ...updatedRoom } : r));
+
+               // Update current room header immediately if active
+               if (activeRoomIdRef.current === updatedRoom.room_id) {
+                  setCurrentRoom(prev => prev ? { ...prev, ...updatedRoom } : null);
                }
             }
          } catch (error) { console.error("WS Error:", error); }
@@ -1064,8 +1076,18 @@ const ChatPage: React.FC = () => {
                            chatService.markRead(room.room_id).catch(console.error);
                         }
                      }} className={`flex items-center p-3 mx-2 my-1 rounded-xl cursor-pointer transition-all border-l-4 ${currentRoom?.room_id === room.room_id ? 'bg-orange-50 border-orange-500 shadow-sm' : 'border-transparent hover:bg-gray-50'}`}>
-                        <div className="relative mr-3">
-                           <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
+                        <div className="relative mr-3" onClick={(e) => {
+                           e.stopPropagation(); // Prevent opening chat
+                           if (room.rc_type === 'private') {
+                              const partner = room.member?.find(m => Number(m.member_id) !== Number(myUserID));
+                              if (partner) handleViewProfile(Number(partner.member_id));
+                           } else if (room.rc_type === 'group') {
+                              // If group, maybe show group info?
+                              setCurrentRoom(room);
+                              setShowGroupInfoModal(true);
+                           }
+                        }}>
+                           <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center hover:opacity-80 transition cursor-pointer">
                               {info.image ? <img src={info.image} className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} /> : (info.type === 'group' ? <Users className="text-gray-400" /> : <User className="text-gray-400" />)}
                            </div>
                            {info.isOnline && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>}
@@ -1148,8 +1170,8 @@ const ChatPage: React.FC = () => {
                               <div className="flex flex-col items-center justify-center pt-8 pb-8 shrink-0 select-none">
                                  {/* Avatar */}
                                  <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-gray-100 flex items-center justify-center overflow-hidden shadow-sm mb-4">
-                                    {info.image ? (
-                                       <img src={info.image} className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                    {info.image && !headerImgError ? (
+                                       <img src={info.image} className="w-full h-full object-cover" onError={() => setHeaderImgError(true)} />
                                     ) : (
                                        info.type === 'group' ? <Users size={56} className="text-gray-400" /> : <User size={56} className="text-gray-400" />
                                     )}
@@ -1191,7 +1213,7 @@ const ChatPage: React.FC = () => {
                               </div>
 
                               {/* Message List */}
-                              <div className="flex flex-col space-y-3 pb-4">
+                              <div className="flex flex-col space-y-3">
                                  {messages.map((msg, idx) => {
                                     const isMe = Number(msg.sender_id) === Number(myUserID);
                                     const avatarUrl = msg.sender?.member_picture || msg.sender?.avatar;
@@ -1210,7 +1232,10 @@ const ChatPage: React.FC = () => {
                                     return (
                                        <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group animate-in slide-in-from-bottom-1 fade-in duration-300`}>
                                           {!isMe && (
-                                             <div className="w-8 h-8 mr-2 rounded-full bg-gray-300 overflow-hidden flex-shrink-0 self-end mb-6 shadow-sm">
+                                             <div
+                                                className="w-8 h-8 mr-2 rounded-full bg-gray-300 overflow-hidden flex-shrink-0 self-end mb-6 shadow-sm cursor-pointer hover:opacity-80 transition"
+                                                onClick={() => handleViewProfile(Number(msg.sender_id))}
+                                             >
                                                 {avatarUrl ? <img src={getImageUrl(avatarUrl)} className="w-full h-full object-cover" /> : <User className="p-1 text-gray-500 w-full h-full" />}
                                              </div>
                                           )}
