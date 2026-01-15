@@ -16,6 +16,7 @@ func SeedAll(db *gorm.DB) {
 	seedAdmin(db)
 	SeedReviewSystem(db) // ✅ Enable Review/Member seeding
 	//seedPointRules(db)
+	SeedRewards(db) // ✅ Seed Rewards
 }
 
 // Seed PointRules for Star feature

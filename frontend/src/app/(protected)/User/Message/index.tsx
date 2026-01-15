@@ -92,40 +92,70 @@ const ChatPage: React.FC = () => {
    const ws = useRef<WebSocket | null>(null);
    const messagesEndRef = useRef<HTMLDivElement>(null);
    const activeRoomIdRef = useRef<number | null>(null);
+   const roomsRef = useRef<Room[]>([]); // ✅ Added roomsRef
    const WS_URL = "ws://localhost:8080/api/member/chat/ws";
    const token = localStorage.getItem('token') || "";
-   const [myUserID, setMyUserID] = useState<number>(0);
+   const [myUserID, setMyUserID] = useState<number>(() => {
+      const saved = localStorage.getItem('my_member_id');
+      return saved ? Number(saved) : 0;
+   });
 
    // ✅ Derived State
    const amIAdmin = currentRoom?.member?.some(m => Number(m.member_id) === myUserID && m.rm_role === 'admin');
 
-   // 1. Initial Load
+   // 1. Initial Load & Identity Check
    useEffect(() => {
-      const storedID = Number(localStorage.getItem('my_user_id'));
-      if (storedID) setMyUserID(storedID);
-      else if (token) setMyUserID(getUserIdFromToken(token));
+      const initialize = async () => {
+         let currentID = myUserID;
 
-      // Load everything together
-      loadInitialData(storedID || myUserID);
+         try {
+            console.log("🚀 Initializing Chat... MyUserID (State):", currentID);
+
+            // always fetch fresh identity to confirm
+            const meRes = await friendAPI.getMe();
+            // 🐛 FIX: endpoint returns object directly, not wrapped in data
+            const realMemberID = meRes?.ID || meRes?.id || meRes?.data?.ID || meRes?.data?.id;
+            console.log("✅ Fetched Real Member ID:", realMemberID);
+
+            if (realMemberID && realMemberID !== currentID) {
+               console.log("⚠️ ID mismatch or missing. Updating to:", realMemberID);
+               setMyUserID(realMemberID);
+               localStorage.setItem('my_member_id', String(realMemberID));
+               currentID = realMemberID;
+            }
+         } catch (err) {
+            console.error("❌ Failed to fetch identity", err);
+         }
+
+         // Always load data, even if ID is 0 (fallback) to ensure sidebar isn't empty
+         loadInitialData(currentID);
+      };
+
+      if (token) initialize();
    }, [token]);
+
+   // ✅ Sync roomsRef
+   useEffect(() => { roomsRef.current = rooms; }, [rooms]);
+
+   // (Debug logs removed)
 
    const loadInitialData = async (userId: number) => {
       try {
-         // Fetch both in parallel
-         const [blockedRes, roomsRes] = await Promise.all([
-            friendAPI.getBlockedUsers(),
-            chatService.getRooms()
-         ]);
-
-         // Process blocked users FIRST
-         const blockedData = (blockedRes as any)?.data || [];
+         // 1. Load Blocked Users (Safe Mode: If fails, just continue with empty blocks)
          const blockedIds = new Set<number>();
-         blockedData.forEach((b: any) => blockedIds.add(b.ID || b.id));
+         try {
+            const blockedRes = await friendAPI.getBlockedUsers();
+            const blockedData = (blockedRes as any)?.data || [];
+            blockedData.forEach((b: any) => blockedIds.add(b.ID || b.id));
+            setBlockedUsers(blockedIds);
+         } catch (err) {
+            console.warn("Failed to load blocked users, proceeding...", err);
+         }
 
-         // Update state
-         setBlockedUsers(blockedIds);
+         // 2. Load Rooms
+         const roomsRes = await chatService.getRooms();
 
-         // NOW filter rooms using the blockedIds we just created
+         // NOW filter rooms using the blockedIds (if any)
          if (roomsRes.data) {
             const filteredRooms = roomsRes.data.filter((room: Room) => {
                if (room.rc_type === 'private') {
@@ -177,16 +207,21 @@ const ChatPage: React.FC = () => {
                // (Since we add them immediately in handleSendMessage)
                if (newMsg.sender_id === myUserID) return;
 
-               if (activeRoomIdRef.current === newMsg.room_id) {
-                  setMessages(prev => [...prev, newMsg]);
-                  // Mark read immediately if in room
-                  chatService.markRead(newMsg.room_id).catch(console.error);
+               // If room exists locally, update it
+               if (roomsRef.current.some(r => r.room_id === newMsg.room_id)) {
+                  if (activeRoomIdRef.current === newMsg.room_id) {
+                     setMessages(prev => [...prev, newMsg]);
+                     // Mark read immediately if in room
+                     chatService.markRead(newMsg.room_id).catch(console.error);
+                  } else {
+                     // Increment Unread Count for background room
+                     setRooms(prev => prev.map(r => r.room_id === newMsg.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1 } : r));
+                  }
+                  updateLastMessage(newMsg.room_id, newMsg.content, newMsg.sender_id, newMsg.sender?.first_name);
                } else {
-                  // Increment Unread Count for background room
-                  setRooms(prev => prev.map(r => r.room_id === newMsg.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1 } : r));
+                  // Room doesn't exist locally (likely new chat from non-friend) -> Reload all rooms
+                  loadRooms();
                }
-
-               updateLastMessage(newMsg.room_id, newMsg.content, newMsg.sender_id, newMsg.sender?.first_name);
             }
          } catch (error) { console.error("WS Error:", error); }
       };

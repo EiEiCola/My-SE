@@ -64,7 +64,9 @@ const Friends: React.FC = () => {
       const followData = followRes;
       const popData = popRes;
 
-      const currentUserId = meData.data?.ID || meData.data?.id || 0;
+      // 🐛 FIX: endpoint returns object directly, not wrapped in data
+      // Check direct props first, then data prop fallback
+      const currentUserId = meData?.ID || meData?.id || meData?.data?.ID || meData?.data?.id || 0;
       setMyId(currentUserId);
 
       // --- Following Set (Moved Up) ---
