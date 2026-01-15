@@ -24,6 +24,7 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	pointRuleRepo := repository.NewPointRuleRepository(db)
 	pointTxRepo := repository.NewPointTransactionRepository(db)
 	mpbRepo := repository.NewMemberPointBalanceRepository(db)
+	notificationRepo := repository.NewNotificationRepository(db)
 
 	// Services
 	// --- Added by Point System ---
@@ -31,7 +32,7 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	pointService := services.NewPointService(db)
 
 	// แก้ไขบรรทัดนี้โดยส่ง pointService เข้าไปเป็นลำดับสุดท้าย
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, pointService)
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService)
 	
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 

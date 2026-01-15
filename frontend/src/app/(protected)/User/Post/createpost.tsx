@@ -10,11 +10,10 @@ import {
     Row,
     Col,
     Checkbox,
-    message,
     Spin,
-    notification,
     Upload,
     Modal,
+    App,
 } from "antd";
 import type { UploadFile, UploadProps } from "antd";
 import {
@@ -25,7 +24,7 @@ import {
     FileOutlined,
     DeleteOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import postService from "../../../../services/http/post_service";
 import { publicCategoryAPI } from "../../../../services/http/admin_category";
 import type {
@@ -43,6 +42,8 @@ const ORANGE_LIGHT = "#fff3e6";
 // ---------------- Component ----------------
 const CreatePost: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const { message } = App.useApp();
     const [title, setTitle] = useState("");
     const [detail, setDetail] = useState("");
 
@@ -82,6 +83,12 @@ const CreatePost: React.FC = () => {
         "application/zip",
         "application/x-zip-compressed",
     ];
+
+    // Get query params for pre-selecting categories
+    const mainCategoryIdFromUrl = searchParams.get("mainCategoryId");
+    const subCategory1IdFromUrl = searchParams.get("subCategory1Id");
+    const subCategory2IdFromUrl = searchParams.get("subCategory2Id");
+
     // Fetch main categories on mount
     useEffect(() => {
         const fetchMainCategories = async () => {
@@ -90,7 +97,16 @@ const CreatePost: React.FC = () => {
                 const response = await publicCategoryAPI.listMain();
                 const cats = response.data.data || [];
                 setMainCategories(cats);
-                if (cats.length > 0) {
+
+                // Pre-select from URL params or default to first
+                if (mainCategoryIdFromUrl) {
+                    const id = parseInt(mainCategoryIdFromUrl, 10);
+                    if (cats.some((c: MainCategory) => c.ID === id)) {
+                        setSelectedMainId(id);
+                    } else if (cats.length > 0) {
+                        setSelectedMainId(cats[0].ID);
+                    }
+                } else if (cats.length > 0) {
                     setSelectedMainId(cats[0].ID);
                 }
             } catch (error) {
@@ -101,7 +117,7 @@ const CreatePost: React.FC = () => {
             }
         };
         fetchMainCategories();
-    }, []);
+    }, [mainCategoryIdFromUrl]);
 
     // Fetch sub categories L1 when main category changes
     useEffect(() => {
@@ -114,8 +130,20 @@ const CreatePost: React.FC = () => {
         const fetchSub1 = async () => {
             try {
                 const response = await publicCategoryAPI.listSub1(selectedMainId);
-                setSubCategoriesL1(response.data.data || []);
-                setSelectedSub1Id(null);
+                const subs = response.data.data || [];
+                setSubCategoriesL1(subs);
+
+                // Pre-select from URL params
+                if (subCategory1IdFromUrl) {
+                    const id = parseInt(subCategory1IdFromUrl, 10);
+                    if (subs.some((c: SubCategoryL1) => c.ID === id)) {
+                        setSelectedSub1Id(id);
+                    } else {
+                        setSelectedSub1Id(null);
+                    }
+                } else {
+                    setSelectedSub1Id(null);
+                }
                 setSubCategoriesL2([]);
                 setSelectedSub2Ids([]);
             } catch (error) {
@@ -123,7 +151,7 @@ const CreatePost: React.FC = () => {
             }
         };
         fetchSub1();
-    }, [selectedMainId]);
+    }, [selectedMainId, subCategory1IdFromUrl]);
 
     // Fetch sub categories L2 when sub category L1 changes
     useEffect(() => {
@@ -136,14 +164,26 @@ const CreatePost: React.FC = () => {
         const fetchSub2 = async () => {
             try {
                 const response = await publicCategoryAPI.listSub2(selectedSub1Id);
-                setSubCategoriesL2(response.data.data || []);
-                setSelectedSub2Ids([]);
+                const subs = response.data.data || [];
+                setSubCategoriesL2(subs);
+
+                // Pre-select from URL params
+                if (subCategory2IdFromUrl) {
+                    const id = parseInt(subCategory2IdFromUrl, 10);
+                    if (subs.some((c: SubCategoryL2) => c.ID === id)) {
+                        setSelectedSub2Ids([id]);
+                    } else {
+                        setSelectedSub2Ids([]);
+                    }
+                } else {
+                    setSelectedSub2Ids([]);
+                }
             } catch (error) {
                 console.error("Failed to fetch sub categories L2:", error);
             }
         };
         fetchSub2();
-    }, [selectedSub1Id]);
+    }, [selectedSub1Id, subCategory2IdFromUrl]);
 
     // Filtered sub1 list based on search
     const filteredSub1List = useMemo(() => {
@@ -255,25 +295,16 @@ const CreatePost: React.FC = () => {
             });
 
             await postService.createWithFiles(formData);
-            notification.success({
-                message: "✅ สร้างโพสต์สำเร็จ",
-                description: "โพสต์ของคุณถูกสร้างเรียบร้อยแล้ว",
-                placement: "top",
-                duration: 3,
-            });
+            message.success("สร้างโพสต์สำเร็จ");
             navigate("/User/Post");
         } catch (error) {
             console.error("Failed to create post:", error);
-            notification.error({
-                message: "❌ เกิดข้อผิดพลาด",
-                description: "ไม่สามารถสร้างโพสต์ได้ กรุณาลองใหม่อีกครั้ง",
-                placement: "top",
-            });
+            message.error("ไม่สามารถสร้างโพสต์ได้ กรุณาลองใหม่อีกครั้ง");
         }
     };
 
     const handleCancel = () => {
-        navigate("/User/Post");
+        navigate(-1);
     };
 
     return (
@@ -283,10 +314,10 @@ const CreatePost: React.FC = () => {
                 <Button
                     type="link"
                     icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate("/User/Post")}
+                    onClick={() => navigate(-1)}
                     style={{ paddingLeft: 0, marginBottom: 8 }}
                 >
-                    กลับไปหน้าโพสต์
+                    กลับ
                 </Button>
 
                 <Card

@@ -8,13 +8,17 @@ import PublicRoutes from './routes/PublicRoutes.tsx'
 import AdminRoutes from './routes/AdminRoutes.tsx'
 import UserRoutes from './routes/userRoutes.tsx'
 import { BrowserRouter } from 'react-router-dom'
+import { App as AntApp } from 'antd'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <PublicRoutes />
-      <AdminRoutes />
-      <UserRoutes />
+      <AntApp>
+        <PublicRoutes />
+        <AdminRoutes />
+        <UserRoutes />
+      </AntApp>
     </BrowserRouter>
   </StrictMode>
 )
+

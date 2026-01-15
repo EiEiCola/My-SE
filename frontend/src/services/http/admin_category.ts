@@ -35,6 +35,21 @@ export interface SubCategoryL2 {
     updated_at: string;
 }
 
+// ========== Category Stats Types ==========
+
+export interface CategoryCountStat {
+    category_id: number;
+    post_count: number;
+    review_count: number;
+    poll_count: number;
+}
+
+export interface CategoryStatsResponse {
+    main: CategoryCountStat[];
+    sub1: CategoryCountStat[];
+    sub2: CategoryCountStat[];
+}
+
 // ========== Request Types ==========
 
 export interface CreateMainCategoryRequest {
@@ -93,6 +108,12 @@ export const mainCategoryAPI = {
 
     delete: (id: number) =>
         api.delete(`/admin/categories/main/${id}`),
+};
+
+// ========== Category Stats API ==========
+
+export const categoryStatsAPI = {
+    get: () => api.get<{ data: CategoryStatsResponse }>("/admin/categories/stats"),
 };
 
 // ========== SubCategory L1 APIs ==========
