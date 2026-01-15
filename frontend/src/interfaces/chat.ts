@@ -54,6 +54,10 @@ export interface Message {
   sent_at: string;
   is_deleted?: boolean;
   sender?: User; // ข้อมูลผู้ส่ง (Preload มาจาก Backend)
+  sticker?: { // ✅ Sticker Info
+    reward_picture: string;
+    reward_name: string;
+  };
   attachments?: Attachment[];
 }
 

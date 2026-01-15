@@ -719,12 +719,37 @@ const ChatPage: React.FC = () => {
 
    const handleStickerClick = async (stickerId: number) => {
       if (!currentRoom) return;
+
+      // ⭐ Optimistic UI
+      const sticker = myStickers.find(s => s.reward.ID === stickerId);
+      const tempId = Date.now();
+
+      if (sticker) {
+         const optimisticMsg: Message = {
+            message_id: tempId,
+            room_id: currentRoom.room_id,
+            sender_id: myUserID,
+            content: "ส่งสติ๊กเกอร์",
+            type_message: 'sticker',
+            sticker_id: stickerId,
+            sticker: {
+               reward_name: sticker.reward.reward_name,
+               reward_picture: sticker.reward.reward_picture
+            },
+            sent_at: new Date().toISOString(),
+            sender: { id: myUserID, username: "Me", avatar: "" }
+         };
+         setMessages(prev => [...prev, optimisticMsg]);
+         updateLastMessage(currentRoom.room_id, "ส่งสติ๊กเกอร์", myUserID, "Me");
+         setShowStickerPicker(false);
+      }
+
       try {
          await chatService.sendMessage(currentRoom.room_id, '', 'sticker', stickerId);
-         setShowStickerPicker(false);
       } catch (err) {
          console.error(err);
          alert("ส่งสติ๊กเกอร์ไม่สำเร็จ");
+         setMessages(prev => prev.filter(m => m.message_id !== tempId));
       }
    };
 
@@ -1206,6 +1231,21 @@ const ChatPage: React.FC = () => {
                                                                </div>
                                                             </div>
                                                          ))}
+                                                      </div>
+                                                   )}
+                                                </div>
+                                             ) : msg.type_message === 'sticker' ? (
+                                                // --- Sticker Message Style ---
+                                                <div className="w-32 h-32 hover:scale-105 transition-transform">
+                                                   {msg.sticker?.reward_picture ? (
+                                                      <img
+                                                         src={getImageUrl(msg.sticker.reward_picture)}
+                                                         alt="Sticker"
+                                                         className="w-full h-full object-contain drop-shadow-sm"
+                                                      />
+                                                   ) : (
+                                                      <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-xl text-xs text-gray-400">
+                                                         Sticker Not Found
                                                       </div>
                                                    )}
                                                 </div>
