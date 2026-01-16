@@ -33,7 +33,7 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 
 	// แก้ไขบรรทัดนี้โดยส่ง pointService เข้าไปเป็นลำดับสุดท้าย
 	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService)
-	
+
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 
 	// ✅ Needed for resolving Profile ID from Account ID
@@ -41,6 +41,11 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	memberSvc := services.NewMemberService(memberRepo)
 
 	postCtrl := memberctl.NewPostController(postSvc, pointTxSvc, pointRuleRepo, postStarRepo, memberSvc, pointService)
+
+	// Report controller
+	reportRepo := repository.NewReportRepository(db)
+	reportSvc := services.NewReportService(db, reportRepo, postRepo)
+	reportCtrl := memberctl.NewMemberReportController(reportSvc)
 
 	posts := r.Group("/posts")
 	{
@@ -69,5 +74,6 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 		// Feature routes
 		posts.POST("/:id/bookmark", postCtrl.ToggleBookmark) // POST /api/member/posts/:id/bookmark
 		posts.POST("/:id/star", postCtrl.SendStar)           // POST /api/member/posts/:id/star
+		posts.POST("/:id/report", reportCtrl.ReportPost)     // POST /api/member/posts/:id/report
 	}
 }

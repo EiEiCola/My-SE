@@ -66,7 +66,7 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Connected to database")
 
-	// s.ResetDatabaseByDROP(db) // Reset here
+	//s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
 
@@ -115,6 +115,7 @@ func Connect() *gorm.DB {
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
 		&entity.PostAttachment{},
+		&entity.PostLike{}, // Like feature for posts
 		&entity.ReviewImage{},
 		&entity.ReviewTag{},
 		&entity.ReviewVote{},

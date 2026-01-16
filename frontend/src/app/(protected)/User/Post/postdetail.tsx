@@ -45,6 +45,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import postService from "../../../../services/http/post_service";
 import { memberAPI, type MemberProfileResponse } from "../../../../services/http/member_profile";
 import { getUserIdFromToken } from "../../../../utils/jwt";
+import ReportPostModal from "./ReportPostModal";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -60,6 +61,15 @@ const formatAvatarUrl = (url: string | undefined | null, seed?: string | number)
     if (url.startsWith("/")) return `${API_BASE}${url}`;
     return `${API_BASE}/${url}`;
 };
+
+const REPORT_REASONS = [
+    "เนื้อหาไม่เหมาะสม / ลามก",
+    "สแปม / โฆษณา",
+    "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
+    "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
+    "การปนุ / คุกคาม",
+    "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
+];
 
 interface ImageItem {
     id: number;
@@ -283,6 +293,11 @@ const PostDetail: React.FC = () => {
         {}
     );
 
+    // Report modal states
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [selectedReportReason, setSelectedReportReason] = useState("");
+    const [otherReportReason, setOtherReportReason] = useState("");
+
 
     const handleToggleLikePost = async () => {
         if (!post) return;
@@ -364,8 +379,39 @@ const PostDetail: React.FC = () => {
     };
 
     const handleReportPost = () => {
-        // TODO: call POST /api/posts/:id/report
-        message.info("ส่งรายงานโพสต์ (mock) เรียบร้อย");
+        if (!post) return;
+        setIsReportModalOpen(true);
+    };
+
+    const handleSubmitReport = async () => {
+        if (!post) return;
+
+        const title = selectedReportReason;
+        const description =
+            selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)"
+                ? otherReportReason
+                : selectedReportReason;
+
+        if (!description.trim()) {
+            message.error("กรุณากรอกรายละเอียดการรายงาน");
+            return;
+        }
+
+        try {
+            await postService.reportPost(post.id, {
+                title,
+                description,
+                medias: [],
+            });
+            message.success("ส่งรายงานเรียบร้อยแล้ว ทีมงานจะตรวจสอบในเร็วๆนี้");
+            setIsReportModalOpen(false);
+            setSelectedReportReason("");
+            setOtherReportReason("");
+        } catch (error: any) {
+            console.error("Failed to report post:", error);
+            const errorMsg = error?.response?.data?.error || "ไม่สามารถส่งรายงานได้";
+            message.error(errorMsg);
+        }
     };
 
     // ส่งคอมเมนต์ (ถ้า replyTo != null → ตอบกลับคอมเมนต์นั้น)
@@ -835,14 +881,16 @@ const PostDetail: React.FC = () => {
                                     </div>
                                 </Space>
 
-                                {/* ปุ่ม report */}
-                                <Tooltip title="รายงานโพสต์นี้">
-                                    <Button
-                                        type="text"
-                                        icon={<WarningOutlined />}
-                                        onClick={handleReportPost}
-                                    />
-                                </Tooltip>
+                                {/* ปุ่ม report - ซ่อนถ้าเป็นโพสต์ตัวเอง */}
+                                {!post.isOwner && (
+                                    <Tooltip title="รายงานโพสต์นี้">
+                                        <Button
+                                            type="text"
+                                            icon={<WarningOutlined />}
+                                            onClick={handleReportPost}
+                                        />
+                                    </Tooltip>
+                                )}
                             </Space>
                         </Col>
                     </Row>
@@ -1326,6 +1374,18 @@ const PostDetail: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* Report Post Modal */}
+            <ReportPostModal
+                open={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                reasons={REPORT_REASONS}
+                selectedReason={selectedReportReason}
+                setSelectedReason={setSelectedReportReason}
+                otherReason={otherReportReason}
+                setOtherReason={setOtherReportReason}
+                onSubmit={handleSubmitReport}
+            />
         </main >
     );
 };

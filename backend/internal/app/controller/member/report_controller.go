@@ -175,3 +175,39 @@ func (ctl *MemberReportController) Delete(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
+
+// POST /member/posts/:id/report
+// Report a specific post (cannot report own posts)
+func (ctl *MemberReportController) ReportPost(c *gin.Context) {
+	postIDStr := c.Param("id")
+	postID64, err := strconv.ParseUint(postIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+	postID := uint(postID64)
+
+	var req struct {
+		Title       string                      `json:"title" binding:"required"`
+		Description string                      `json:"description" binding:"required"`
+		Medias      []services.ReportMediaInput `json:"medias"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	memberID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	report, err := ctl.Service.ReportPost(postID, memberID, req.Title, req.Description, req.Medias)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, report)
+}

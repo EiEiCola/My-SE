@@ -48,6 +48,8 @@ func (ctl *PostController) getMemberProfileID(c *gin.Context) (uint, bool) {
 	// Call MemberService to get profile
 	m, err := ctl.MemberService.GetProfileByAccountID(accountID)
 	if err != nil {
+		// ✅ เพิ่ม log เพื่อ debug
+		c.Error(err) // GIN จะ log error ออกมา
 		return 0, false
 	}
 	return m.ID, true
