@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Modal, message, App } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
@@ -46,6 +47,7 @@ interface FriendItem {
 const FriendRelation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const API_URL = "/api";
   const token = localStorage.getItem("token");
 
@@ -214,45 +216,79 @@ const FriendRelation: React.FC = () => {
     }
   };
 
-  const handleUnfriend = async (friendId: number) => {
-    if (!window.confirm("คุณต้องการเลิกเป็นเพื่อนใช่หรือไม่?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/friends/${friendId}/unfriend`, { method: "PUT", headers });
-      if (res.ok) {
-        setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
-        // ถ้าคนที่ถูกลบ คือคนที่เปิดดูอยู่ ให้ปิดหน้าขวา
-        if (selectedProfile?.id === friendId) {
-          setSelectedProfile(null);
+  const handleUnfriend = (friendId: number) => {
+    modal.confirm({
+      title: "คุณต้องการเลิกเป็นเพื่อนใช่หรือไม่?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/friends/${friendId}/unfriend`, { method: "PUT", headers });
+          if (res.ok) {
+            setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
+            // ถ้าคนที่ถูกลบ คือคนที่เปิดดูอยู่ ให้ปิดหน้าขวา
+            if (selectedProfile?.id === friendId) {
+              setSelectedProfile(null);
+            }
+            message.success("เลิกเป็นเพื่อนเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
         }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
-  const handleBlock = async (friendId: number) => {
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: friendId })
-      });
-      if (res.ok) {
-        setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
-        if (selectedProfile?.id === friendId) setSelectedProfile(null); // ปิดหน้าขวา
-        alert("บล็อกเรียบร้อย");
+  const handleBlock = (friendId: number) => {
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks`, {
+            method: "POST", headers, body: JSON.stringify({ blocked_id: friendId })
+          });
+          if (res.ok) {
+            setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
+            if (selectedProfile?.id === friendId) setSelectedProfile(null); // ปิดหน้าขวา
+            message.success("บล็อกเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
-  const handleUnblock = async (blockedId: number) => {
-    if (!window.confirm("ต้องการปลดบล็อก?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, {
-        method: "PUT", headers
-      });
-      if (res.ok) {
-        setBlockedUsers(prev => prev.filter(u => u.id !== blockedId));
-        // อาจจะ fetch friends ใหม่เพื่อให้เขากลับมา (optional)
+  const handleUnblock = (blockedId: number) => {
+    modal.confirm({
+      title: "ต้องการปลดบล็อก?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, {
+            method: "PUT", headers
+          });
+          if (res.ok) {
+            setBlockedUsers(prev => prev.filter(u => u.id !== blockedId));
+            message.success("ปลดบล็อกเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
   const handleFollowToggle = async (targetId: number, isCurrentlyFollowing: boolean) => {

@@ -121,9 +121,59 @@ const ProfilePopup: React.FC<ProfilePopupProps> = ({ isOpen, onClose, userId, in
         );
     };
 
-    const navigateToProfile = (user: any) => {
-        onClose(); // Close popup
-        navigate('/User/Friends/Popular', { state: { selectedId: user.id } });
+    const navigateToProfile = async (user: any) => {
+        onClose(); // Close popup first
+
+        try {
+            const userId = user.id;
+
+            // Check if it's ME
+            if (myId === userId) {
+                navigate('/User/Profile');
+                return;
+            }
+
+            // Fetch Access Control Lists
+            const [friendsRes, receivedReqRes] = await Promise.all([
+                friendAPI.getMyFriends(),
+                friendAPI.getReceivedRequests()
+            ]);
+
+            const friendsData = (friendsRes as any)?.data || [];
+            const receivedReqData = (receivedReqRes as any)?.data || [];
+
+            // Check Friend Status
+            const isFriend = friendsData.some((f: any) =>
+                (f.ID || f.id || f.friend_id || f.FriendID) === userId
+            );
+
+            // Check Received Request Status
+            const hasReceivedRequest = receivedReqData.some((req: any) => {
+                const senderId = req.sent_mem_id ||
+                    req.sent_member?.ID ||
+                    req.sent_member?.id ||
+                    req.sender_id ||
+                    req.SenderId ||
+                    req.SenderID ||
+                    req.sender_mem_id ||
+                    req.SenderMember?.ID ||
+                    req.SenderMember?.id;
+                return senderId === userId;
+            });
+
+            if (isFriend) {
+                navigate('/User/Friends/FriendRelation', { state: { selectedId: userId } });
+            } else if (hasReceivedRequest) {
+                navigate('/User/Friends/Request', { state: { selectedId: userId } });
+            } else {
+                navigate('/User/Friends/Popular', { state: { selectedId: userId } });
+            }
+
+        } catch (error) {
+            console.error("Navigation check failed:", error);
+            // Fallback
+            navigate('/User/Friends/Popular', { state: { selectedId: user.id } });
+        }
     };
 
     return (

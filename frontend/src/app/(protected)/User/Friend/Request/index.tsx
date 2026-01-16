@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { App } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
@@ -62,6 +63,7 @@ interface FriendRequestItem {
 const FriendRequest: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const token = localStorage.getItem("token");
 
   // Data State
@@ -266,14 +268,25 @@ const FriendRequest: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleCancelRequest = async (reqId: number) => {
-    if (!window.confirm("ต้องการยกเลิกคำขอ?")) return;
-    try {
-      const res = await friendAPI.cancelRequest(reqId);
-      if (res.status === 200 || res.status === 201) {
-        setSentRequests((prev) => prev.filter((req) => req.id !== reqId));
+  const handleCancelRequest = (reqId: number) => {
+    modal.confirm({
+      title: "ต้องการยกเลิกคำขอ?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await friendAPI.cancelRequest(reqId);
+          if (res.status === 200 || res.status === 201) {
+            setSentRequests((prev) => prev.filter((req) => req.id !== reqId));
+            message.success("ยกเลิกคำขอเรียบร้อย");
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleFollowToggle = async () => {
@@ -300,16 +313,27 @@ const FriendRequest: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleBlockUser = async () => {
-    if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await friendAPI.blockUser(selectedProfile.member_id);
-      if (res.status === 200 || res.status === 201) {
-        alert("บล็อกเรียบร้อย");
-        setReceivedRequests(prev => prev.filter(r => r.member_id !== selectedProfile.member_id));
-        setSelectedProfile(null);
+  const handleBlockUser = () => {
+    if (!selectedProfile) return;
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await friendAPI.blockUser(selectedProfile.member_id);
+          if (res.status === 200 || res.status === 201) {
+            message.success("บล็อกเรียบร้อย");
+            setReceivedRequests(prev => prev.filter(r => r.member_id !== selectedProfile.member_id));
+            setSelectedProfile(null);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   return (

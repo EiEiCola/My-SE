@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { App } from "antd";
 import dayjs from "dayjs";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 import "dayjs/locale/th";
@@ -57,6 +58,7 @@ interface MemberItem {
 const FriendPopular: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const API_URL = "/api";
   const token = localStorage.getItem("token");
 
@@ -177,7 +179,8 @@ const FriendPopular: React.FC = () => {
       if (sentData.data) {
         sentData.data.forEach((req: any) => {
           const targetId = Number(req.receive_member_id || req.receive_mem_id);
-          if (targetId) sentMap.set(targetId, req.rf_id);
+          const reqId = Number(req.rf_id || req.ID || req.id);
+          if (targetId && reqId) sentMap.set(targetId, reqId);
         });
       }
 
@@ -306,7 +309,12 @@ const FriendPopular: React.FC = () => {
         method: "POST", headers, body: JSON.stringify({ receiver_id: targetId })
       });
       if (res.ok) {
-        updateLocalState(targetId, { status: 'pending' });
+        const data = await res.json();
+        // Try to find the ID from various possible fields in the response
+        const newReqId = Number(data.data?.ID || data.data?.id || data.data?.rf_id || 0);
+
+        updateLocalState(targetId, { status: 'pending', requestId: newReqId });
+        // Still fetch initial data to be sure, but UI is now immediately functional
         fetchInitialData();
       } else {
         const err = await res.json();
@@ -315,14 +323,26 @@ const FriendPopular: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleCancelRequest = async (reqId: number | undefined, targetId: number) => {
-    if (!reqId || !window.confirm("ต้องการยกเลิกคำขอ?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, { method: "PUT", headers });
-      if (res.ok) {
-        updateLocalState(targetId, { status: 'none', requestId: undefined });
+  const handleCancelRequest = (reqId: number | undefined, targetId: number) => {
+    if (!reqId) return;
+    modal.confirm({
+      title: "ต้องการยกเลิกคำขอ?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, { method: "PUT", headers });
+          if (res.ok) {
+            updateLocalState(targetId, { status: 'none', requestId: undefined });
+            message.success("ยกเลิกคำขอเรียบร้อย");
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleFollowToggle = async () => {
@@ -343,21 +363,32 @@ const FriendPopular: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleBlockUser = async () => {
-    if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
-      });
-      if (res.ok) {
-        alert("บล็อกเรียบร้อย");
-        const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
-        setDisplayList(prev => filterList(prev));
-        setPopulars(prev => filterList(prev));
-        setAllMembers(prev => filterList(prev));
-        setSelectedProfile(null);
+  const handleBlockUser = () => {
+    if (!selectedProfile) return;
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks`, {
+            method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
+          });
+          if (res.ok) {
+            message.success("บล็อกเรียบร้อย");
+            const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
+            setDisplayList(prev => filterList(prev));
+            setPopulars(prev => filterList(prev));
+            setAllMembers(prev => filterList(prev));
+            setSelectedProfile(null);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleMessageClick = async () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, Button, Typography, Avatar, Tabs, Modal, message } from "antd";
+import { Card, Button, Typography, Avatar, Tabs, App as AntApp } from "antd";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 
 // ⭐ Icons
@@ -21,6 +21,7 @@ const { Title, Text } = Typography;
 function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = AntApp.useApp();
 
   // tab ที่แอคทีฟ
   const [activeTab, setActiveTab] = useState("post");
@@ -277,10 +278,16 @@ function Profile() {
         break;
     }
 
-    // Using native confirm for immediate fix
-    if (window.confirm(content)) {
-      onOk();
-    }
+    // Using Ant Design Modal.confirm
+    modal.confirm({
+      title: title,
+      content: content,
+      centered: true,
+      okText: 'Yes',
+      cancelText: 'No',
+      zIndex: 3000,
+      onOk: onOk,
+    });
   };
 
   const switchPopupTab = (key: string) => {

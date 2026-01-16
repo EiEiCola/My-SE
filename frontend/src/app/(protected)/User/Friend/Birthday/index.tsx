@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ArrowLeft, Send, Smile } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
+import { message } from "antd";
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -153,7 +154,7 @@ const FriendBirthday = () => {
       }
     } catch (err) {
       console.error("Failed to start chat:", err);
-      alert("ไม่สามารถเริ่มแชทได้");
+      message.error("ไม่สามารถเริ่มแชทได้");
     }
   };
 
