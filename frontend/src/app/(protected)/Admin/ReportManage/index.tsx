@@ -4,6 +4,8 @@ import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, R
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { ReportService, type Report } from "../../../../services/http/report";
+import postService from "../../../../services/http/post_service";
+import { deleteReview } from "../../../../services/http/reviewApi";
 
 const { Title } = Typography;
 const { Option } = Select;

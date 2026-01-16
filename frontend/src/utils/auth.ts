@@ -9,13 +9,23 @@ export const getUserRole = (): string | null => {
         const token = localStorage.getItem('token');
         if (!token) return null;
 
+        // Check if token has valid format (3 parts separated by dots)
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            console.warn('Invalid token format');
+            localStorage.removeItem('token');
+            return null;
+        }
+
         // Decode JWT token (simple base64 decode, not verification)
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(parts[1]));
 
         // Return role from token payload
         return payload.role || null;
     } catch (error) {
         console.error('Error decoding token:', error);
+        // Clear invalid token to prevent repeated errors
+        localStorage.removeItem('token');
         return null;
     }
 };
