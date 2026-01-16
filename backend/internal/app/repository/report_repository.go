@@ -52,7 +52,7 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 		db = db.Where("status = ?", *statusID)
 	}
 	if targetType != "" {
-		db = db.Where("target_type = ?", targetType)
+		db = db.Where("LOWER(target_type) = LOWER(?)", targetType)
 	}
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)
@@ -78,13 +78,13 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 	if statusID != nil {
 		queryObj.StatusID = *statusID
 	}
-	if targetType != "" {
-		queryObj.TargetType = targetType
-	}
 	if reporterID != nil {
 		queryObj.ReporterID = *reporterID
 	}
 	db = r.DB.Model(&entity.Report{}).Where(&queryObj)
+	if targetType != "" {
+		db = db.Where("LOWER(target_type) = LOWER(?)", targetType)
+	}
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)
 		like := "%" + strings.ToLower(escaped) + "%"
