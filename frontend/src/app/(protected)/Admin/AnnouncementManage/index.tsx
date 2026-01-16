@@ -136,6 +136,15 @@ const AnnouncementManage: React.FC = () => {
     navigate(`/Admin/AnnouncementManage/${record.id}`);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("data:")) return url;
+    return `${API_BASE}/uploads/${url}`;
+  };
+
   const columns = [
     {
       title: "ID",
@@ -150,7 +159,7 @@ const AnnouncementManage: React.FC = () => {
       width: 200,
       render: (_: any, record: RequestRow) => (
         <Space>
-          <Avatar src={record.member_picture || "https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous"} />
+          <Avatar src={resolveMediaUrl(record.member_picture) || "https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous"} />
           <span>{record.user}</span>
         </Space>
       ),

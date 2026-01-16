@@ -131,9 +131,9 @@ const ReportManage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!currentReport) return;
-    
+
     console.log("User confirmed - Attempting to delete report ID:", currentReport.id);
-    
+
     try {
       const token = localStorage.getItem("token");
       const endpoint = `${API_BASE}/api/admin/reports/${currentReport.id}`;
@@ -149,7 +149,7 @@ const ReportManage: React.FC = () => {
       });
 
       console.log("Delete response status:", response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("Delete failed:", errorData);
@@ -158,7 +158,7 @@ const ReportManage: React.FC = () => {
 
       const result = await response.json();
       console.log("Delete result:", result);
-      
+
       message.success("ลบรายงานสำเร็จ");
       setDeleteVisible(false);
       await fetchReports(); // Refresh list
@@ -282,15 +282,7 @@ const ReportManage: React.FC = () => {
       <Card className="rounded-2xl shadow-sm" bodyStyle={{ padding: "40px" }}>
         <div style={{ marginBottom: 20 }}>
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={8} md={6}>
-              <Input
-                prefix={<SearchOutlined className="text-gray-400" />}
-                placeholder="ค้นหา (หัวข้อ, รายละเอียด, ผู้แจ้ง)..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-              />
-            </Col>
+
             <Col xs={24} sm={8} md={4}>
               <Select
                 placeholder="สถานะ"

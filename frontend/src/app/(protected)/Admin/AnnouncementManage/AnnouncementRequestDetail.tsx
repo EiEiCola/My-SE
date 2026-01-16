@@ -21,6 +21,15 @@ const AnnouncementRequestDetail: React.FC = () => {
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("data:")) return url;
+    return `${API_BASE}/uploads/${url}`;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -164,7 +173,7 @@ const AnnouncementRequestDetail: React.FC = () => {
         <div className="detail-card">
           <div className="detail-meta-group" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #eee' }}>
             {data.member?.member_picture ? (
-              <img src={data.member.member_picture} alt="Member" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
+              <img src={resolveMediaUrl(data.member.member_picture)} alt="Member" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />
             ) : (
               <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {data.member?.username?.[0]?.toUpperCase() || '?'}
@@ -189,7 +198,7 @@ const AnnouncementRequestDetail: React.FC = () => {
               {data.media && data.media.length > 0 ? (
                 data.media.map((m: any, idx: number) => (
                   <div key={idx} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
-                    <img src={m.url} alt={`Media ${idx}`} style={{ width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block' }} />
+                    <img src={resolveMediaUrl(m.url)} alt={`Media ${idx}`} style={{ width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block' }} />
                   </div>
                 ))
               ) : (

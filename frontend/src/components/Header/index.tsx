@@ -181,22 +181,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
           <p className="text-sm text-white/70">{subtitle}</p>
         </div>
 
-        {/* CENTER: Search */}
-        <div className="flex-1 max-w-md mx-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/20
-              border border-white/30
-              rounded-full text-white
-              placeholder-white/60
-              focus:outline-none focus:ring-2
-              focus:ring-white/50 focus:border-transparent transition-all"
-            />
-          </div>
-        </div>
+
 
         {/* RIGHT: Notification Bell + Profile Dropdown */}
         <div className="flex items-center gap-4">
