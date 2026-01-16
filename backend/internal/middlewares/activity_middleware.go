@@ -15,7 +15,7 @@ func ActivityMiddleware(db *gorm.DB) gin.HandlerFunc {
 		c.Next()
 
 		// After request is processed, update last activity
-		memberID, exists := c.Get("member_id")
+		memberID, exists := c.Get("memberID")
 		if !exists {
 			return
 		}

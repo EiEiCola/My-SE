@@ -20,6 +20,10 @@ func SetupMemberProfileRoutes(r *gin.RouterGroup) {
 	r.GET("/me", memberCtrl.GetMe)
 	r.PUT("/me", memberCtrl.UpdateMe)
 
+	// ✅ Activity tracking - Heartbeat endpoint
+	activityCtrl := memberctl.NewActivityController(memberRepo)
+	r.POST("/heartbeat", activityCtrl.Heartbeat)
+
 	// (ถ้าจะเก็บของเดิมไว้ด้วยก็ได้)
 	// r.GET("/account/:accountId", memberCtrl.GetProfileByAccountID)
 	// r.PUT("/account/:accountId", memberCtrl.UpdateProfileByAccountID)

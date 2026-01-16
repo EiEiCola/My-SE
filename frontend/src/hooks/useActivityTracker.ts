@@ -3,15 +3,16 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 
-const INACTIVITY_WARNING_MS = 4 * 60 * 1000; // 4 minutes
-const INACTIVITY_LOGOUT_MS = 5 * 60 * 1000; // 5 minutes
-const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute
+const INACTIVITY_WARNING_MS = 9 * 60 * 1000; // 9 นาที
+const INACTIVITY_LOGOUT_MS = 10 * 60 * 1000; // 10 นาที
+const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 นาที
 
 export const useActivityTracker = () => {
     const navigate = useNavigate();
     const { modal } = App.useApp();
     const lastActivityRef = useRef<number>(Date.now());
     const warningShownRef = useRef<boolean>(false);
+    const logoutShownRef = useRef<boolean>(false); // ✅ ป้องกัน logout modal ซ้อน
     const heartbeatTimerRef = useRef<number | null>(null);
     const checkTimerRef = useRef<number | null>(null);
 
@@ -19,6 +20,7 @@ export const useActivityTracker = () => {
     const updateActivity = useCallback(() => {
         lastActivityRef.current = Date.now();
         warningShownRef.current = false;
+        logoutShownRef.current = false; // ✅ Reset ทั้งสอง flags
     }, []);
 
     // Send heartbeat to backend
@@ -27,7 +29,8 @@ export const useActivityTracker = () => {
         if (!token) return;
 
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/member/heartbeat`, {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+            await fetch(`${apiUrl}/api/member/heartbeat`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -41,9 +44,14 @@ export const useActivityTracker = () => {
 
     // Handle auto-logout
     const handleAutoLogout = useCallback(() => {
+        // ✅ ป้องกัน modal ซ้อน
+        if (logoutShownRef.current) return;
+        logoutShownRef.current = true;
+
         modal.warning({
-            title: 'Session Expired',
-            content: 'You have been logged out due to inactivity.',
+            title: 'คุณถูกออกจากระบบ',
+            content: 'เนื่องจากไม่มีการใช้งานเกิน 10 นาที',
+            okText: 'เข้าสู่ระบบอีกครั้ง',
             onOk: () => {
                 localStorage.removeItem('token');
                 navigate('/login');
@@ -53,13 +61,14 @@ export const useActivityTracker = () => {
 
     // Show warning before logout
     const showInactivityWarning = useCallback(() => {
+        // ✅ ป้องกัน modal ซ้อน
         if (warningShownRef.current) return;
 
         warningShownRef.current = true;
         modal.warning({
-            title: 'Inactive Warning',
-            content: 'You will be logged out in 1 minute due to inactivity. Move your mouse or press any key to stay logged in.',
-            okText: 'Stay Logged In',
+            title: '⚠️ คำเตือน: ไม่มีการใช้งาน',
+            content: 'คุณจะถูกออกจากระบบใน 1 นาที หากไม่มีการใช้งาน กรุณาขยับเม้าส์หรือกดปุ่มใดก็ได้',
+            okText: 'ฉันยังใช้งานอยู่',
             onOk: updateActivity,
         });
     }, [modal, updateActivity]);

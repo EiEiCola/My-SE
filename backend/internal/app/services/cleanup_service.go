@@ -50,10 +50,10 @@ func (s *CleanupService) Stop() {
 	s.done <- true
 }
 
-// checkInactiveUsers sets users offline if they've been inactive for 5+ minutes
+// checkInactiveUsers sets users offline if they've been inactive for 10+ minutes
 func (s *CleanupService) checkInactiveUsers() {
-	// Set users to offline if inactive for 5 minutes
-	err := s.memberRepo.SetInactiveMembersOffline(5)
+	// Set users to offline if inactive for 10 minutes
+	err := s.memberRepo.SetInactiveMembersOffline(10)
 	if err != nil {
 		log.Printf("⚠️ Error setting inactive users offline: %v\n", err)
 		return
