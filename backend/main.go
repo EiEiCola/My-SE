@@ -70,8 +70,8 @@ func main() {
 	// 🚀 CHAT SYSTEM INITIALIZATION
 	// ==========================================
 
-	// 1. WebSocket Hub
-	hub := websocket.NewHub()
+	// 1. WebSocket Hub (✅ Now with DB for status updates)
+	hub := websocket.NewHub(db)
 	go hub.Run() // ⭐ สำคัญ: ต้อง Run Hub ไม่งั้นแชทไม่วิ่ง
 
 	// 2. Repositories
@@ -118,7 +118,12 @@ func main() {
 	// 5. Setup Routes
 	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl, memberSvc)
 
-	// 6. Configure HTTP server with timeouts for security and stability
+	// ✅ 6. Start Cleanup Service (Auto-offline inactive users)
+	cleanupSvc := services.NewCleanupService(memberRepo, hub)
+	cleanupSvc.Start()
+	defer cleanupSvc.Stop()
+
+	// 7. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{
 		Addr:           ":" + PORT,
 		Handler:        r,

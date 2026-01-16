@@ -230,6 +230,14 @@ export const postService = {
     getMyPosts: () =>
         api.get<ApiResponse<Post[]>>("/member/posts/mine"),
 
+    // Get specific user's posts
+    getUserPosts: (userId: number) =>
+        api.get<ApiResponse<Post[]>>(`/member/posts/user/${userId}`),
+
+    // Get specific user's favs
+    getUserFavs: (userId: number) =>
+        api.get<ApiResponse<Post[]>>(`/member/posts/user/${userId}/fav`),
+
     // =============== REPORT API ===============
 
     // Report a post
