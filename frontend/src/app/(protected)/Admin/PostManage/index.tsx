@@ -30,6 +30,7 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import adminPostService from "../../../../services/http/admin_post_service";
+import { ReportService } from "../../../../services/http/report";
 
 const { Search, TextArea } = Input;
 
@@ -65,153 +66,11 @@ type PostItem = {
   logs?: PostLog[];
 };
 
-// ---------- Mock data ----------
-const initialPosts: PostItem[] = [
-  {
-    id: 1,
-    authorName: "Username1",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=user1",
-    title: "รีวิววิชา Operating System อาจารย์ A",
-    category: "การศึกษา",
-    createdAt: "2025-12-01 10:15",
-    status: "reported",
-    reportCount: 3,
-    content:
-      "ส่วนตัวรู้สึกว่าวิชานี้หนักพอสมควร งานเยอะ แต่ถ้าตั้งใจตามก็ทำข้อสอบได้อยู่ครับ แนะนำให้ทำแบบฝึกหัดทุกสัปดาห์ จะช่วยมากตอนใกล้สอบ",
-    reports: [
-      {
-        id: 1,
-        reporter: "student_999",
-        reason: "มีคำพูดเหน็บแนมอาจารย์",
-        createdAt: "2025-12-01 11:20",
-      },
-      {
-        id: 2,
-        reporter: "student_777",
-        reason: "มีการระบุชื่อจริงอาจารย์แบบไม่เหมาะสม",
-        createdAt: "2025-12-01 12:05",
-      },
-    ],
-    logs: [
-      {
-        id: 1,
-        action: "User posted",
-        by: "Username1",
-        createdAt: "2025-12-01 10:15",
-      },
-      {
-        id: 2,
-        action: "Post reported",
-        by: "student_999",
-        createdAt: "2025-12-01 11:20",
-      },
-    ],
-  },
-  {
-    id: 2,
-    authorName: "Username2",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=user2",
-    title: "แชร์ประสบการณ์ฝึกงานบริษัท Software ที่กรุงเทพ",
-    category: "เรื่องทั่วไป",
-    createdAt: "2025-12-01 09:30",
-    status: "active",
-    reportCount: 0,
-    content:
-      "เพิ่งฝึกงานกลับมาสด ๆ ร้อน ๆ เลย อยากมาแชร์ว่าบรรยากาศและงานจริงต่างจากในห้องเรียนยังไงบ้าง เผื่อใครสนใจสมัครปีหน้า...",
-    logs: [
-      {
-        id: 1,
-        action: "User posted",
-        by: "Username2",
-        createdAt: "2025-12-01 09:30",
-      },
-    ],
-  },
-  {
-    id: 3,
-    authorName: "Username3",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=user3",
-    title: "ร้านก๋วยเตี๋ยวหน้า ม. ราคานักศึกษา",
-    category: "ร้านอาหาร",
-    createdAt: "2025-11-30 20:10",
-    status: "deleted",
-    reportCount: 5,
-    deletedReason: "ข้อความมีคำหยาบคายและพาดพิงร้านในเชิงทำลายชื่อเสียง",
-    content:
-      "ก๋วยเตี๋ยวร้านนี้ให้เยอะมาก แต่วันที่ไปเจอคนเยอะเลยรอนานไปหน่อย รสชาติใช้ได้แต่ติดเค็มไปนิดนึง ถ้าไม่รีบก็ถือว่าโอเคนะ",
-    reports: [
-      {
-        id: 1,
-        reporter: "user_abc",
-        reason: "ใช้คำพูดรุนแรงเกินไป",
-        createdAt: "2025-11-30 20:30",
-      },
-      {
-        id: 2,
-        reporter: "user_xyz",
-        reason: "พาดพิงร้านค้าในเชิงลบมากเกินไป",
-        createdAt: "2025-11-30 21:05",
-      },
-    ],
-    logs: [
-      {
-        id: 1,
-        action: "User posted",
-        by: "Username3",
-        createdAt: "2025-11-30 20:10",
-      },
-      {
-        id: 2,
-        action: "Post reported",
-        by: "user_abc",
-        createdAt: "2025-11-30 20:30",
-      },
-      {
-        id: 3,
-        action: "Admin deleted",
-        by: "Admin_A",
-        createdAt: "2025-11-30 22:00",
-      },
-    ],
-  },
-  {
-    id: 4,
-    authorName: "Username4",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=user4",
-    title: "รวมรูปบรรยากาศทริปเขาใหญ่กับเพื่อน ๆ",
-    category: "สถานที่ท่องเที่ยว",
-    createdAt: "2025-11-30 18:05",
-    status: "reported",
-    reportCount: 2,
-    content:
-      "ไปเขาใหญ่มากับเพื่อนกลุ่มใหญ่ สนุกมาก มีทั้งเดินป่า ชมวิว ถ่ายรูปเยอะมาก เลยเอามาแชร์ เผื่อเป็นไอเดียทริปต่อไปของเพื่อน ๆ",
-    reports: [
-      {
-        id: 1,
-        reporter: "user555",
-        reason: "มีรูปใบหน้าคนอื่นที่อาจจะไม่ยินยอม",
-        createdAt: "2025-11-30 18:40",
-      },
-    ],
-  },
-  {
-    id: 5,
-    authorName: "Username5",
-    authorAvatar: "https://api.dicebear.com/7.x/thumbs/svg?seed=user5",
-    title: "มาชวนวิ่งรอบหอ สายสุขภาพเชิญทางนี้",
-    category: "กีฬา",
-    createdAt: "2025-11-29 22:40",
-    status: "active",
-    reportCount: 0,
-    content:
-      "ช่วงนี้เริ่มจริงจังกับการวิ่ง เลยอยากชวนเพื่อน ๆ แถวหอออกมาวิ่งด้วยกันตอนเย็น ใครสนใจมาคอมเมนต์ไว้ได้เลยครับ",
-  },
-];
-
 // ---------- Component ----------
 const PostManage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [reportCounts, setReportCounts] = useState<Record<number, number>>({});
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PostStatus>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
@@ -225,13 +84,43 @@ const PostManage: React.FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailPost, setDetailPost] = useState<PostItem | null>(null);
 
-  // Fetch posts from API
+  // Fetch posts and reports from API
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+
+        // Fetch posts
         const response = await adminPostService.getAll();
         const apiPosts = response.data.data;
+
+        // Fetch reports for posts
+        const reportsResponse = await ReportService.getAdminReports({
+          page: 1,
+          page_size: 1000,
+          target_type: "post",
+        });
+        const reports = reportsResponse.data.data || [];
+
+        console.log("📊 Reports fetched:", reports);
+        console.log("📊 Reports length:", reports.length);
+
+        // Count reports per post
+        const counts: Record<number, number> = {};
+        reports.forEach((report: any) => {
+          console.log("📋 Report:", {
+            id: report.id,
+            target_type: report.target_type,
+            target_id: report.target_id,
+          });
+
+          if (report.target_id) {
+            counts[report.target_id] = (counts[report.target_id] || 0) + 1;
+          }
+        });
+
+        console.log("📊 Report counts by post ID:", counts);
+        setReportCounts(counts);
 
         // Map API response to PostItem format
         const mappedPosts: PostItem[] = apiPosts.map((p) => {
@@ -240,7 +129,7 @@ const PostManage: React.FC = () => {
           let authorAvatar = `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`;
           if (!p.is_anonymous && p.author) {
             authorName = p.author.username || `${p.author.first_name} ${p.author.last_name}`;
-            authorAvatar = p.author.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`;
+            authorAvatar = p.author.member_picture || `https://ap.dicebear.com/7.x/thumbs/svg?seed=user${p.author_id}`;
           }
 
           // Get category name from backend
@@ -252,6 +141,21 @@ const PostManage: React.FC = () => {
             }
           }
 
+          // Get report count for this post
+          const reportCount = counts[p.ID] || 0;
+
+          console.log(`📝 Post ID ${p.ID}:`, {
+            title: p.title,
+            reportCount,
+            hasCountInMap: counts.hasOwnProperty(p.ID),
+          });
+
+          // Set status based on report count
+          let postStatus: PostStatus = (p.status?.toLowerCase() || "active") as PostStatus;
+          if (reportCount > 0 && postStatus === "active") {
+            postStatus = "reported";
+          }
+
           return {
             id: p.ID,
             authorName,
@@ -259,30 +163,23 @@ const PostManage: React.FC = () => {
             title: p.title,
             category: categoryName,
             createdAt: new Date(p.created_at).toLocaleString("th-TH"),
-            status: (p.status?.toLowerCase() || "active") as PostStatus,
-            reportCount: p.reports?.length || 0,
+            status: postStatus,
+            reportCount,
             content: p.content,
-            reports: p.reports?.map((r) => ({
-              id: r.ID,
-              reporter: r.reporter,
-              reason: r.reason,
-              createdAt: r.created_at,
-            })),
           };
         });
 
+        console.log("✅ Final mapped posts:", mappedPosts);
         setPosts(mappedPosts);
       } catch (error) {
-        console.error("Failed to fetch posts:", error);
-        message.error("ไม่สามารถโหลดรายการโพสต์ได้");
-        // Fallback to mock data for development
-        setPosts(initialPosts);
+        console.error("Failed to fetch data:", error);
+        message.error("ไม่สามารถโหลดข้อมูลได้");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPosts();
+    fetchData();
   }, []);
 
   // ---------- สถิติ ----------

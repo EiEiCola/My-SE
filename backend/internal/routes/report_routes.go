@@ -15,7 +15,8 @@ func SetupReportRoutes(api *gin.RouterGroup) {
 
 	// Repo & Service
 	reportRepo := repository.NewReportRepository(db)
-	reportService := services.NewReportService(db, reportRepo)
+	postRepo := repository.NewPostRepository(db)
+	reportService := services.NewReportService(db, reportRepo, postRepo)
 
 	// Controllers
 	adminReportCtl := admin_controller.NewAdminReportController(reportService)

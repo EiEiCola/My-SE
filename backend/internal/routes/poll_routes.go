@@ -20,7 +20,8 @@ func SetupPollRoutes(api *gin.RouterGroup) {
 	// ⭐ POINT SYSTEM: สร้าง point service แล้ว inject เข้า poll service
 	pointService := services.NewPointService(db)
 
-	pollService := services.NewPollService(pollRepo, pointService)
+	reportRepo := repository.NewReportRepository(db) // ✅ NEW
+	pollService := services.NewPollService(pollRepo, pointService, reportRepo)
 
 	// ✅ Needed for resolving Profile ID from Account ID
 	memberRepo := repository.NewMemberRepository(db)

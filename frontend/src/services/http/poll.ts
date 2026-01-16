@@ -54,6 +54,8 @@ export interface Poll {
   is_anonymous?: boolean;
   has_voted?: boolean;
   my_option_ids?: number[];
+
+  report_count?: number; // ✅ NEW: for admin
 }
 
 export interface PollHistory {

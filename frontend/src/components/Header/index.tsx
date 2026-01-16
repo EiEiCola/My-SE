@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   Search, Settings, Help, DarkMode, ChatBubble, ExitToApp, Person,
@@ -29,15 +29,14 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const [profileName, setProfileName] = useState(defaultUsername);
   const [profileImage, setProfileImage] = useState("");
 
+  // Fetch profile data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         if (role === "user") {
           const res = await memberAPI.getMe();
-          // Ensure we access the correct property structure
-          // Assuming res.data contains the profile fields directly or inside data
           const data: any = res.data;
-          const user = data.data || data; // flexible check
+          const user = data.data || data;
 
           if (user) {
             setProfileName(user.username || user.first_name || "User");
@@ -56,7 +55,6 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         console.error("Failed to fetch profile in Header", error);
       }
     };
-    fetchProfile();
     fetchProfile();
   }, [role]);
 
@@ -85,9 +83,14 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     }
   }, [role]);
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // Memoize unread count
+  const unreadCount = useMemo(
+    () => notifications.filter(n => !n.is_read).length,
+    [notifications]
+  );
 
-  const handleRead = async (n: Notification) => {
+  // Memoized callback for marking notification as read
+  const handleRead = useCallback(async (n: Notification) => {
     if (!n.is_read) {
       try {
         await notificationAPI.markAsRead(n.ID);
@@ -96,9 +99,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         console.error(err);
       }
     }
-    // Navigate or show detail?
-    // For now just mark as read
-  };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -114,12 +115,13 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  // Memoized logout handler
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("id");
     navigate("/");
-  };
+  }, [navigate]);
 
   // Map path to page title
   const getPageTitle = () => {
@@ -164,7 +166,8 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     }
   };
 
-  const title = getPageTitle();
+  // Memoize page title
+  const title = useMemo(() => getPageTitle(), [location.pathname, role]);
   const subtitle = role === "admin" ? "Admin Panel" : "Welcome back";
 
   return (

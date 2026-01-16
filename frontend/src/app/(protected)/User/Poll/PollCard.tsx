@@ -64,6 +64,10 @@ type Props = {
 
   // ✅ NEW: delete function for poll owners
   onDelete?: () => void;
+
+  // ✅ NEW: report function for non-owners
+  canReport?: boolean;
+  onReport?: () => void;
 };
 
 const optionImg = (opt: any) =>
@@ -369,6 +373,53 @@ export const PollCard: React.FC<Props> = (props) => {
 
         <div className="pc-topRight" onClick={(e) => e.stopPropagation()}>
           {displayCategory && <span className="pc-catPill">{displayCategory}</span>}
+
+          {/* ✅ Report button for non-owners */}
+          {props.canReport && props.onReport && (
+            <button
+              type="button"
+              className="pc-report"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onReport?.();
+              }}
+              title="แจ้งปัญหา"
+              aria-label="report poll"
+              style={{
+                border: 0,
+                background: "transparent",
+                cursor: "pointer",
+                color: "#6b7280",
+                padding: "6px",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
+                e.currentTarget.style.color = "#ef4444";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#6b7280";
+              }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style={{ width: "20px", height: "20px" }}
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 2.25a.75.75 0 0 1 .75.75v.54l1.838-.46a9.75 9.75 0 0 1 6.725.738l.108.054A8.25 8.25 0 0 0 18 4.524l3.11-.732a.75.75 0 0 1 .917.81 47.784 47.784 0 0 0 .005 10.337.75.75 0 0 1-.574.812l-3.114.733a9.75 9.75 0 0 1-6.594-.77l-.108-.054a8.25 8.25 0 0 0-5.69-.625l-2.202.55V21a.75.75 0 0 1-1.5 0V3A.75.75 0 0 1 3 2.25Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          )}
 
           {/* ✅ Delete button for poll owner */}
           {isOwner && props.onDelete && (

@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/dto"
-	"github.com/sut68/team12/backend/internal/entity" // ⭐ เช็ค Path
+	"github.com/sut68/team12/backend/internal/entity"
 )
 
 type FriendshipController struct {
