@@ -43,7 +43,7 @@ const PointRuleModal: React.FC<Props> = ({ open, onClose }) => {
     setLoading(true);
     try {
       // ⚠️ เปลี่ยน URL ให้ตรงกับ backend ของทีมเนย
-      const res = await axios.get("http://localhost:8080/api/point-rules");
+      const res = await axios.get("/api/point-rules");
 
       const list = Array.isArray(res?.data?.data) ? res.data.data : res.data;
 
