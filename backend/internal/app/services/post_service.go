@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sut68/team12/backend/internal/app/repository"
+	"github.com/sut68/team12/backend/internal/app/websocket"
 	"github.com/sut68/team12/backend/internal/dto"
 	"github.com/sut68/team12/backend/internal/entity"
 	"gorm.io/gorm"
@@ -33,6 +34,8 @@ type PostService struct {
 	NotificationRepo *repository.NotificationRepository
 	// --- Added by Point System ---
 	PointService PointService
+	// --- WebSocket Hub for real-time notifications ---
+	WSHub *websocket.Hub
 }
 
 func NewPostService(
@@ -46,7 +49,8 @@ func NewPostService(
 	notificationRepo *repository.NotificationRepository,
 	// --- Added by Point System ---
 	pointService PointService,
-
+	// --- WebSocket Hub ---
+	wsHub *websocket.Hub,
 ) *PostService {
 	return &PostService{
 		DB:               db,
@@ -59,6 +63,8 @@ func NewPostService(
 		NotificationRepo: notificationRepo,
 		// --- Added by Point System ---
 		PointService: pointService,
+		// --- WebSocket Hub ---
+		WSHub: wsHub,
 	}
 }
 
@@ -433,6 +439,15 @@ func (s *PostService) AdminDeletePost(postID uint, reason string) error {
 		// Log error but continue deletion? Or fail?
 		// For now, let's just log print (since we don't have logger setup handy)
 		fmt.Printf("Failed to create notification: %v\n", err)
+	} else {
+		// 📡 Push real-time notification via WebSocket
+		if s.WSHub != nil {
+			s.WSHub.SendToUser(post.AuthorID, websocket.WSMessage{
+				Type:     "new_notification",
+				Payload:  notification,
+				TargetID: post.AuthorID,
+			})
+		}
 	}
 
 	// Soft Delete logic: Update status to "deleted" and save reason
