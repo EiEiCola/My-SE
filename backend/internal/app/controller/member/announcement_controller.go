@@ -11,11 +11,12 @@ import (
 )
 
 type MemberAnnouncementController struct {
-	Service *services.AnnouncementService
+	Service       *services.AnnouncementService
+	MemberService services.MemberService
 }
 
-func NewMemberAnnouncementController(s *services.AnnouncementService) *MemberAnnouncementController {
-	return &MemberAnnouncementController{Service: s}
+func NewMemberAnnouncementController(s *services.AnnouncementService, ms services.MemberService) *MemberAnnouncementController {
+	return &MemberAnnouncementController{Service: s, MemberService: ms}
 }
 
 // GET /member/announcements/:id
@@ -61,13 +62,19 @@ func (ctl *MemberAnnouncementController) List(c *gin.Context) {
 
 // GET /member/announcements/unread
 func (ctl *MemberAnnouncementController) GetUnread(c *gin.Context) {
-	uid, err := utils.GetUserID(c)
+	accountID, err := utils.GetUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	items, err := ctl.Service.GetUnreadAnnouncements(uid, 50) // Limit 50
+	member, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member profile not found"})
+		return
+	}
+
+	items, err := ctl.Service.GetUnreadAnnouncements(member.ID, 50) // Limit 50
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -77,9 +84,15 @@ func (ctl *MemberAnnouncementController) GetUnread(c *gin.Context) {
 
 // POST /member/announcements/:id/read
 func (ctl *MemberAnnouncementController) MarkRead(c *gin.Context) {
-	uid, err := utils.GetUserID(c)
+	accountID, err := utils.GetUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	member, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member profile not found"})
 		return
 	}
 
@@ -90,7 +103,7 @@ func (ctl *MemberAnnouncementController) MarkRead(c *gin.Context) {
 		return
 	}
 
-	if err := ctl.Service.MarkAsRead(uid, id); err != nil {
+	if err := ctl.Service.MarkAsRead(member.ID, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

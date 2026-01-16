@@ -241,7 +241,7 @@ export const postService = {
     // =============== REPORT API ===============
 
     // Report a post
-    reportPost: (postId: number, data: { title: string; description: string; medias?: { url: string; type: string; is_attachment: boolean }[] }) =>
+    reportPost: (postId: number, data: { title: string; description: string; report_reason_id?: number; medias?: { url: string; type: string; is_attachment: boolean }[] }) =>
         api.post(`/member/posts/${postId}/report`, data),
 };
 

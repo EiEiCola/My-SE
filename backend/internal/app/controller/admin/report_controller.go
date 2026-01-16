@@ -21,6 +21,16 @@ type updateReportStatusRequest struct {
 	StatusID int `json:"status_id" form:"status_id"`
 }
 
+// GET /admin/report-statuses
+func (ctl *AdminReportController) GetStatuses(c *gin.Context) {
+	statuses, err := ctl.Service.GetAllStatuses()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": statuses})
+}
+
 // GET /admin/reports
 func (ctl *AdminReportController) List(c *gin.Context) {
 	page := 1
@@ -141,4 +151,20 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// DELETE /admin/reports/:id
+func (ctl *AdminReportController) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := ctl.Service.DeleteReportByAdmin(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

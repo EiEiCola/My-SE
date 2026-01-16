@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./AnnouncementCreate.css";
 
 const AnnouncementCreate: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
+  const [categories, setCategories] = useState<{ id: number; title: string }[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const [date, setDate] = useState<string>(() => {
     // default to today in yyyy-mm-dd for input[type=date]
     const d = new Date();
@@ -21,6 +22,21 @@ const AnnouncementCreate: React.FC = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/categories/announcement");
+        const json = await res.json();
+        if (json.data) {
+          setCategories(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch categories", e);
+      }
+    };
+    fetchCats();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +71,7 @@ const AnnouncementCreate: React.FC = () => {
         content: sanitizedContent,
         req_start_at: reqStart,
         req_end_at: reqEnd,
+        announcement_category_id: selectedCategoryId,
         medias: image ? [{ url: image, type: 'image', is_cover: true }] : []
       };
 
@@ -105,14 +122,15 @@ const AnnouncementCreate: React.FC = () => {
           <select
             id="category"
             className="form-select"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={selectedCategoryId || ""}
+            onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
           >
             <option value="">-- เลือกหมวดหมู่ --</option>
-            <option value="general">ทั่วไป</option>
-            <option value="activity">กิจกรรม</option>
-            <option value="scholarship">ทุนการศึกษา</option>
-            <option value="urgent">ด่วน</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
           </select>
 
           <label className="form-label">คำอธิบายสั้นๆ</label>

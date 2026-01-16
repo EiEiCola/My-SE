@@ -65,9 +65,16 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 
 // GET /member/reports
 func (ctl *MemberReportController) List(c *gin.Context) {
-	memberID, err := utils.GetUserID(c)
+	accountID, err := utils.GetUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Fetch Member Profile to get the correct MemberID
+	member, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member profile not found"})
 		return
 	}
 
@@ -92,7 +99,7 @@ func (ctl *MemberReportController) List(c *gin.Context) {
 	targetType := c.Query("target_type")
 	q := c.Query("q")
 
-	items, total, err := ctl.Service.ListByReporter(memberID, page, pageSize, statusID, targetType, q)
+	items, total, err := ctl.Service.ListByReporter(member.ID, page, pageSize, statusID, targetType, q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -134,17 +141,25 @@ func (ctl *MemberReportController) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
+	// Correctly bind nested json request
 	var req createReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
+	accountID, err := utils.GetUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	member, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "member profile not found"})
+		return
+	}
+	memberID := member.ID
 
 	in := &services.CreateReportInput{
 		TargetType:  req.TargetType,
@@ -197,9 +212,10 @@ func (ctl *MemberReportController) ReportPost(c *gin.Context) {
 	postID := uint(postID64)
 
 	var req struct {
-		Title       string                      `json:"title" binding:"required"`
-		Description string                      `json:"description" binding:"required"`
-		Medias      []services.ReportMediaInput `json:"medias"`
+		Title          string                      `json:"title" binding:"required"`
+		Description    string                      `json:"description" binding:"required"`
+		ReportReasonID *uint                       `json:"report_reason_id"`
+		Medias         []services.ReportMediaInput `json:"medias"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -219,7 +235,7 @@ func (ctl *MemberReportController) ReportPost(c *gin.Context) {
 		return
 	}
 
-	report, err := ctl.Service.ReportPost(postID, member.ID, req.Title, req.Description, req.Medias)
+	report, err := ctl.Service.ReportPost(postID, member.ID, req.Title, req.Description, req.ReportReasonID, req.Medias)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

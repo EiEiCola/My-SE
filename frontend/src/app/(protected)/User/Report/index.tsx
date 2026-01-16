@@ -286,10 +286,7 @@ const ReportPage: React.FC = () => {
                         renderItem={(item) => (
                           <List.Item
                             style={{ background: "#fafafa", borderRadius: 8, padding: 20, marginBottom: 16 }}
-                            actions={item.status_id === 1 ? [
-                              <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(item)}>แก้ไข</Button>,
-                              <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleDelete(item.id)}>ลบ</Button>
-                            ] : []}
+                            actions={[]}
                           >
                             <List.Item.Meta
                               title={

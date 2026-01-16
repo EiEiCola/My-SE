@@ -86,6 +86,8 @@ func Connect() *gorm.DB {
 		&entity.MainCategory{},
 		&entity.SubCategoryL1{}, // อ้างอิง MainCategory
 		&entity.SubCategoryL2{}, // อ้างอิง SubCategoryL1
+		&entity.AnnouncementCategory{},
+		&entity.ReportReason{},
 
 		// --- 4. ตารางสถานะ/กฎ/ประเภท (Status & Rule Tables) ---
 		&entity.AnnouncementStatus{},
@@ -154,8 +156,33 @@ func Connect() *gorm.DB {
 		&entity.AnnouncementRead{},
 		&entity.Notification{},
 	); err != nil {
-		log.Println("AutoMigrate error (ignored): ", err)
+		log.Println("AutoMigrate error: ", err)
 	}
+
+	// 1. Report -> ReportReasonID
+	if !db.Migrator().HasColumn(&entity.Report{}, "ReportReasonID") {
+		log.Println("Manually adding report_reason_id column to reports...")
+		if err := db.Migrator().AddColumn(&entity.Report{}, "ReportReasonID"); err != nil {
+			log.Println("Failed to add report_reason_id column:", err)
+		}
+	}
+
+	// 2. PRSubmission -> AnnouncementCategoryID
+	if !db.Migrator().HasColumn(&entity.PRSubmission{}, "AnnouncementCategoryID") {
+		log.Println("Manually adding announcement_category_id column to pr_submissions...")
+		if err := db.Migrator().AddColumn(&entity.PRSubmission{}, "AnnouncementCategoryID"); err != nil {
+			log.Println("Failed to add announcement_category_id column:", err)
+		}
+	}
+
+	// 3. Announcement -> AnnouncementCategoryID
+	if !db.Migrator().HasColumn(&entity.Announcement{}, "AnnouncementCategoryID") {
+		log.Println("Manually adding announcement_category_id column to announcements...")
+		if err := db.Migrator().AddColumn(&entity.Announcement{}, "AnnouncementCategoryID"); err != nil {
+			log.Println("Failed to add announcement_category_id column:", err)
+		}
+	}
+
 	log.Println("Database migrations completed.")
 
 	// Ensure index is non-unique so multiple members without accounts don't collide
@@ -179,6 +206,7 @@ func Connect() *gorm.DB {
 	s.SeedStatusData(db)
 	// s.SeedPRSystem(db)
 	s.SeedReviewSystem(db)
+	s.SeedSeparateCategories(db) // Seed new Announcement/Report categories
 	// s.SeedPollSystem(db)
 
 	log.Println("Master data seeding completed.")

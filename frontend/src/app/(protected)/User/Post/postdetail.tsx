@@ -16,6 +16,7 @@ import {
     Modal,
     Upload,
     App,
+    Select,
 } from "antd";
 import type { UploadFile } from "antd";
 import {
@@ -50,6 +51,7 @@ import ReportPostModal from "./ReportPostModal";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+const { Option } = Select;
 
 const ORANGE = "#ff6a00";
 // Auto-detect API_BASE: localhost ใช้ http://localhost:8080, production ใช้ relative URL
@@ -77,14 +79,7 @@ const formatFileUrl = (url: string | undefined | null): string => {
     return `${API_BASE}/${url}`;
 };
 
-const REPORT_REASONS = [
-    "เนื้อหาไม่เหมาะสม / ลามก",
-    "สแปม / โฆษณา",
-    "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
-    "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
-    "การปนุ / คุกคาม",
-    "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
-];
+// REPORT_REASONS removed - fetching from API now
 
 interface ImageItem {
     id: number;
@@ -389,6 +384,39 @@ const PostDetail: React.FC = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedReportReason, setSelectedReportReason] = useState("");
     const [otherReportReason, setOtherReportReason] = useState("");
+    const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+    const [loadingReasons, setLoadingReasons] = useState(false);
+
+    // Fetch report reasons
+    const fetchReportReasons = async () => {
+        setLoadingReasons(true);
+        try {
+            const res = await fetch("/api/categories/report");
+            const json = await res.json();
+            
+            let reasons: Array<{ id: number; title: string }> = [];
+            // Structure: { data: { data: [...] } } or { data: [...] }
+            const dataArray = json.data?.data || json.data;
+            
+            if (Array.isArray(dataArray)) {
+                reasons = dataArray.map((c: any) => ({
+                    id: c.ID || c.id,
+                    title: c.title || c.Title,
+                }));
+            }
+            
+            setReportReasons(reasons);
+        } catch (e) {
+            console.error("Failed to fetch report reasons", e);
+            message.error("ไม่สามารถโหลดเหตุผลการรายงาน");
+        } finally {
+            setLoadingReasons(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReportReasons();
+    }, []);
 
 
     const handleToggleLikePost = async () => {
@@ -489,10 +517,14 @@ const PostDetail: React.FC = () => {
             return;
         }
 
+        const reasonObj = reportReasons.find(r => r.title === selectedReportReason);
+        const reportReasonID = reasonObj ? reasonObj.id : undefined;
+
         try {
             await postService.reportPost(post.id, {
                 title,
                 description,
+                report_reason_id: reportReasonID,
                 medias: [],
             });
             message.success("ส่งรายงานเรียบร้อยแล้ว ทีมงานจะตรวจสอบในเร็วๆนี้");
@@ -1525,7 +1557,7 @@ const PostDetail: React.FC = () => {
             <ReportPostModal
                 open={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
-                reasons={REPORT_REASONS}
+                reasons={reportReasons.map(r => r.title)}
                 selectedReason={selectedReportReason}
                 setSelectedReason={setSelectedReportReason}
                 otherReason={otherReportReason}

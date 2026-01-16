@@ -25,9 +25,11 @@ func SetupReportRoutes(api *gin.RouterGroup, memberService services.MemberServic
 	// Admin Routes - Protected with JWT and Admin role check
 	adminGroup := api.Group("/admin", middlewares.JWTAuthMiddleware(), middlewares.RequireAdminMiddleware())
 	{
+		adminGroup.GET("/report-statuses", adminReportCtl.GetStatuses)
 		adminGroup.GET("/reports", adminReportCtl.List)
 		adminGroup.GET("/reports/:id", adminReportCtl.GetByID)
 		adminGroup.POST("/reports/:id/status", adminReportCtl.UpdateStatus)
+		adminGroup.DELETE("/reports/:id", adminReportCtl.Delete)
 	}
 
 	// Member Routes - Protected with JWT
