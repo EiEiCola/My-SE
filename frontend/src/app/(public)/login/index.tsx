@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Input, Button, Typography, Space } from "antd";
-import { UserOutlined, LockOutlined } from "@ant-design/icons";
+import { Card, Input, Button, Typography, Space, Modal } from "antd";
+import { UserOutlined, LockOutlined, LockFilled, CloseCircleFilled } from "@ant-design/icons";
+import { motion } from "framer-motion";
 import axios from "axios";
 
 const { Title, Text } = Typography;
@@ -23,6 +24,9 @@ function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Use Ant Design Modal
+  const [modal, contextHolder] = Modal.useModal();
+
   const handleLogin = async () => {
     setLoading(true);
     try {
@@ -33,7 +37,11 @@ function Login() {
 
       const token = res.data?.data?.token;
       if (!token) {
-        alert("Login สำเร็จแต่ไม่พบ token");
+        modal.error({
+          title: "Login Failed",
+          content: "Login สำเร็จแต่ไม่พบ token",
+          centered: true,
+        });
         return;
       }
 
@@ -50,7 +58,146 @@ function Login() {
       window.location.href = "/User";
     } catch (err: any) {
       console.error("Login error:", err);
-      alert(err?.response?.data?.message || "Invalid login");
+
+      const msg = err?.response?.data?.message || "เข้าสู่ระบบไม่สำเร็จ";
+      const isLocked = msg.toLowerCase().includes("locked") || msg.includes("ระงับ") || msg.includes("ล็อก");
+
+      // ✨ Custom Beautiful Animated Modal (Red Theme)
+      const instance = modal.error({
+        title: null,
+        icon: null,
+        footer: null,
+        centered: true,
+        closable: true,
+        maskClosable: true,
+        width: 420,
+        style: { padding: 0, borderRadius: 28, overflow: "hidden" },
+        content: (
+          <div style={{ position: "relative", overflow: "hidden", textAlign: "center", padding: "40px 25px" }}>
+            {/* Background Glow */}
+            <div
+              style={{
+                position: "absolute",
+                top: -50,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 300,
+                height: 300,
+                background: "radial-gradient(circle, rgba(147,10,0,0.08) 0%, rgba(255,255,255,0) 70%)",
+                pointerEvents: "none",
+              }}
+            />
+
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: "50%",
+                background: "#fff1f0", // Light red bg
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 25px auto",
+                position: "relative",
+              }}
+            >
+              {/* Outer Ring */}
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: "50%",
+                  border: "2px solid #930A00",
+                  opacity: 0.1,
+                }}
+              />
+              {/* Inner Circle */}
+              <div
+                style={{
+                  width: 85,
+                  height: 85,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #930A00 0%, #b51c10 100%)",
+                  boxShadow: "0 10px 25px rgba(147, 10, 0, 0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2,
+                }}
+              >
+                {isLocked ? (
+                  <LockFilled style={{ fontSize: 42, color: "white" }} />
+                ) : (
+                  <CloseCircleFilled style={{ fontSize: 42, color: "white" }} />
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Typography.Title
+                level={3}
+                style={{
+                  margin: 0,
+                  fontWeight: 700,
+                  color: "#930A00",
+                  marginBottom: 8,
+                }}
+              >
+                {isLocked ? "Access Denied" : "Login Failed"}
+              </Typography.Title>
+              <Typography.Text
+                style={{
+                  fontSize: 16,
+                  color: "#930A00",
+                  display: "block",
+                  marginBottom: 30,
+                  opacity: 0.8,
+                  lineHeight: 1.5,
+                }}
+              >
+                {msg}
+              </Typography.Text>
+
+              <Button
+                type="primary"
+                size="large"
+                style={{
+                  background: "#930A00",
+                  borderColor: "#930A00",
+                  borderRadius: 30,
+                  padding: "0 45px",
+                  height: 48,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  boxShadow: "0 6px 15px rgba(147, 10, 0, 0.25)",
+                }}
+                onClick={() => instance.destroy()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(147, 10, 0, 0.35)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 6px 15px rgba(147, 10, 0, 0.25)";
+                }}
+              >
+                Try Again
+              </Button>
+            </motion.div>
+          </div>
+        ),
+      });
     } finally {
       setLoading(false);
     }
@@ -75,6 +222,7 @@ function Login() {
         overflow: "hidden",
       }}
     >
+      {contextHolder}
       {/* Decorative shapes */}
       <div
         style={{
