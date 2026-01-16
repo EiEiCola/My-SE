@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { friendAPI } from "../../../../../services/http/friend";
 import "./ReviewCard.css";
 
 interface ReviewCardProps {
@@ -60,7 +61,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // ===== Handle username click (navigate to profile) =====
-  const handleUsernameClick = () => {
+  const handleUsernameClick = async () => {
     if (review.isAnonymous) return;
 
     // ✅ ถ้าเป็นของตัวเอง ให้ไป /User/Profile เสมอ
@@ -69,9 +70,53 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       return;
     }
 
-    // ✅ ของคนอื่น -> /User/Profile/:memberId
+    // ✅ ของคนอื่น -> ตรวจสอบสถานะความสัมพันธ์
     const authorId = Number(review.memberId);
-    if (authorId) navigate(`/User/Profile/${authorId}`);
+    if (!authorId) return;
+
+    try {
+      // เช็คว่าเป็นเพื่อนกันหรือไม่
+      const friendsData = await friendAPI.getMyFriends();
+      const friends = friendsData?.data || friendsData || [];
+      const isFriend = Array.isArray(friends) && friends.some(
+        (f: any) => f.id === authorId || f.ID === authorId || f.member_id === authorId
+      );
+
+      if (isFriend) {
+        // เป็นเพื่อนแล้ว -> ไปหน้าเพื่อนทั้งหมด พร้อม auto-select
+        navigate("/User/Friends/FriendRelation", { state: { selectedId: authorId } });
+      } else {
+        // ยังไม่เป็นเพื่อน -> ตรวจสอบว่ามีคำขอเป็นเพื่อนหรือไม่
+        const [receivedReqs, sentReqs] = await Promise.all([
+          friendAPI.getReceivedRequests(),
+          friendAPI.getSentRequests()
+        ]);
+
+        const received = receivedReqs?.data || receivedReqs || [];
+        const sent = sentReqs?.data || sentReqs || [];
+
+        // ✅ ใช้ field name ที่ถูกต้อง
+        // received: r.sent_mem_id (คนที่ส่งคำขอมา)
+        // sent: r.receive_mem_id (คนที่เราส่งคำขอไป)
+        const hasReceivedRequest =
+          Array.isArray(received) && received.some((r: any) => {
+            const senderId = r.sent_mem_id || r.sent_member?.ID || r.sent_member?.id;
+            return senderId === authorId;
+          });
+
+        if (hasReceivedRequest) {
+          // คนนี้ส่งคำขอมาหาเรา -> ไปหน้าคำขอเป็นเพื่อน พร้อม auto-select
+          navigate("/User/Friends/Request", { state: { selectedId: authorId } });
+        } else {
+          // ไม่มีคำขอจากคนนี้ (อาจเราส่งไปหาเขา หรือไม่มีเลย) -> ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+          navigate("/User/Friends/Popular", { state: { selectedId: authorId } });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check friend status:", error);
+      // Fallback: ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+      navigate("/User/Friends/Popular", { state: { selectedId: authorId } });
+    }
   };
 
 

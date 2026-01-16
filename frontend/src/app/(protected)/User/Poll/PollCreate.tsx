@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
+import { message } from "antd"; // ✅ Import message
 import "./PollCreate.css"; // ✅ ให้ไฟล์นี้เป็น CSS ใหม่ (pcx-*)
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
 
@@ -72,6 +73,7 @@ const toFullUrl = (u?: string) => {
 const PollCreate: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
+  const [messageApi, contextHolder] = message.useMessage(); // ✅ Initialize hook
   const [searchParams] = useSearchParams()
   const pollId = Number(params.id || 0);
   const isEdit = !!pollId;
@@ -279,12 +281,17 @@ const PollCreate: React.FC = () => {
       }
 
       const id = await saveDraft();
-      openSuccess("บันทึกแบบร่างสำเร็จ", "แบบร่างของคุณถูกบันทึกเรียบร้อยแล้ว", () => {
+
+      const msg = isEdit ? "แก้ไขโพลสำเร็จ" : "สร้างโพลสำเร็จ"; // ✅ check mode
+      messageApi.success(msg);
+
+      setTimeout(() => {
         navigate("/User/Polls/my");
-      });
+      }, 1000);
+
     } catch (err) {
       console.error(err);
-      alert("บันทึกล้มเหลว");
+      messageApi.error("บันทึกล้มเหลว");
     } finally {
       setSubmitting(false);
     }
@@ -305,12 +312,19 @@ const PollCreate: React.FC = () => {
 
       await (pollAPI as any).submitForReview(id);
 
-      openSuccess("ส่งตรวจสอบสำเร็จ", "โพลของคุณถูกส่งให้แอดมินตรวจสอบแล้ว กรุณารอผลอนุมัติ", () => {
+      messageApi.success("ส่งตรวจสอบสำเร็จ"); // ✅ "ส่งโพลสำเร็จ" for voting, "ส่งตรวจสอบสำเร็จ" for creation flow per context, or stick to user request? User said "ส่งโพลสำเร็จ" but context implies voting. For CREATE/SUBMIT review, "ส่งตรวจสอบสำเร็จ" is more accurate but "สร้างโพลสำเร็จ" is already used for draft. Let's use "ส่งตรวจสอบสำเร็จ" for this step as it's cleaner. Wait, user request was "สร้างโพล ลบโพล แก้ไขโพล ส่งดพลสำเร็จ". "ส่งดพลสำเร็จ" typo for "ส่งโพลสำเร็จ" which usually means voting. But here it's "Submit". I'll use "ส่งตรวจสอบสำเร็จ" to be precise, or maybe just "ส่งโพลสำเร็จ"? Let's stick to "ส่งตรวจสอบสำเร็จ" as it matches the action better. Actually, looking at the user request "ส่งดพลสำเร็จ" -> "Sending poll success". This might be voting.
+      // Re-reading: "ในหน้าโพลด้วย สร้างโพล ลบโพล แก้ไขโพล ส่งดพลสำเร็จ"
+      // "ส่งดพลสำเร็จ" likely means "ส่งโพลสำเร็จ" (Submit Poll Success). This could mean Submit for Review OR Voting.
+      // Given "หน้าโพล" (Poll Page), it likely includes voting.
+      // For this specific action (Submit for Review), "ส่งตรวจสอบสำเร็จ" is clearer.
+
+      setTimeout(() => {
         navigate("/User/Polls/my");
-      });
+      }, 1000);
+
     } catch (err) {
       console.error(err);
-      alert("ส่งตรวจสอบล้มเหลว");
+      messageApi.error("ส่งตรวจสอบล้มเหลว");
     } finally {
       setSubmitting(false);
     }
@@ -442,6 +456,7 @@ const PollCreate: React.FC = () => {
 
   return (
     <div className="pcx-page">
+      {contextHolder}
       <div className="pcx-card">
         {/* ... (existing content) ... */}
 

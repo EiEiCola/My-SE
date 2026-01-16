@@ -14,6 +14,8 @@ interface Post {
   is_anonymous: boolean;
   like_count: number;
   comment_count: number;
+  status: string; // ✅ Add status
+  deleted_reason?: string; // ✅ Add deleted_reason
   author?: {
     ID: number;
     username: string;
@@ -110,8 +112,16 @@ const MyPost: React.FC<MyPostProps> = ({ userId }) => {
           return (
             <List.Item
               key={post.ID}
-              style={{ cursor: "pointer" }}
-              onClick={() => navigate(`/User/Post/detail/${post.ID}`)}
+              style={{
+                cursor: post.status === 'deleted' ? "not-allowed" : "pointer",
+                opacity: post.status === 'deleted' ? 0.6 : 1,
+                backgroundColor: post.status === 'deleted' ? "#fff1f0" : undefined
+              }}
+              onClick={() => {
+                if (post.status !== 'deleted') {
+                  navigate(`/User/Post/detail/${post.ID}`);
+                }
+              }}
             >
               <List.Item.Meta
                 avatar={
@@ -121,7 +131,8 @@ const MyPost: React.FC<MyPostProps> = ({ userId }) => {
                     style={{
                       backgroundColor: post.is_anonymous ? "#ccc" : "#ff6a00",
                       border: "2px solid #fff",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                      filter: post.status === 'deleted' ? "grayscale(100%)" : "none"
                     }}
                   >
                     {fallbackText}
@@ -129,21 +140,33 @@ const MyPost: React.FC<MyPostProps> = ({ userId }) => {
                 }
                 title={
                   <div>
-                    <Title level={5} style={{ margin: 0, display: "inline" }}>
-                      {post.title}
-                    </Title>
-                    {post.is_anonymous && (
-                      <Tag color="default" style={{ marginLeft: 8 }}>
-                        ไม่เปิดเผยตัวตน
-                      </Tag>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <Title level={5} style={{ margin: 0 }}>
+                        {post.title}
+                      </Title>
+                      {/* Status Tags */}
+                      {post.status === 'deleted' && (
+                        <Tag color="error">ถูกลบโดยผู้ดูแล</Tag>
+                      )}
+                      {post.is_anonymous && (
+                        <Tag color="default">
+                          ไม่เปิดเผยตัวตน
+                        </Tag>
+                      )}
+                    </div>
                   </div>
                 }
                 description={
                   <div>
-                    <Text type="secondary">
-                      {post.content.substring(0, 80)}...
-                    </Text>
+                    {post.status === 'deleted' && post.deleted_reason ? (
+                      <Text type="danger" style={{ display: 'block', marginBottom: 4 }}>
+                        สาเหตุ: {post.deleted_reason}
+                      </Text>
+                    ) : (
+                      <Text type="secondary">
+                        {post.content.substring(0, 80)}...
+                      </Text>
+                    )}
                     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 16 }}>
                       {/* Like - Home style */}
                       <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#ff6a00" }}>
@@ -172,4 +195,3 @@ const MyPost: React.FC<MyPostProps> = ({ userId }) => {
 };
 
 export default MyPost;
-

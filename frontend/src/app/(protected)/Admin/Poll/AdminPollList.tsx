@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { message } from "antd"; // Import message toast
 import dayjs from "dayjs";
 import "./AdminPollList.css";
 import { adminPollAPI } from "../../../../services/http/admin_poll";
@@ -285,7 +286,7 @@ const AdminPollList: React.FC = () => {
       setPolls(allPolls);
     } catch (err) {
       console.error("Failed to fetch polls:", err);
-      alert("Failed to load polls");
+      message.error("โหลดข้อมูลไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
@@ -392,6 +393,8 @@ const AdminPollList: React.FC = () => {
   const [confirmDanger, setConfirmDanger] = useState(false);
   const [confirmCallback, setConfirmCallback] = useState<(() => Promise<void>) | null>(null);
 
+  const [messageApi, contextHolder] = message.useMessage();
+
   const openConfirm = (
     title: string,
     desc: string,
@@ -421,9 +424,10 @@ const AdminPollList: React.FC = () => {
       async () => {
         try {
           await adminPollAPI.approve(id);
+          messageApi.success("อนุมัติโพลสำเร็จ");
           await fetchPolls();
         } catch {
-          alert("Failed to approve");
+          messageApi.error("บันทึกไม่สำเร็จ");
         }
       });
   };
@@ -436,15 +440,16 @@ const AdminPollList: React.FC = () => {
 
   const submitReject = async () => {
     if (!rejectPollId) return;
-    if (!rejectReason.trim()) return alert("Please provide a reason");
+    if (!rejectReason.trim()) return messageApi.error("กรุณาระบุเหตุผล");
 
     try {
       await adminPollAPI.reject(rejectPollId, rejectReason.trim());
+      messageApi.success("ปฏิเสธโพลสำเร็จ");
       setRejectOpen(false);
       await fetchPolls();
       if (selectedPoll && getId(selectedPoll) === rejectPollId) closeDetail();
     } catch {
-      alert("Failed to reject");
+      messageApi.error("บันทึกไม่สำเร็จ");
     }
   };
 
@@ -469,15 +474,16 @@ const AdminPollList: React.FC = () => {
 
   const submitClose = async () => {
     if (!closePollId) return;
-    if (!closeReason.trim()) return alert("Please provide a reason for closing");
+    if (!closeReason.trim()) return messageApi.error("กรุณาระบุเหตุผล");
 
     try {
       await adminPollAPI.close(closePollId, closeReason.trim());
+      messageApi.success("ปิดโพลสำเร็จ");
       setCloseOpen(false);
       await fetchPolls();
       if (selectedPoll && getId(selectedPoll) === closePollId) closeDetail();
     } catch {
-      alert("Failed to close poll");
+      messageApi.error("บันทึกไม่สำเร็จ");
     }
   };
 
@@ -489,15 +495,16 @@ const AdminPollList: React.FC = () => {
 
   const submitDelete = async () => {
     if (!deletePollId) return;
-    if (!deleteReason.trim()) return alert("Please provide a reason for deletion");
+    if (!deleteReason.trim()) return messageApi.error("กรุณาระบุเหตุผล");
 
     try {
       await adminPollAPI.delete(deletePollId, deleteReason.trim());
+      messageApi.success("ลบโพลสำเร็จ");
       setDeleteOpen(false);
       await fetchPolls();
       if (selectedPoll && getId(selectedPoll) === deletePollId) closeDetail();
     } catch {
-      alert("Failed to delete poll");
+      messageApi.error("ลบไม่สำเร็จ");
     }
   };
 
@@ -510,6 +517,7 @@ const AdminPollList: React.FC = () => {
 
   return (
     <div className="poll-admin-page">
+      {contextHolder}
       {/* HERO */}
       <div className="poll-admin-hero">
         <div>
@@ -659,18 +667,30 @@ const AdminPollList: React.FC = () => {
                   const delType = getDeletedByType(p);
                   const avatar = getAuthorAvatar(p);
 
+                  const nameForAvatar = authorName || authorUsername || "?";
+
                   return (
                     <tr key={id} style={isDel ? { opacity: 0.6, backgroundColor: "#fff5f5" } : undefined}>
                       <td className="mono">{id}</td>
 
                       <td>
                         <div className="author" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
-                          <img
-                            src={avatar || "/anon-avatar.png"}
-                            alt="avatar"
-                            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
-                            onError={(e) => (e.currentTarget.src = "/anon-avatar.png")}
-                          />
+                          {/* Avatar Logic: Admins see real avatar even if anonymous */}
+                          {avatar ? (
+                            <img
+                              src={avatar}
+                              alt="avatar"
+                              style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                              }}
+                            />
+                          ) : (
+                            <div className="admin-avatar-placeholder">
+                              {nameForAvatar.charAt(0)}
+                            </div>
+                          )}
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                             <span className="author-name">
                               {authorName || authorUsername ? (
@@ -791,7 +811,7 @@ const AdminPollList: React.FC = () => {
                     color: "#9a3412",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>⚠️ Reported {selectedPoll.report_count} times</div>
+                  <div style={{ fontWeight: 800 }}>⚠️ ถูกรายงาน {selectedPoll.report_count} times</div>
                   <div style={{ fontSize: 13, color: "#64748b" }}>
                   </div>
                 </div>
@@ -809,12 +829,12 @@ const AdminPollList: React.FC = () => {
                     color: "#b91c1c",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>❌ Rejected</div>
+                  <div style={{ fontWeight: 800 }}>❌ ถูกปฏิเสธ</div>
                   <div style={{ fontSize: 13, marginTop: 4 }}>
-                    Reason: <strong>{getRejectReason(selectedPoll)}</strong>
+                    เหตุผล: <strong>{getRejectReason(selectedPoll)}</strong>
                   </div>
                   <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
-                    Time: {formatDT(getUpdatedAt(selectedPoll))}
+                    เวลา: {formatDT(getUpdatedAt(selectedPoll))}
                   </div>
                 </div>
               )}
@@ -831,14 +851,14 @@ const AdminPollList: React.FC = () => {
                     color: "#b91c1c",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>🚫 Deleted by Admin</div>
+                  <div style={{ fontWeight: 800 }}>🚫 ลบโดยแอดมิน</div>
                   {getAdminDeleteReason(selectedPoll) && (
                     <div style={{ fontSize: 13, marginTop: 4 }}>
-                      Reason: <strong>{getAdminDeleteReason(selectedPoll)}</strong>
+                      เหตุผล: <strong>{getAdminDeleteReason(selectedPoll)}</strong>
                     </div>
                   )}
                   <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
-                    Deleted at: {formatDT(getDeletedAt(selectedPoll))}
+                    ลบเมื่อ: {formatDT(getDeletedAt(selectedPoll))}
                   </div>
                 </div>
               )}
@@ -855,12 +875,12 @@ const AdminPollList: React.FC = () => {
                     color: "#92400e",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>⛔ Closed by Admin</div>
+                  <div style={{ fontWeight: 800 }}>⛔ ปิดโดยแอดมิน</div>
                   <div style={{ fontSize: 13, marginTop: 4 }}>
-                    Reason: <strong>{getAdminCloseReason(selectedPoll)}</strong>
+                    เหตุผล: <strong>{getAdminCloseReason(selectedPoll)}</strong>
                   </div>
                   <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
-                    Closed at: {formatDT(getUpdatedAt(selectedPoll))}
+                    ปิดเมื่อ: {formatDT(getUpdatedAt(selectedPoll))}
                   </div>
                 </div>
               )}

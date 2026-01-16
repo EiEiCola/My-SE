@@ -1,0 +1,37 @@
+.btn-cancel {
+  border-radius: 10px;
+  padding: 0 30px;
+  height: 38px;
+  font-weight: 600;
+  border: 1px solid #C42E0A;
+  color: #C42E0A;
+  background-color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+  background-color: #FFF0E6 !important;
+  color: #C42E0A !important;
+  border-color: #C42E0A !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-submit {
+  border-radius: 10px;
+  padding: 0 30px;
+  height: 38px;
+  font-weight: 600;
+  color: white;
+  background-color: #C42E0A;
+  border: 1px solid #C42E0A;
+  transition: all 0.3s ease;
+}
+
+.btn-submit:hover {
+  background-color: #A32608 !important; /* Darker shade */
+  border-color: #A32608 !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(196, 46, 10, 0.3);
+}

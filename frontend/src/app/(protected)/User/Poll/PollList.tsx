@@ -2,9 +2,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { message } from "antd"; // ✅ Import message
 import "./PollList.css";
 
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
+import { friendAPI } from "../../../../services/http/friend";
 import { PollCard } from "./PollCard";
 import { PollCategoryDropdown, type CategoryOption } from "./PollCategoryDropdown";
 import ReportPollModal from "./ReportPollModal";
@@ -41,6 +43,9 @@ const getCurrentMemberId = () => {
   try {
     const payload = base64UrlToJson(token.split(".")[1]);
 
+    // ✅ DEBUG: ดู payload ทั้งหมด
+    console.log('🔍 getCurrentMemberId - JWT payload:', payload);
+
     // ✅ สำคัญ: ของเธอน่าจะใช้ user_id (ดูจากรูป)
     const id = Number(
       payload?.member_id ??
@@ -51,6 +56,11 @@ const getCurrentMemberId = () => {
       payload?.sub ??
       0
     );
+
+    console.log('🔍 getCurrentMemberId - extracted ID:', id);
+    console.log('🔍 getCurrentMemberId - payload.member_id:', payload?.member_id);
+    console.log('🔍 getCurrentMemberId - payload.user_id:', payload?.user_id);
+    console.log('🔍 getCurrentMemberId - payload.id:', payload?.id);
 
     return Number.isFinite(id) ? id : 0;
   } catch {
@@ -83,8 +93,25 @@ const prettyVoteError = (raw: string) => {
 const PollList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
+  const [messageApi, contextHolder] = message.useMessage(); // ✅ Initialize hook
 
-  const currentMemberId = getCurrentMemberId();
+  // ✅ เปลี่ยนเป็นดึง member.ID จาก API แทนการ parse JWT
+  // เพราะ JWT มี user_id (member_account_id) แต่เราต้องการ member.ID
+  const [currentMemberId, setCurrentMemberId] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchMemberId = async () => {
+      try {
+        const me = await friendAPI.getMe();
+        const memberId = Number(me?.id || me?.ID || 0);
+        setCurrentMemberId(memberId);
+      } catch (error) {
+        console.error('Failed to fetch member ID:', error);
+        setCurrentMemberId(0);
+      }
+    };
+    fetchMemberId();
+  }, []);
 
   // filters
   const [q, setQ] = useState("");
@@ -565,7 +592,9 @@ const PollList: React.FC = () => {
     try {
       await votePollAdapter(pollId, optionIds);
 
-      setToast(pollId, "โหวตสำเร็จ ✅");
+      // setToast(pollId, "โหวตสำเร็จ ✅"); // ❌ Old local toast
+      messageApi.success("ส่งโพลสำเร็จ"); // ✅ New global popup
+
       setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
       await load();
       return true;
@@ -573,7 +602,7 @@ const PollList: React.FC = () => {
       console.error("โหวต failed:", error);
       const raw = extractApiError(error);
       const msg = prettyVoteError(raw);
-      setToast(pollId, msg);
+      setToast(pollId, msg); // Keep local error toast? Or global? User asked for success popups. Keeping error local is fine/better for card context.
       return false;
     } finally {
       setSubmittingByPoll((p) => ({ ...p, [pollId]: false }));
@@ -592,12 +621,13 @@ const PollList: React.FC = () => {
 
     try {
       await pollAPI.deletePoll(pollToDelete);
+      messageApi.success("ลบโพลสำเร็จ"); // ✅ Success popup
       setDeleteModalOpen(false);
       setPollToDelete(null);
       await load();
     } catch (error: any) {
       console.error("Delete poll failed:", error);
-      alert("ไม่สามารถลบโพลได้");
+      messageApi.error("ไม่สามารถลบโพลได้");
     }
   };
 
@@ -643,6 +673,7 @@ const PollList: React.FC = () => {
 
   return (
     <div className="pf-page">
+      {contextHolder}
       {/* HERO */}
       <div className="pf-hero">
         <div>
