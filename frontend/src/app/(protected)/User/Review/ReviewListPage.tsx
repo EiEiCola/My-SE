@@ -150,8 +150,12 @@ const ReviewListPage: React.FC = () => {
             const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
             const images = imgArr
               .slice()
-              .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? 0))
-              .map((img: any) => toFullUrl(img.url ?? img.URL))
+              .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? b.SortOrder ?? 0))
+              .map((img: any) => {
+                // ✅ Check multiple field name variations
+                const urlValue = img.url ?? img.URL ?? img.Url ?? img.image_url ?? img.ImageURL ?? "";
+                return toFullUrl(urlValue);
+              })
               .filter((u: string) => !!u);
 
             const createdAt = r.created_at ?? r.CreatedAt ?? new Date().toISOString();

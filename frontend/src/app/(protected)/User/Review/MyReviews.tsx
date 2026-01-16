@@ -89,7 +89,9 @@ const MyReviews: React.FC = () => {
                         images = rawImgs
                             .map((img: any) => {
                                 if (typeof img === "string") return toFullUrl(img);
-                                return toFullUrl(img.url ?? img.URL);
+                                // ✅ Check multiple field name variations
+                                const urlValue = img.url ?? img.URL ?? img.Url ?? img.image_url ?? img.ImageURL ?? "";
+                                return toFullUrl(urlValue);
                             })
                             .filter(Boolean);
                     }
