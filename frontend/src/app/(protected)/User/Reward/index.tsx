@@ -1,6 +1,5 @@
-//reward
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Typography, Button, message, Modal, Input, Select } from "antd";
+import { Card, Typography, Button, message, Modal, Input, Select, Empty } from "antd";
 import StarsIcon from "@mui/icons-material/Stars";
 import DomainVerificationIcon from "@mui/icons-material/DomainVerification";
 
@@ -276,6 +275,7 @@ const Reward: React.FC = () => {
     <main
       style={{
         flex: 1,
+        minHeight: "100vh",
         padding: 30,
         display: "flex",
         justifyContent: "center",
@@ -622,20 +622,9 @@ const Reward: React.FC = () => {
             }}
           >
             {myStickers.length === 0 ? (
-              <Card
-                style={{
-                  gridColumn: "1 / -1",
-                  borderRadius: 20,
-                  background: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(4px)",
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-                  border: "1px solid rgba(255, 247, 237, 1)",
-                }}
-              >
-                <Text style={{ color: "#C42E0A", fontWeight: 600, fontSize: 16 }}>
-                  ยังไม่มีสติ๊กเกอร์ที่แลกไว้
-                </Text>
-              </Card>
+              <div style={{ gridColumn: "1 / -1", padding: "60px 0", display: "flex", justifyContent: "center" }}>
+                <Empty description={<span style={{ color: "#999" }}>ยังไม่มีสติ๊กเกอร์ที่แลกไว้</span>} />
+              </div>
             ) : (
               myStickers.map((it) => {
                 const name = getStickerName(it);
