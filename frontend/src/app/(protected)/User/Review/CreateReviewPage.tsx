@@ -5,6 +5,15 @@ import "./CreateReviewPage.css";
 import { createReview, uploadReviewImages } from "../../../../services/http/reviewApi";
 import { categoryAPI } from "../../../../services/http/poll";
 
+import {
+  Modal,
+  Drawer,
+  Form,
+  message,
+  Select,
+  Empty,
+} from "antd";
+
 type CategoryItem = { id: number; title: string };
 
 type ImageItem = {
@@ -210,6 +219,7 @@ const CreateReviewPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const myUsername = useMemo(() => getMyUsername(), []);
+  const [messageApi, contextHolder] = message.useMessage(); // Added useMessage hook
 
   // Category (3 levels)
   const [selectedMainId, setSelectedMainId] = useState<number | null>(null);
@@ -392,8 +402,13 @@ const CreateReviewPage: React.FC = () => {
       const files = images.map((it) => it.file).filter(Boolean) as File[];
       if (files.length > 0) await uploadReviewImages(Number(reviewId), files);
 
-      handleReset();
-      navigate("/User/Review");
+      messageApi.success("สร้างรีวิวสำเร็จ"); // Success message without await (antd v5)
+
+      // Delay navigation slightly to allow message to be seen
+      setTimeout(() => {
+        handleReset();
+        navigate("/User/Review");
+      }, 1000);
     } catch (e: any) {
       setSubmitError(e.message || "โพสต์ไม่สำเร็จ");
     } finally {
@@ -409,6 +424,7 @@ const CreateReviewPage: React.FC = () => {
 
   return (
     <div className="createPage">
+      {contextHolder}
       <div className="createWrap">
         <div className="createHeader">
           <button
