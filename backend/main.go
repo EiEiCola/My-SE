@@ -115,8 +115,8 @@ func main() {
 	memberRepo := repository.NewMemberRepository(db)
 	memberSvc := services.NewMemberService(memberRepo)
 
-	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl, memberSvc)
+	// 5. Setup Routes (with WebSocket Hub for real-time notifications)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl, memberSvc, hub)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{

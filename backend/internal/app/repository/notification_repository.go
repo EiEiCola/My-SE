@@ -26,3 +26,13 @@ func (r *NotificationRepository) GetByUserID(userID uint) ([]entity.Notification
 func (r *NotificationRepository) MarkAsRead(id uint) error {
 	return r.DB.Model(&entity.Notification{}).Where("id = ?", id).Update("is_read", true).Error
 }
+
+// MarkAllAsRead - อ่านทั้งหมดของ user
+func (r *NotificationRepository) MarkAllAsRead(userID uint) error {
+	return r.DB.Model(&entity.Notification{}).Where("user_id = ? AND is_read = ?", userID, false).Update("is_read", true).Error
+}
+
+// DeleteRead - ลบ notifications ที่อ่านแล้วของ user
+func (r *NotificationRepository) DeleteRead(userID uint) error {
+	return r.DB.Where("user_id = ? AND is_read = ?", userID, true).Delete(&entity.Notification{}).Error
+}

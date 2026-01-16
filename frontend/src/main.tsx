@@ -9,16 +9,20 @@ import AdminRoutes from './routes/AdminRoutes.tsx'
 import UserRoutes from './routes/userRoutes.tsx'
 import { BrowserRouter } from 'react-router-dom'
 import { App as AntApp } from 'antd'
+import { WebSocketProvider } from './contexts/WebSocketContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AntApp>
-        <PublicRoutes />
-        <AdminRoutes />
-        <UserRoutes />
+        <WebSocketProvider>
+          <PublicRoutes />
+          <AdminRoutes />
+          <UserRoutes />
+        </WebSocketProvider>
       </AntApp>
     </BrowserRouter>
   </StrictMode>
 )
+
 

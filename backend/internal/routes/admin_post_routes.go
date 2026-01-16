@@ -6,10 +6,11 @@ import (
 	adminctl "github.com/sut68/team12/backend/internal/app/controller/admin"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
+	"github.com/sut68/team12/backend/internal/app/websocket"
 )
 
 // SetupAdminPostRoutes register ใต้ /api/admin (protected + admin only)
-func SetupAdminPostRoutes(r *gin.RouterGroup) {
+func SetupAdminPostRoutes(r *gin.RouterGroup, wsHub *websocket.Hub) {
 	db := config.DB
 
 	postRepo := repository.NewPostRepository(db)
@@ -24,8 +25,8 @@ func SetupAdminPostRoutes(r *gin.RouterGroup) {
 	// สร้าง pointService เพื่อให้ NewPostService มี arguments ครบตามที่แก้ไขใน service
 	pointService := services.NewPointService(db)
 
-	// เพิ่ม pointService เข้าไปเป็นตัวแปรสุดท้าย (ตัวที่ 8)
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService)
+	// เพิ่ม pointService และ wsHub เข้าไป
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService, wsHub)
 
 	postCtrl := adminctl.NewAdminPostController(postSvc)
 
