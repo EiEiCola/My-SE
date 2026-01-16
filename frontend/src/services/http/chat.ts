@@ -140,6 +140,14 @@ export const chatService = {
     return res.json();
   },
 
+  removeMember: async (roomId: number, memberId: number) => {
+    const res = await fetch(`${API_URL}/rooms/${roomId}/members/${memberId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
   updateMemberRole: async (roomId: number, memberId: number, role: 'admin' | 'member') => {
     const res = await fetch(`${API_URL}/rooms/${roomId}/members/${memberId}/role`, {
       method: 'PUT',

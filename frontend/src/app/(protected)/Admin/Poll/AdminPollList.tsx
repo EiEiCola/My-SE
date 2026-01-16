@@ -187,6 +187,8 @@ const getDeletedAt = (p: Poll) => (p as any)?.deleted_at ?? (p as any)?.DeletedA
 const getDeletedByType = (p: Poll) => (p as any)?.deleted_by_type ?? (p as any)?.DeletedByType ?? "";
 const getAdminDeleteReason = (p: Poll) =>
   (p as any)?.admin_delete_reason ?? (p as any)?.AdminDeleteReason ?? (p as any)?.adminDeleteReason ?? "";
+const getAdminCloseReason = (p: Poll) =>
+  (p as any)?.admin_close_reason ?? (p as any)?.AdminCloseReason ?? (p as any)?.closeReason ?? "";
 const isDeleted = (p: Poll) => {
   const deletedAt = getDeletedAt(p);
   if (!deletedAt) return false;
@@ -625,6 +627,7 @@ const AdminPollList: React.FC = () => {
                 <th style={{ width: 220 }}>ผู้สร้าง</th>
                 <th>คำถาม</th>
                 <th style={{ width: 170 }}>สถานะ</th>
+                <th style={{ width: 100, textAlign: "center" }}>รายงาน</th>
                 <th style={{ width: 160 }}>วันที่สร้าง</th>
                 <th style={{ width: 380, textAlign: "right" }}>การกระทำ</th>
               </tr>
@@ -699,6 +702,16 @@ const AdminPollList: React.FC = () => {
                         <StatusBadge status={s} />
                       </td>
 
+                      <td style={{ textAlign: "center" }}>
+                        {p.report_count ? (
+                          <span className="chip" style={{ backgroundColor: "#fee2e2", color: "#ef4444", fontWeight: "bold" }}>
+                            🚨 {p.report_count}
+                          </span>
+                        ) : (
+                          <span className="muted">-</span>
+                        )}
+                      </td>
+
                       <td className="muted">
                         {created ? dayjs(created).format("DD/MM/YYYY") : "-"}
                         {getDeletedAt(p) && (
@@ -766,6 +779,92 @@ const AdminPollList: React.FC = () => {
             </div>
 
             <div className="card-body">
+              {/* REPORT BANNER */}
+              {(selectedPoll.report_count || 0) > 0 && !isDeleted(selectedPoll) && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: "#fff7ed",
+                    border: "1px solid #ffedd5",
+                    borderRadius: 12,
+                    color: "#9a3412",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>⚠️ Reported {selectedPoll.report_count} times</div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>
+                  </div>
+                </div>
+              )}
+
+              {/* REJECT BANNER */}
+              {getDisplayStatus(selectedPoll) === "REJECTED" && getRejectReason(selectedPoll) && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: "#fef2f2",
+                    border: "1px solid #fee2e2",
+                    borderRadius: 12,
+                    color: "#b91c1c",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>❌ Rejected</div>
+                  <div style={{ fontSize: 13, marginTop: 4 }}>
+                    Reason: <strong>{getRejectReason(selectedPoll)}</strong>
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    Time: {formatDT(getUpdatedAt(selectedPoll))}
+                  </div>
+                </div>
+              )}
+
+              {/* ADMIN DELETE BANNER */}
+              {isDeleted(selectedPoll) && getDeletedByType(selectedPoll) === "ADMIN" && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: "#fef2f2",
+                    border: "1px solid #fee2e2",
+                    borderRadius: 12,
+                    color: "#b91c1c",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>🚫 Deleted by Admin</div>
+                  {getAdminDeleteReason(selectedPoll) && (
+                    <div style={{ fontSize: 13, marginTop: 4 }}>
+                      Reason: <strong>{getAdminDeleteReason(selectedPoll)}</strong>
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    Deleted at: {formatDT(getDeletedAt(selectedPoll))}
+                  </div>
+                </div>
+              )}
+
+              {/* ADMIN CLOSE BANNER */}
+              {getDisplayStatus(selectedPoll) === "CLOSED" && getAdminCloseReason(selectedPoll) && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: "#fffbeb",
+                    border: "1px solid #fef3c7",
+                    borderRadius: 12,
+                    color: "#92400e",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>⛔ Closed by Admin</div>
+                  <div style={{ fontSize: 13, marginTop: 4 }}>
+                    Reason: <strong>{getAdminCloseReason(selectedPoll)}</strong>
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    Closed at: {formatDT(getUpdatedAt(selectedPoll))}
+                  </div>
+                </div>
+              )}
+
               <div className="detail-block">
                 <div className="detail-label">Question</div>
                 <div className="detail-value">{getQuestion(selectedPoll)}</div>
@@ -804,6 +903,19 @@ const AdminPollList: React.FC = () => {
                   <div className="detail-label">Status</div>
                   <div className="detail-value">
                     <StatusBadge status={getDisplayStatus(selectedPoll)} />
+                  </div>
+                </div>
+
+                <div className="detail-block">
+                  <div className="detail-label">Reports</div>
+                  <div className="detail-value">
+                    {selectedPoll.report_count ? (
+                      <span className="chip" style={{ backgroundColor: "#fee2e2", color: "#ef4444", fontWeight: "bold" }}>
+                        🚨 {selectedPoll.report_count} Reports
+                      </span>
+                    ) : (
+                      "No reports"
+                    )}
                   </div>
                 </div>
 
@@ -906,21 +1018,7 @@ const AdminPollList: React.FC = () => {
                 })()}
               </div>
 
-              {getRejectReason(selectedPoll) && (
-                <div className="detail-block" style={{ marginTop: 10 }}>
-                  <div className="detail-label">Reject Reason</div>
-                  <div className="detail-value">{getRejectReason(selectedPoll)}</div>
-                </div>
-              )}
 
-              {isDeleted(selectedPoll) && getDeletedByType(selectedPoll) === "ADMIN" && getAdminDeleteReason(selectedPoll) && (
-                <div className="detail-block" style={{ marginTop: 10 }}>
-                  <div className="detail-label">Admin Delete Reason</div>
-                  <div className="detail-value" style={{ color: "#d32f2f", fontWeight: 600 }}>
-                    {getAdminDeleteReason(selectedPoll)}
-                  </div>
-                </div>
-              )}
 
               <div className="detail-block" style={{ marginTop: 10 }}>
                 <div className="detail-label">
@@ -975,12 +1073,14 @@ const AdminPollList: React.FC = () => {
                               <div className="opt-title">ตัวเลือก {idx + 1}</div>
                               <div className="opt-text">{optionLabel(opt)}</div>
 
-                              <div className="opt-stats">
-                                <span className="chip" style={{ fontSize: "12px", padding: "2px 8px", height: "auto" }}>
-                                  🗳️ {voteCount}
-                                </span>
-                                <span className="opt-pct">({percentage}%)</span>
-                              </div>
+                              {!["UPCOMING", "PENDING_REVIEW"].includes(getDisplayStatus(selectedPoll)) && (
+                                <div className="opt-stats">
+                                  <span className="chip" style={{ fontSize: "12px", padding: "2px 8px", height: "auto" }}>
+                                    🗳️ {voteCount}
+                                  </span>
+                                  <span className="opt-pct">({percentage}%)</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
