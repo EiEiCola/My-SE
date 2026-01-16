@@ -220,7 +220,7 @@ const ReportManage: React.FC = () => {
           if (statusId === 2) return "กำลังดำเนินการ";
           if (statusId === 3) return "เสร็จสิ้น";
           if (statusId === 4) return "ปฏิเสธ";
-          return record.status?.status_name || "ไม่ทราบ";
+          return record.status?.name || "ไม่ทราบ";
         })();
 
         if (statusId === 1) color = "orange";
@@ -364,7 +364,7 @@ const ReportManage: React.FC = () => {
                   if (sid === 2) return "กำลังดำเนินการ";
                   if (sid === 3) return "เสร็จสิ้น";
                   if (sid === 4) return "ปฏิเสธ";
-                  return currentReport.status?.status_name || "ไม่ทราบ";
+                  return currentReport.status?.name || "ไม่ทราบ";
                 })()}
               </Descriptions.Item>
               <Descriptions.Item label="สื่อ">
@@ -401,6 +401,7 @@ const ReportManage: React.FC = () => {
               value={newStatus}
               onChange={setNewStatus}
               style={{ width: "100%" }}
+              getPopupContainer={(trigger) => trigger.parentElement!}
             >
               {reportStatuses.map((status) => (
                 <Option key={status.id} value={status.id}>
