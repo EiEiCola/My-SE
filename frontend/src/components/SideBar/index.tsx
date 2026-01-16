@@ -60,10 +60,10 @@ const UserItems: MenuItem[] = [
         name: "โพล",
         path: "/User/Polls",
         icon: <InsertChartOutlined />,
-        
-          
-           
-        
+
+
+
+
     },
     { name: "ประชาสัมพันธ์", path: "/User/Announcement", icon: <Campaign /> },
     { name: "รายงานปัญหา", path: "/User/Report", icon: <ReportProblem /> },
@@ -73,7 +73,7 @@ const AdminItems: MenuItem[] = [
     { name: "หน้าหลัก", path: "/Admin", icon: <Home /> },
     { name: "จัดการผู้ใช้", path: "/Admin/ProfileManage", icon: <InsertChartOutlined /> },
     { name: "จัดการสะสมแต้ม", path: "/Admin/RewardManage", icon: <AccountCircle /> },
-    { name: "จัดการข้อความ", path: "/Admin/MessageManage", icon: <Forum /> },
+
     { name: "จัดการเพื่อน", path: "/Admin/FriendsManage", icon: <Group /> },
     { name: "จัดการโพสต์", path: "/Admin/PostManage", icon: <BroadcastOnPersonal /> },
     { name: "จัดการกลุ่ม", path: "/Admin/GroupManage", icon: <Groups /> },

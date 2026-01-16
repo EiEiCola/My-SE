@@ -135,7 +135,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         "/Admin/Profile/Edit": "แก้ไขโปรไฟล์",
         "/Admin/RewardManage": "จัดการสะสมแต้ม",
         "/Admin/RewardManage/PointRule": "จัดการกฎการได้แต้ม",
-        "/Admin/MessageManage": "จัดการข้อความ",
+
         "/Admin/FriendsManage": "จัดการเพื่อน",
         "/Admin/PostManage": "จัดการโพสต์",
         "/Admin/GroupManage": "จัดการกลุ่ม",
