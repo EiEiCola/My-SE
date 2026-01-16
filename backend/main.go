@@ -111,8 +111,12 @@ func main() {
 	// 4.1 Upload Controller
 	uploadCtl := memberCtl.NewUploadController()
 
+	// 4.2 Member Service (Reuse or Init)
+	memberRepo := repository.NewMemberRepository(db)
+	memberSvc := services.NewMemberService(memberRepo)
+
 	// 5. Setup Routes
-	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl)
+	routes.SetupRoutes(r, adminProfileCtl, adminUserCtl, categoryCtl, chatCtl, adminReviewCtl, uploadCtl, memberSvc)
 
 	// 6. Configure HTTP server with timeouts for security and stability
 	srv := &http.Server{

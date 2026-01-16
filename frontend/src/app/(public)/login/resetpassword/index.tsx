@@ -53,7 +53,7 @@ export default function ResetPassword() {
     try {
       setLoading(true);
 
-      await axios.post("http://localhost:8080/api/auth/reset-password", {
+      await axios.post("/api/auth/reset-password", {
         reset_token: resetToken,
         new_password: password,
       });
@@ -269,8 +269,8 @@ export default function ResetPassword() {
                       passwordStrength.level === "weak"
                         ? "33%"
                         : passwordStrength.level === "medium"
-                        ? "66%"
-                        : "100%",
+                          ? "66%"
+                          : "100%",
                     height: "100%",
                     background: passwordStrength.color,
                     transition: "all 0.3s ease",

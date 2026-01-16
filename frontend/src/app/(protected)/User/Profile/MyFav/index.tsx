@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import postService from "../../../../../services/http/post_service";
 
 const { Text, Title } = Typography;
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 interface Post {
   ID: number;

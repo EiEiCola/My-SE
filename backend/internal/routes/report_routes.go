@@ -10,7 +10,7 @@ import (
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
-func SetupReportRoutes(api *gin.RouterGroup) {
+func SetupReportRoutes(api *gin.RouterGroup, memberService services.MemberService) {
 	db := config.DB
 
 	// Repo & Service
@@ -20,7 +20,7 @@ func SetupReportRoutes(api *gin.RouterGroup) {
 
 	// Controllers
 	adminReportCtl := admin_controller.NewAdminReportController(reportService)
-	memberReportCtl := member_controller.NewMemberReportController(reportService)
+	memberReportCtl := member_controller.NewMemberReportController(reportService, memberService)
 
 	// Admin Routes - Protected with JWT and Admin role check
 	adminGroup := api.Group("/admin", middlewares.JWTAuthMiddleware(), middlewares.RequireAdminMiddleware())
