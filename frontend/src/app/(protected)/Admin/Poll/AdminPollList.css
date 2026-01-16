@@ -709,3 +709,19 @@
 .ant-message {
   z-index: 100000 !important;
 }
+
+/* Letter Avatar Placeholder (Matches ReviewCard style) */
+.admin-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #64748b;
+  font-size: 16px;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}

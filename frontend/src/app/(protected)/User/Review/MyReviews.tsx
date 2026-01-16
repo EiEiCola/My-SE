@@ -124,6 +124,7 @@ const MyReviews: React.FC = () => {
                         deletedAt: deletedAt && deletedAt !== "0001-01-01T00:00:00Z" ? deletedAt : null,
                         deletedByType: deletedByType === "ADMIN" || deletedByType === "OWNER" ? (deletedByType as any) : "",
                         adminDeleteReason: r.admin_delete_reason ?? r.AdminDeleteReason,
+                        isAnonymous: r.is_anonymous ?? r.IsAnonymous ?? false, // ✅ Map isAnonymous
                     } as ReviewItem;
                 })
                     .filter((r) => r.deletedByType !== "OWNER"); // ✅ Hide owner-deleted reviews
@@ -375,6 +376,7 @@ const MyReviews: React.FC = () => {
                                 <div className="card-sub">
                                     {selectedReview.date} •{" "}
                                     {[selectedReview.mainCat, selectedReview.sub1, selectedReview.sub2].filter(Boolean).join(" > ") || "ทั่วไป"}
+                                    {selectedReview.isAnonymous && <span style={{ marginLeft: 8, color: "#9333ea", fontWeight: 700 }}> (ไม่ระบุตัวตน)</span>}
                                 </div>
                             </div>
                             <button className="icon-btn" onClick={() => setDetailOpen(false)}>

@@ -667,18 +667,30 @@ const AdminPollList: React.FC = () => {
                   const delType = getDeletedByType(p);
                   const avatar = getAuthorAvatar(p);
 
+                  const nameForAvatar = authorName || authorUsername || "?";
+
                   return (
                     <tr key={id} style={isDel ? { opacity: 0.6, backgroundColor: "#fff5f5" } : undefined}>
                       <td className="mono">{id}</td>
 
                       <td>
                         <div className="author" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
-                          <img
-                            src={avatar || "/anon-avatar.png"}
-                            alt="avatar"
-                            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
-                            onError={(e) => (e.currentTarget.src = "/anon-avatar.png")}
-                          />
+                          {/* Avatar Logic: Admins see real avatar even if anonymous */}
+                          {avatar ? (
+                            <img
+                              src={avatar}
+                              alt="avatar"
+                              style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                              }}
+                            />
+                          ) : (
+                            <div className="admin-avatar-placeholder">
+                              {nameForAvatar.charAt(0)}
+                            </div>
+                          )}
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                             <span className="author-name">
                               {authorName || authorUsername ? (

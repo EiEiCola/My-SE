@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { message } from "antd";
+import { message, Modal } from "antd";
 import ReviewCard from "./components/ReviewCard";
 import ReportReviewModal from "./ReportReviewModal";
 import "./ReviewListPage.css";
@@ -94,6 +94,7 @@ const getMyMemberId = () => {
 const ReviewListPage: React.FC = () => {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
   const myId = getMyMemberId();
   //console.log("DEBUG myId =", myId); // ✅ ใส่ตรงนี้
 
@@ -310,7 +311,19 @@ const ReviewListPage: React.FC = () => {
       setAllReviews((prev) => patch(prev));
       setMyReviews((prev) => patch(prev));
     } catch (e: any) {
-      alert(e.message);
+      const msg = e?.message || "";
+      if (msg.includes("owner_cannot_vote")) {
+        // ใช้ modal instance จาก hook
+        modal.warning({
+          title: "ไม่สามารถโหวตได้",
+          content: "เจ้าของรีวิวไม่สามารถโหวตรีวิวของตัวเองได้",
+          okText: "ตกลง",
+          centered: true,
+          zIndex: 9999,
+        });
+      } else {
+        messageApi.error(msg || "ไม่สามารถโหวตได้");
+      }
     }
   };
 
@@ -344,6 +357,7 @@ const ReviewListPage: React.FC = () => {
 
     <div className="rl-page">
       {contextHolder}
+      {modalContextHolder}
       <div className="rl-wrap">
         <div className="rl-stickyHead">
           <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "20px" }}>
