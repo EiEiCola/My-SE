@@ -16,11 +16,13 @@ func SetupReportRoutes(api *gin.RouterGroup) {
 	// Repo & Service
 	reportRepo := repository.NewReportRepository(db)
 	postRepo := repository.NewPostRepository(db)
+	memberRepo := repository.NewMemberRepository(db)
 	reportService := services.NewReportService(db, reportRepo, postRepo)
+	memberService := services.NewMemberService(memberRepo)
 
 	// Controllers
 	adminReportCtl := admin_controller.NewAdminReportController(reportService)
-	memberReportCtl := member_controller.NewMemberReportController(reportService)
+	memberReportCtl := member_controller.NewMemberReportController(reportService, memberService)
 
 	// Admin Routes - Protected with JWT and Admin role check
 	adminGroup := api.Group("/admin", middlewares.JWTAuthMiddleware(), middlewares.RequireAdminMiddleware())

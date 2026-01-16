@@ -264,9 +264,48 @@ const PostManage: React.FC = () => {
   };
 
   // ---------- Drawer: รายละเอียดโพสต์ ----------
-  const openDetailDrawer = (post: PostItem) => {
+  const openDetailDrawer = async (post: PostItem) => {
     setDetailPost(post);
     setDetailOpen(true);
+
+    // Fetch reports for this specific post
+    try {
+      const reportsResponse = await ReportService.getAdminReports({
+        page: 1,
+        page_size: 100,
+        target_type: "post",
+        target_id: post.id,
+      });
+      const reports = reportsResponse.data.data || [];
+
+      // Map reports to PostReport format
+      const mappedReports: PostReport[] = reports.map((r: any) => {
+        // Reporter is a Member object with fields: Username, first_name, last_name
+        let reporterName = "ไม่ระบุผู้รายงาน";
+        if (r.reporter) {
+          reporterName = r.reporter.Username ||
+            r.reporter.username ||
+            (r.reporter.first_name && r.reporter.last_name
+              ? `${r.reporter.first_name} ${r.reporter.last_name}`
+              : `สมาชิก #${r.reporter_id}`);
+        }
+
+        return {
+          id: r.id || r.ID,
+          reporter: reporterName,
+          reason: r.description || r.title || "ไม่ระบุเหตุผล",
+          createdAt: new Date(r.created_at).toLocaleString("th-TH"),
+        };
+      });
+
+      // Update detailPost with reports
+      setDetailPost(prev => prev ? {
+        ...prev,
+        reports: mappedReports,
+      } : prev);
+    } catch (error) {
+      console.error("Failed to fetch reports for post:", error);
+    }
   };
 
   // ---------- Status Tag ----------

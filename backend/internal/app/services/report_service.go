@@ -99,8 +99,8 @@ func (s *ReportService) ListByReporter(reporterID uint, page, pageSize int, stat
 	return s.ReportRepo.ListByReporter(reporterID, page, pageSize, statusID, targetType, q)
 }
 
-func (s *ReportService) AdminListReports(page, pageSize int, statusID *int, targetType string, reporterID *uint, q string) ([]entity.Report, int64, error) {
-	return s.ReportRepo.ListAll(page, pageSize, statusID, targetType, reporterID, q)
+func (s *ReportService) AdminListReports(page, pageSize int, statusID *int, targetType string, targetID *uint, reporterID *uint, q string) ([]entity.Report, int64, error) {
+	return s.ReportRepo.ListAll(page, pageSize, statusID, targetType, targetID, reporterID, q)
 }
 
 func (s *ReportService) UpdateStatus(reportID int, statusID int, adminID uint) error {

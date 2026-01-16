@@ -6,15 +6,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sut68/team12/backend/internal/app/services"
-	"github.com/sut68/team12/backend/internal/utils"
 )
 
 type MemberReportController struct {
-	Service *services.ReportService
+	Service       *services.ReportService
+	MemberService services.MemberService
 }
 
-func NewMemberReportController(s *services.ReportService) *MemberReportController {
-	return &MemberReportController{Service: s}
+func NewMemberReportController(s *services.ReportService, memberService services.MemberService) *MemberReportController {
+	return &MemberReportController{Service: s, MemberService: memberService}
+}
+
+// Helper to get Profile ID (MemberID) from AccountID (user_id in JWT)
+func (ctl *MemberReportController) getMemberProfileID(c *gin.Context) (uint, bool) {
+	accountID := c.GetUint("user_id")
+	if accountID == 0 {
+		return 0, false
+	}
+	// Call MemberService to get profile
+	m, err := ctl.MemberService.GetProfileByAccountID(accountID)
+	if err != nil {
+		c.Error(err)
+		return 0, false
+	}
+	return m.ID, true
 }
 
 type createReportRequest struct {
@@ -33,9 +48,9 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "could not get member profile"})
 		return
 	}
 
@@ -56,9 +71,9 @@ func (ctl *MemberReportController) Create(c *gin.Context) {
 
 // GET /member/reports
 func (ctl *MemberReportController) List(c *gin.Context) {
-	memberID, err := utils.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "could not get member profile"})
 		return
 	}
 
@@ -105,8 +120,8 @@ func (ctl *MemberReportController) GetByID(c *gin.Context) {
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
-	if err != nil { // Should technically be unauthorized but we continue logically
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok { // Should technically be unauthorized but we continue logically
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		return
 	}
@@ -131,9 +146,9 @@ func (ctl *MemberReportController) Update(c *gin.Context) {
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "could not get member profile"})
 		return
 	}
 
@@ -162,9 +177,9 @@ func (ctl *MemberReportController) Delete(c *gin.Context) {
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "could not get member profile"})
 		return
 	}
 
@@ -197,9 +212,9 @@ func (ctl *MemberReportController) ReportPost(c *gin.Context) {
 		return
 	}
 
-	memberID, err := utils.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "could not get member profile"})
 		return
 	}
 
