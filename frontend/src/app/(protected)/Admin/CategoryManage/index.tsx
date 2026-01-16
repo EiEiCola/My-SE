@@ -632,11 +632,6 @@ const GroupManage: React.FC = () => {
                             size="large"
                             shape="round"
                             onClick={openCreateRootModal}
-                            style={{
-                                background: "linear-gradient(135deg, #f97316, #ea580c)",
-                                border: "none",
-                                boxShadow: "0 4px 14px rgba(249, 115, 22, 0.4)"
-                            }}
                         >
                             + สร้างหมวดหมู่หลัก
                         </Button>

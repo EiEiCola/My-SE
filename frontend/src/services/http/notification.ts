@@ -14,6 +14,4 @@ export interface Notification {
 export const notificationAPI = {
     getAll: () => api.get<{ data: Notification[] }>("/member/notifications"),
     markAsRead: (id: number) => api.patch(`/member/notifications/${id}/read`),
-    markAllAsRead: () => api.patch("/member/notifications/read-all"),
-    deleteRead: () => api.delete("/member/notifications/read"),
 };

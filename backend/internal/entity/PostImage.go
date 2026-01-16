@@ -5,7 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
 type PostImage struct {
 	gorm.Model
 
