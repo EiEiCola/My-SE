@@ -44,6 +44,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import postService from "../../../../services/http/post_service";
 import { memberAPI, type MemberProfileResponse } from "../../../../services/http/member_profile";
+import { friendAPI } from "../../../../services/http/friend";
 import { getUserIdFromToken } from "../../../../utils/jwt";
 import ReportPostModal from "./ReportPostModal";
 
@@ -109,6 +110,7 @@ interface CommentItem {
     ownerAvatar: string;
     isAnonymous: boolean;
     isOwner: boolean;
+    authorId?: number; // สำหรับเปรียบเทียบกับ currentUser.ID
     parentId?: number | null;
     replies?: CommentItem[];
     images?: ImageItem[];
@@ -124,6 +126,7 @@ const PostDetail: React.FC = () => {
 
     const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<PostData | null>(null);
+    const [currentUser, setCurrentUser] = useState<MemberProfileResponse | null>(null);
 
     // Fetch current user
     useEffect(() => {
@@ -178,7 +181,8 @@ const PostDetail: React.FC = () => {
                     ownerAvatar,
                     authorId: apiPost.is_anonymous ? null : apiPost.author_id,
                     isAnonymous: apiPost.is_anonymous,
-                    isOwner: currentUserId !== null && currentUserId === apiPost.author_id,
+                    // ใช้ currentUser.ID (Member ID) แทน getUserIdFromToken() (Account ID)
+                    isOwner: false, // จะถูก update หลัง currentUser โหลด
                     images: (apiPost.images || []).map((img: { ID: number; url: string; order_index: number }) => ({
                         id: img.ID,
                         url: img.url,
@@ -203,6 +207,19 @@ const PostDetail: React.FC = () => {
 
         fetchPost();
     }, [id, navigate]);
+
+    // Update isOwner when currentUser is loaded (using Member ID, not Account ID)
+    useEffect(() => {
+        if (currentUser && post) {
+            const myMemberId = (currentUser as any)?.ID || (currentUser as any)?.id;
+            if (myMemberId && post.authorId) {
+                setPost(prev => prev ? {
+                    ...prev,
+                    isOwner: myMemberId === prev.authorId
+                } : prev);
+            }
+        }
+    }, [currentUser, post?.authorId]);
 
     // Comments state
     const [comments, setComments] = useState<CommentItem[]>([]);
@@ -237,7 +254,8 @@ const PostDetail: React.FC = () => {
                         ownerName,
                         ownerAvatar,
                         isAnonymous: c.is_anonymous,
-                        isOwner: currentUserId !== null && currentUserId === c.author_id,
+                        isOwner: false, // จะถูก update ใน useEffect เมื่อ currentUser โหลด
+                        authorId: c.author_id, // เก็บ author_id ไว้ใช้ทีหลัง
                         parentId: null,
                         replies: [],
                         images: (c.images || []).map((img: { ID: number; url: string; order_index: number }) => ({
@@ -256,6 +274,15 @@ const PostDetail: React.FC = () => {
                 });
 
                 setComments(mappedComments);
+
+                // Initialize commentLikedMap from API response (is_liked field)
+                const likedMap: Record<number, boolean> = {};
+                apiComments.forEach((c: any) => {
+                    if (c.is_liked) {
+                        likedMap[c.ID] = true;
+                    }
+                });
+                setCommentLikedMap(likedMap);
             } catch (error) {
                 console.error("Failed to fetch comments:", error);
             }
@@ -278,12 +305,30 @@ const PostDetail: React.FC = () => {
         checkUserStatus();
     }, [id]);
 
+    // Update comments isOwner when currentUser or comments are loaded (using Member ID)
+    useEffect(() => {
+        if (currentUser && comments.length > 0) {
+            const myMemberId = (currentUser as any)?.ID || (currentUser as any)?.id;
+            if (myMemberId) {
+                // เช็คว่ามี comment ที่ยังไม่ได้ update isOwner หรือไม่
+                const needsUpdate = comments.some(c =>
+                    c.authorId !== undefined && c.isOwner !== (c.authorId === myMemberId)
+                );
+                if (needsUpdate) {
+                    setComments(prev => prev.map(c => ({
+                        ...c,
+                        isOwner: c.authorId === myMemberId
+                    })));
+                }
+            }
+        }
+    }, [currentUser, comments.length]);
+
     // input comment
     const [commentText, setCommentText] = useState("");
     const [commentAnonymous, setCommentAnonymous] = useState(false);
     const [commentImages, setCommentImages] = useState<UploadFile[]>([]);
     const [commentAttachments, setCommentAttachments] = useState<UploadFile[]>([]);
-    const [currentUser, setCurrentUser] = useState<MemberProfileResponse | null>(null);
 
     // state: กำลังตอบกลับคอมเมนต์ไหน
     const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
@@ -293,6 +338,28 @@ const PostDetail: React.FC = () => {
         {}
     );
 
+    // state: track ว่า user ไลค์ comment ไหนบ้าง (commentId -> isLiked)
+    const [commentLikedMap, setCommentLikedMap] = useState<Record<number, boolean>>({});
+
+    // Toggle like for a comment
+    const handleToggleLikeComment = async (commentId: number) => {
+        if (!post) return;
+        try {
+            const response = await postService.toggleLikeComment(post.id, commentId);
+            const { is_liked, like_count } = response.data;
+
+            // Update liked state
+            setCommentLikedMap(prev => ({ ...prev, [commentId]: is_liked }));
+
+            // Update comment like count
+            setComments(prev => prev.map(c =>
+                c.id === commentId ? { ...c, likeCount: like_count } : c
+            ));
+        } catch (error) {
+            console.error("Failed to toggle like comment:", error);
+            message.error("ไม่สามารถกดไลค์ได้");
+        }
+    };
     // Report modal states
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedReportReason, setSelectedReportReason] = useState("");
@@ -849,9 +916,39 @@ const PostDetail: React.FC = () => {
                                     style={{
                                         cursor: post.authorId ? "pointer" : "default"
                                     }}
-                                    onClick={() => {
-                                        if (post.authorId) {
-                                            navigate(`/User/Profile/${post.authorId}`);
+                                    onClick={async () => {
+                                        // ถ้า anonymous ไม่ต้องทำอะไร
+                                        if (!post.authorId || post.isAnonymous) return;
+
+                                        // เช็คว่าเป็นโพสต์ตัวเอง (เปรียบเทียบ Member ID)
+                                        const myMemberId = (currentUser as any)?.ID || (currentUser as any)?.id;
+                                        const isMyPost = currentUser && myMemberId === post.authorId;
+
+                                        if (isMyPost || post.isOwner) {
+                                            // ไปหน้า Profile ของตัวเอง
+                                            navigate("/User/Profile");
+                                            return;
+                                        }
+
+                                        try {
+                                            // เช็คว่าเป็นเพื่อนกันหรือไม่
+                                            const friendsData = await friendAPI.getMyFriends();
+                                            const friends = friendsData?.data || friendsData || [];
+                                            const isFriend = Array.isArray(friends) && friends.some(
+                                                (f: any) => f.id === post.authorId || f.ID === post.authorId || f.member_id === post.authorId
+                                            );
+
+                                            if (isFriend) {
+                                                // เป็นเพื่อนแล้ว -> ไปหน้าเพื่อนทั้งหมด พร้อม auto-select
+                                                navigate("/User/Friends/FriendRelation", { state: { selectedId: post.authorId } });
+                                            } else {
+                                                // ยังไม่เป็นเพื่อน -> ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+                                                navigate("/User/Friends/Popular", { state: { selectedId: post.authorId } });
+                                            }
+                                        } catch (error) {
+                                            console.error("Failed to check friend status:", error);
+                                            // Fallback: ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+                                            navigate("/User/Friends/Popular", { state: { selectedId: post.authorId } });
                                         }
                                     }}
                                 >
@@ -867,11 +964,11 @@ const PostDetail: React.FC = () => {
                                             fontSize: 13,
                                             fontWeight: 600,
                                             color: "#334155",
-                                            ...(post.authorId ? {
+                                            ...(post.authorId && !post.isOwner ? {
                                                 cursor: "pointer",
                                             } : {})
                                         }}
-                                            className={post.authorId ? "hover:text-orange-500 hover:underline" : ""}
+                                            className={post.authorId && !post.isOwner ? "hover:text-orange-500 hover:underline" : ""}
                                         >
                                             {post.ownerName}
                                         </Text>
@@ -1238,8 +1335,15 @@ const PostDetail: React.FC = () => {
                                 <Row justify="space-between" align="middle">
                                     <Col>
                                         <Space size="large">
-                                            <Space>
-                                                <LikeOutlined style={{ cursor: "pointer" }} />
+                                            <Space
+                                                style={{ cursor: "pointer" }}
+                                                onClick={() => handleToggleLikeComment(c.id)}
+                                            >
+                                                {commentLikedMap[c.id] ? (
+                                                    <LikeFilled style={{ color: ORANGE }} />
+                                                ) : (
+                                                    <LikeOutlined style={{ color: "#666" }} />
+                                                )}
                                                 <Text strong style={{ color: ORANGE }}>
                                                     {c.likeCount}
                                                 </Text>

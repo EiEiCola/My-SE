@@ -69,7 +69,8 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 		posts.GET("/:id/comments", postCtrl.GetComments)    // GET /api/member/posts/:id/comments
 		posts.POST("/:id/comments", postCtrl.CreateComment) // POST /api/member/posts/:id/comments
 
-		posts.DELETE("/:id/comments/:commentId", postCtrl.DeleteComment) // DELETE /api/member/posts/:id/comments/:commentId
+		posts.DELETE("/:id/comments/:commentId", postCtrl.DeleteComment)        // DELETE /api/member/posts/:id/comments/:commentId
+		posts.POST("/:id/comments/:commentId/like", postCtrl.ToggleLikeComment) // POST /api/member/posts/:id/comments/:commentId/like
 
 		// Feature routes
 		posts.POST("/:id/bookmark", postCtrl.ToggleBookmark) // POST /api/member/posts/:id/bookmark
