@@ -144,17 +144,17 @@ function Register() {
         "password",
         "confirmPassword",
       ]);
-      
+
       // เก็บข้อมูล Step 1 ไว้
       const values = form.getFieldsValue([
         "email",
-        "studentID", 
+        "studentID",
         "password",
         "confirmPassword",
       ]);
       setStep1Data(values);
       console.log("Step 1 data saved:", values);
-      
+
       setCurrentStep(1);
     } catch (error) {
       console.log("Validation failed:", error);
@@ -190,9 +190,9 @@ function Register() {
       "dob",
       "genderID",
     ]);
-    
+
     const allValues = { ...step1Data, ...step2Values };
-    
+
     // Debug: ดูข้อมูลที่จะส่งไป
     const payload = {
       email: allValues.email,
@@ -207,24 +207,24 @@ function Register() {
       role_id: 2,
       active_status_id: 1,
     };
-    
+
     console.log("=== REGISTER PAYLOAD ===");
     console.log("Step 1 Data:", step1Data);
     console.log("Step 2 Data:", step2Values);
     console.log("All Values:", allValues);
     console.log("Payload to send:", JSON.stringify(payload, null, 2));
-    
-      // เช็คว่ามี field ไหนเป็น undefined หรือ null
+
+    // เช็คว่ามี field ไหนเป็น undefined หรือ null
     (Object.keys(payload) as Array<keyof typeof payload>).forEach(key => {
       const value = payload[key];
       if (value === undefined || value === null || value === '') {
         console.warn(`⚠️ Field "${key}" is ${value}`);
       }
     });
-    
+
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:8080/api/auth/register", payload);
+      const response = await axios.post("/api/auth/register", payload);
       console.log("✅ Success:", response.data);
       message.success("Registration successful");
       navigate("/login");
