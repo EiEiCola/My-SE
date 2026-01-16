@@ -29,7 +29,11 @@ const formatAvatarUrl = (url: string | undefined, seed: string | number = "user"
   return `${API_BASE}/${url}`;
 };
 
-const MyPost: React.FC = () => {
+interface MyPostProps {
+  userId?: number;
+}
+
+const MyPost: React.FC<MyPostProps> = ({ userId }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -38,7 +42,7 @@ const MyPost: React.FC = () => {
     const fetchMyPosts = async () => {
       try {
         setLoading(true);
-        const response = await postService.getMyPosts();
+        const response = userId ? await postService.getUserPosts(userId) : await postService.getMyPosts();
         setPosts(response.data.data || []);
       } catch (error) {
         console.error("Failed to fetch my posts:", error);

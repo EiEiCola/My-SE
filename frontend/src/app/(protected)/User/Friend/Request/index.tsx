@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
 
+
 // Icons
 import { ArrowLeft, Image as ImageIcon } from "lucide-react";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
@@ -31,6 +32,8 @@ import {
 } from "../../../../../services/http/friend";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 import { memberRewardAPI } from "../../../../../services/http/member_reward"; // ✅ Import Member Reward API
+import MyPost from "../../Profile/MyPost";
+import MyFav from "../../Profile/MyFav";
 
 
 // Config Dayjs
@@ -629,6 +632,8 @@ const FriendRequest: React.FC = () => {
               </div>
 
               <div className="mt-5">
+                {activeTab === 'post' && <MyPost userId={selectedProfile.member_id} />}
+                {activeTab === 'fav' && <MyFav userId={selectedProfile.member_id} />}
                 {activeTab === 'sticker' ? (
                   loadingStickers ? <div className="text-center text-gray-400 py-10">กำลังโหลด...</div> :
                     stickerItems.length === 0 ? <div className="text-center text-gray-400 py-10">ไม่มีสติ๊กเกอร์</div> :
@@ -645,11 +650,7 @@ const FriendRequest: React.FC = () => {
                           )
                         })}
                       </div>
-                ) : (
-                  <div className="flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
-                    No content available in {activeTab}
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

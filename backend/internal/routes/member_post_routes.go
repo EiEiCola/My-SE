@@ -53,8 +53,10 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 		posts.POST("", postCtrl.CreatePost) // POST /api/member/posts
 
 		// Profile feature routes (MUST be before /:id routes)
-		posts.GET("/bookmarked", postCtrl.GetBookmarkedPosts) // GET /api/member/posts/bookmarked
-		posts.GET("/mine", postCtrl.GetMyPosts)               // GET /api/member/posts/mine
+		posts.GET("/bookmarked", postCtrl.GetBookmarkedPosts)  // GET /api/member/posts/bookmarked
+		posts.GET("/mine", postCtrl.GetMyPosts)                // GET /api/member/posts/mine
+		posts.GET("/user/:userID", postCtrl.GetPostsByUser)    // GET /api/member/posts/user/:userID
+		posts.GET("/user/:userID/fav", postCtrl.GetFavsByUser) // GET /api/member/posts/user/:userID/fav
 
 		// Post by ID routes
 		posts.GET("/:id", postCtrl.GetPostByID)   // GET /api/member/posts/:id
