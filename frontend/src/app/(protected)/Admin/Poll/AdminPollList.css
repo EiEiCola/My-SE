@@ -704,3 +704,8 @@
   font-weight: 700;
   color: #0f172a;
 }
+
+/* Fix Antd Message Z-Index to be above Custom Modals */
+.ant-message {
+  z-index: 100000 !important;
+}

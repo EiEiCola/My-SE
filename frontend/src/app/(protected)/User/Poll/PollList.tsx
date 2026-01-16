@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { message } from "antd"; // ✅ Import message
 import "./PollList.css";
 
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
@@ -92,6 +93,7 @@ const prettyVoteError = (raw: string) => {
 const PollList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
+  const [messageApi, contextHolder] = message.useMessage(); // ✅ Initialize hook
 
   // ✅ เปลี่ยนเป็นดึง member.ID จาก API แทนการ parse JWT
   // เพราะ JWT มี user_id (member_account_id) แต่เราต้องการ member.ID
@@ -590,7 +592,9 @@ const PollList: React.FC = () => {
     try {
       await votePollAdapter(pollId, optionIds);
 
-      setToast(pollId, "โหวตสำเร็จ ✅");
+      // setToast(pollId, "โหวตสำเร็จ ✅"); // ❌ Old local toast
+      messageApi.success("ส่งโพลสำเร็จ"); // ✅ New global popup
+
       setSelectedByPoll((p) => ({ ...p, [pollId]: [] }));
       await load();
       return true;
@@ -598,7 +602,7 @@ const PollList: React.FC = () => {
       console.error("โหวต failed:", error);
       const raw = extractApiError(error);
       const msg = prettyVoteError(raw);
-      setToast(pollId, msg);
+      setToast(pollId, msg); // Keep local error toast? Or global? User asked for success popups. Keeping error local is fine/better for card context.
       return false;
     } finally {
       setSubmittingByPoll((p) => ({ ...p, [pollId]: false }));
@@ -617,12 +621,13 @@ const PollList: React.FC = () => {
 
     try {
       await pollAPI.deletePoll(pollToDelete);
+      messageApi.success("ลบโพลสำเร็จ"); // ✅ Success popup
       setDeleteModalOpen(false);
       setPollToDelete(null);
       await load();
     } catch (error: any) {
       console.error("Delete poll failed:", error);
-      alert("ไม่สามารถลบโพลได้");
+      messageApi.error("ไม่สามารถลบโพลได้");
     }
   };
 
@@ -668,6 +673,7 @@ const PollList: React.FC = () => {
 
   return (
     <div className="pf-page">
+      {contextHolder}
       {/* HERO */}
       <div className="pf-hero">
         <div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 import ReviewCard from "./components/ReviewCard";
 import ReportReviewModal from "./ReportReviewModal";
 import "./ReviewListPage.css";
@@ -92,6 +93,7 @@ const getMyMemberId = () => {
 
 const ReviewListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
   const myId = getMyMemberId();
   //console.log("DEBUG myId =", myId); // ✅ ใส่ตรงนี้
 
@@ -317,13 +319,14 @@ const ReviewListPage: React.FC = () => {
     if (selectedReviewIdForDelete == null) return;
     try {
       await deleteReview(selectedReviewIdForDelete);
+      messageApi.success("ลบรีวิวสำเร็จ");
 
       setAllReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
       setMyReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
 
       setIsDeleteModalOpen(false);
     } catch (e: any) {
-      alert(e.message);
+      messageApi.error(e.message || "ลบไม่สำเร็จ");
     }
   };
   //รีเซ็ต fillter
@@ -340,6 +343,7 @@ const ReviewListPage: React.FC = () => {
   return (
 
     <div className="rl-page">
+      {contextHolder}
       <div className="rl-wrap">
         <div className="rl-stickyHead">
           <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "20px" }}>

@@ -64,6 +64,9 @@ const ReviewManage: React.FC = () => {
   const [detailReview, setDetailReview] = useState<AdminReviewItem | null>(null);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
+  /* Confimation Modal State */
+  const [messageApi, contextHolder] = message.useMessage();
+
   const loadReviews = async () => {
     try {
       setLoading(true);
@@ -75,7 +78,7 @@ const ReviewManage: React.FC = () => {
       setReportedCount(data.reported_count || 0);
     } catch (error) {
       console.error("Failed to load reviews:", error);
-      message.error("ไม่สามารถโหลดข้อมูลรีวิวได้");
+      messageApi.error("ไม่สามารถโหลดข้อมูลรีวิวได้");
     } finally {
       setLoading(false);
     }
@@ -110,14 +113,14 @@ const ReviewManage: React.FC = () => {
       if (!selectedReview) return;
 
       await deleteAdminReview(selectedReview.id, values.reason);
-      message.success("ลบรีวิวสำเร็จ");
+      messageApi.success("ลบรีวิวสำเร็จ");
       setIsDeleteModalOpen(false);
 
       // reload
       setTimeout(() => loadReviews(), 200);
     } catch (error: any) {
       if (error?.name !== "ValidationError") {
-        message.error(error?.message || "ลบไม่สำเร็จ");
+        messageApi.error(error?.message || "ลบไม่สำเร็จ");
       }
     }
   };
@@ -269,6 +272,7 @@ const ReviewManage: React.FC = () => {
 
   return (
     <div className="review-manage-page">
+      {contextHolder}
       <div className="page-header-premium">
         <div className="header-text">
           <h1>จัดการรีวิว</h1>
@@ -439,11 +443,11 @@ const ReviewManage: React.FC = () => {
                   </div>
                   {detailReview.deleted_by_type === "ADMIN" && detailReview.admin_delete_reason && (
                     <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>
-                      Reason: {detailReview.admin_delete_reason}
+                      เหตุผล: {detailReview.admin_delete_reason}
                     </div>
                   )}
                   <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
-                    Deleted at: {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
+                    ลบเมื่อ: {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
                       year: "numeric",
                       month: "2-digit",
                       day: "2-digit",
