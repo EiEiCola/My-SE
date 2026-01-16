@@ -200,6 +200,7 @@ const ProfileManage: React.FC = () => {
 
     modal.confirm({
       title: "ยืนยันการล็อกบัญชี",
+      centered: true,
       content: (
         <div>
           <div style={{ marginBottom: 8 }}>
@@ -245,6 +246,7 @@ const ProfileManage: React.FC = () => {
   const confirmUnlock = (record: AdminUserAccountDTO) => {
     modal.confirm({
       title: "ยืนยันการปลดล็อกบัญชี",
+      centered: true,
       content: `ต้องการปลดล็อกผู้ใช้: ${record.username || record.email || record.id
         } ?`,
       okText: "ปลดล็อก",

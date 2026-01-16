@@ -358,7 +358,7 @@ const Reward: React.FC = () => {
                   color: activeTab === "shop" ? "white" : "#FF512F",
                   borderRadius: 20,
                   fontWeight: 700,
-                  fontSize : 15,
+                  fontSize: 15,
                   height: 44,
                   paddingLeft: 28,
                   paddingRight: 28,
@@ -387,7 +387,7 @@ const Reward: React.FC = () => {
                   color: activeTab === "my" ? "white" : "#FF512F",
                   borderRadius: 20,
                   fontWeight: 700,
-                  fontSize : 15,
+                  fontSize: 15,
                   height: 44,
                   paddingLeft: 28,
                   paddingRight: 28,
@@ -769,6 +769,7 @@ const Reward: React.FC = () => {
         )}
 
         <Modal
+          centered
           open={confirmOpen}
           title="ยืนยันการแลกสติ๊กเกอร์"
           okText="ยืนยัน"
