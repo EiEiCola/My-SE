@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { message, Avatar, Empty, Spin, Popconfirm, Input, Tag, Select, Button, Card } from "antd";
-import { 
-  DeleteOutlined, 
-  UserOutlined, 
-  TeamOutlined, 
-  StopOutlined, 
+import {
+  DeleteOutlined,
+  UserOutlined,
+  TeamOutlined,
+  StopOutlined,
   QuestionCircleOutlined,
   SearchOutlined,
   FilterOutlined,
@@ -62,8 +62,8 @@ const FriendManage: React.FC = () => {
   });
 
   // Search & Filter
-  const [searchSource, setSearchSource] = useState(""); 
-  const [searchTarget, setSearchTarget] = useState(""); 
+  const [searchSource, setSearchSource] = useState("");
+  const [searchTarget, setSearchTarget] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
   // --- Helper: Format Date ---
@@ -98,13 +98,13 @@ const FriendManage: React.FC = () => {
       else if (activeTab === "relations") endpoint = "friend-logs";
       else if (activeTab === "blocks") endpoint = "blocks";
 
-      const res = await fetch(`http://localhost:8080/api/admin/${endpoint}`, { headers });
+      const res = await fetch(`/api/admin/${endpoint}`, { headers });
       if (!res.ok) throw new Error("Fetch failed");
-      
+
       const result = await res.json();
-      
+
       if (Array.isArray(result)) {
-        const sorted = result.sort((a: any, b: any) => 
+        const sorted = result.sort((a: any, b: any) =>
           new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
         );
         setData(prev => ({ ...prev, [activeTab]: sorted }));
@@ -133,9 +133,9 @@ const FriendManage: React.FC = () => {
 
     try {
       let url = "";
-      if (type === 'req') url = `http://localhost:8080/api/admin/friend-requests/${id1}`;
-      if (type === 'rel') url = `http://localhost:8080/api/admin/friendships?m1=${id1}&m2=${id2}`;
-      if (type === 'block') url = `http://localhost:8080/api/admin/blocks?blocker_id=${id1}&blocked_id=${id2}`;
+      if (type === 'req') url = `/api/admin/friend-requests/${id1}`;
+      if (type === 'rel') url = `/api/admin/friendships?m1=${id1}&m2=${id2}`;
+      if (type === 'block') url = `/api/admin/blocks?blocker_id=${id1}&blocked_id=${id2}`;
 
       const res = await fetch(url, {
         method: "DELETE",
@@ -196,9 +196,9 @@ const FriendManage: React.FC = () => {
       else if (status === 3) { color = "red"; text = "Rejected"; }
       else if (status === 4) { color = "default"; text = "Cancelled"; }
     } else if (type === 'active') {
-       color = status ? "green" : "default"; text = status ? "Active" : "Inactive";
+      color = status ? "green" : "default"; text = status ? "Active" : "Inactive";
     } else if (type === 'block') {
-       color = status ? "red" : "default"; text = status ? "Blocking" : "Unblocked";
+      color = status ? "red" : "default"; text = status ? "Blocking" : "Unblocked";
     }
     return <Tag color={color} className="border-0 bg-opacity-20 font-medium px-3 rounded-full">{text}</Tag>;
   };
@@ -221,8 +221,8 @@ const FriendManage: React.FC = () => {
       onClick={() => setActiveTab(id)}
       className={`
         flex items-center gap-2 px-6 py-4 text-sm font-medium transition-all border-b-2
-        ${activeTab === id 
-          ? "border-blue-600 text-blue-600 bg-blue-50/20" 
+        ${activeTab === id
+          ? "border-blue-600 text-blue-600 bg-blue-50/20"
           : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"}
       `}
     >
@@ -232,25 +232,25 @@ const FriendManage: React.FC = () => {
 
   return (
     <div className="flex-1 bg-gray-50/50 min-h-screen p-6 md:p-10 font-sans">
-      
+
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Friends Management</h1>
         </div>
-        <Button 
-            type="text" 
-            icon={<ReloadOutlined />} 
-            onClick={fetchData} 
-            className="text-gray-500 hover:bg-gray-100 rounded-full px-4"
+        <Button
+          type="text"
+          icon={<ReloadOutlined />}
+          onClick={fetchData}
+          className="text-gray-500 hover:bg-gray-100 rounded-full px-4"
         >
-            Refresh
+          Refresh
         </Button>
       </div>
 
       {/* Main Card */}
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        
+
         {/* Tabs */}
         <div className="flex border-b border-gray-100 bg-white">
           <TabButton id="requests" label="Friend Requests" icon={<UserOutlined />} />
@@ -260,63 +260,63 @@ const FriendManage: React.FC = () => {
 
         {/* ⭐⭐⭐ Filter Bar (Single Row Fixed) ⭐⭐⭐ */}
         <div className="px-6 py-4 bg-white border-b border-gray-100">
-            <div className="flex items-center gap-3 w-full">
-                
-                {/* Search 1 */}
-                <div className="flex-1 relative group">
-                    <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-blue-500 transition-colors z-10"><SearchOutlined /></span>
-                    <Input 
-                        placeholder={`ค้นหา ${labels.source}...`}
-                        value={searchSource}
-                        onChange={(e) => setSearchSource(e.target.value)}
-                        allowClear
-                        className="w-full pl-10 rounded-lg bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:bg-gray-100 transition-all"
-                    />
-                </div>
+          <div className="flex items-center gap-3 w-full">
 
-                {/* Search 2 */}
-                <div className="flex-1 relative group">
-                    <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-blue-500 transition-colors z-10"><SearchOutlined /></span>
-                    <Input 
-                        placeholder={`ค้นหา ${labels.target}...`}
-                        value={searchTarget}
-                        onChange={(e) => setSearchTarget(e.target.value)}
-                        allowClear
-                        className="w-full pl-10 rounded-lg bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:bg-gray-100 transition-all"
-                    />
-                </div>
-
-                {/* Status Filter */}
-                <div className="w-48 flex-shrink-0">
-                    <Select 
-                        value={filterStatus} 
-                        onChange={setFilterStatus} 
-                        className="w-full"
-                        suffixIcon={<FilterOutlined className="text-gray-400" />}
-                        style={{ height: '40px' }} // Match Input Height explicitly if needed
-                        variant="borderless"
-                        dropdownStyle={{ borderRadius: '8px', padding: '8px' }}
-                    >
-                        <Option value="all">สถานะทั้งหมด</Option>
-                        {activeTab === 'requests' && (
-                            <>
-                                <Option value="1"><Tag color="orange">Pending</Tag></Option>
-                                <Option value="2"><Tag color="green">Accepted</Tag></Option>
-                                <Option value="3"><Tag color="red">Rejected</Tag></Option>
-                                <Option value="4"><Tag color="default">Cancelled</Tag></Option>
-                            </>
-                        )}
-                        {(activeTab === 'relations' || activeTab === 'blocks') && (
-                            <>
-                                <Option value="true"><Tag color={activeTab === 'blocks' ? 'red' : 'green'}>{activeTab === 'blocks' ? 'Blocking' : 'Active'}</Tag></Option>
-                                <Option value="false"><Tag color="default">{activeTab === 'blocks' ? 'Unblocked' : 'Inactive'}</Tag></Option>
-                            </>
-                        )}
-                    </Select>
-                    {/* Add bottom border to simulate input style for the borderless select if desired, or keep as is for minimal look */}
-                    <div className="h-px bg-gray-200 mt-0 mx-1"></div>
-                </div>
+            {/* Search 1 */}
+            <div className="flex-1 relative group">
+              <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-blue-500 transition-colors z-10"><SearchOutlined /></span>
+              <Input
+                placeholder={`ค้นหา ${labels.source}...`}
+                value={searchSource}
+                onChange={(e) => setSearchSource(e.target.value)}
+                allowClear
+                className="w-full pl-10 rounded-lg bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:bg-gray-100 transition-all"
+              />
             </div>
+
+            {/* Search 2 */}
+            <div className="flex-1 relative group">
+              <span className="absolute left-3 top-2.5 text-gray-400 group-hover:text-blue-500 transition-colors z-10"><SearchOutlined /></span>
+              <Input
+                placeholder={`ค้นหา ${labels.target}...`}
+                value={searchTarget}
+                onChange={(e) => setSearchTarget(e.target.value)}
+                allowClear
+                className="w-full pl-10 rounded-lg bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:bg-gray-100 transition-all"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div className="w-48 flex-shrink-0">
+              <Select
+                value={filterStatus}
+                onChange={setFilterStatus}
+                className="w-full"
+                suffixIcon={<FilterOutlined className="text-gray-400" />}
+                style={{ height: '40px' }} // Match Input Height explicitly if needed
+                variant="borderless"
+                dropdownStyle={{ borderRadius: '8px', padding: '8px' }}
+              >
+                <Option value="all">สถานะทั้งหมด</Option>
+                {activeTab === 'requests' && (
+                  <>
+                    <Option value="1"><Tag color="orange">Pending</Tag></Option>
+                    <Option value="2"><Tag color="green">Accepted</Tag></Option>
+                    <Option value="3"><Tag color="red">Rejected</Tag></Option>
+                    <Option value="4"><Tag color="default">Cancelled</Tag></Option>
+                  </>
+                )}
+                {(activeTab === 'relations' || activeTab === 'blocks') && (
+                  <>
+                    <Option value="true"><Tag color={activeTab === 'blocks' ? 'red' : 'green'}>{activeTab === 'blocks' ? 'Blocking' : 'Active'}</Tag></Option>
+                    <Option value="false"><Tag color="default">{activeTab === 'blocks' ? 'Unblocked' : 'Inactive'}</Tag></Option>
+                  </>
+                )}
+              </Select>
+              {/* Add bottom border to simulate input style for the borderless select if desired, or keep as is for minimal look */}
+              <div className="h-px bg-gray-200 mt-0 mx-1"></div>
+            </div>
+          </div>
         </div>
 
         {/* Content Table */}
@@ -337,7 +337,7 @@ const FriendManage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  
+
                   {/* REQUESTS */}
                   {activeTab === 'requests' && (displayData as FriendRequest[]).map((req) => (
                     <tr key={req.rf_id} className="hover:bg-blue-50/20 transition-colors group">
@@ -356,9 +356,9 @@ const FriendManage: React.FC = () => {
                           okType="danger"
                           icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
                         >
-                           <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
-                              <DeleteOutlined />
-                           </button>
+                          <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
+                            <DeleteOutlined />
+                          </button>
                         </Popconfirm>
                       </td>
                     </tr>
@@ -381,9 +381,9 @@ const FriendManage: React.FC = () => {
                           cancelText="ยกเลิก"
                           okType="danger"
                         >
-                           <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
-                              <DeleteOutlined />
-                           </button>
+                          <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
+                            <DeleteOutlined />
+                          </button>
                         </Popconfirm>
                       </td>
                     </tr>
@@ -406,9 +406,9 @@ const FriendManage: React.FC = () => {
                           cancelText="ยกเลิก"
                           okType="danger"
                         >
-                           <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
-                              <DeleteOutlined />
-                           </button>
+                          <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all ml-auto">
+                            <DeleteOutlined />
+                          </button>
                         </Popconfirm>
                       </td>
                     </tr>
@@ -417,10 +417,10 @@ const FriendManage: React.FC = () => {
               </table>
 
               {displayData.length === 0 && (
-                  <div className="py-20 flex flex-col items-center justify-center text-center">
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
-                    <span className="text-gray-400 text-sm mt-2">ไม่พบข้อมูลที่ค้นหา</span>
-                  </div>
+                <div className="py-20 flex flex-col items-center justify-center text-center">
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
+                  <span className="text-gray-400 text-sm mt-2">ไม่พบข้อมูลที่ค้นหา</span>
+                </div>
               )}
             </div>
           )}

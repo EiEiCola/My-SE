@@ -28,7 +28,7 @@ interface ReviewItem {
 }
 
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 const toFullUrl = (url?: string) => {
   if (!url) return "";
@@ -510,7 +510,7 @@ const ReviewListPage: React.FC = () => {
             const description = selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)" ? otherReason : selectedReportReason;
 
             const token = localStorage.getItem("token");
-            const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
             const response = await fetch(`${API_BASE}/api/members/reports`, {
               method: "POST",

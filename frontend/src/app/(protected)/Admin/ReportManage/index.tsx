@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col } from "antd";
+import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar } from "antd";
 import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -12,7 +12,7 @@ const { Option } = Select;
 
 const ReportManage: React.FC = () => {
   const navigate = useNavigate();
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
   const resolveMediaUrl = (url?: string) => {
     if (!url) return "";
@@ -126,7 +126,7 @@ const ReportManage: React.FC = () => {
       cancelText: "ยกเลิก",
       onOk: async () => {
         try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
           const token = localStorage.getItem("token");
 
           let endpoint = "";
@@ -171,11 +171,12 @@ const ReportManage: React.FC = () => {
       width: 60,
     },
     {
-      title: "ผู้แจ้ง",
-      key: "reporter",
-      render: (_: any, record: Report) => {
-        return (record.reporter?.username) || (record.reporter?.email) || `ผู้ใช้ #${record.reporter_id}`;
-      }
+      render: (_: any, record: Report) => (
+        <Space>
+          <Avatar src={record.reporter?.member_picture || "https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous"} />
+          <span>{record.reporter?.username || record.reporter?.email || `ผู้ใช้ #${record.reporter_id}`}</span>
+        </Space>
+      )
     },
     {
       title: "หัวข้อ",
