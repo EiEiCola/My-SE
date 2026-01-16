@@ -29,6 +29,7 @@ import {
 // Config Dayjs
 dayjs.extend(buddhistEra);
 dayjs.locale("th");
+import ProfilePopup from "../../../../../components/ProfilePopup";
 
 // --- Interfaces ---
 interface MemberItem {
@@ -73,6 +74,17 @@ const FriendPopular: React.FC = () => {
   const [loadingStickers, setLoadingStickers] = useState(false);
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Popup
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
+
+  const handleOpenPopup = (tab: 'friends' | 'followers' | 'following') => {
+    if (selectedProfile) {
+      setPopupTab(tab);
+      setPopupOpen(true);
+    }
+  };
 
   const headers = {
     "Authorization": `Bearer ${token}`,
@@ -524,19 +536,19 @@ const FriendPopular: React.FC = () => {
                   </div>
 
                   <div className="flex mt-[15px] gap-[150px] ">
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.friendCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">friends</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('followers')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followerCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">followers</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('following')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followingCount}
                       </h4>
@@ -713,6 +725,16 @@ const FriendPopular: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Profile Popup */}
+      {selectedProfile && (
+        <ProfilePopup
+          isOpen={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          userId={selectedProfile.id}
+          initialTab={popupTab}
+        />
+      )}
       <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }`}</style>
     </div>
   );

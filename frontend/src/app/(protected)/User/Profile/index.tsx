@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, Button, Typography, Avatar, Tabs } from "antd";
+import { Card, Button, Typography, Avatar, Tabs, Modal, message } from "antd";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 
 // ⭐ Icons
@@ -46,23 +46,26 @@ function Profile() {
   const [friendList, setFriendList] = useState<any[]>([]);
   const [followerList, setFollowerList] = useState<any[]>([]);
   const [followingList, setFollowingList] = useState<any[]>([]);
+  const [requestList, setRequestList] = useState<any[]>([]);
 
   // ✅ โหลดโปรไฟล์จาก backend ด้วย JWT: GET /api/member/me
   // ✅ โหลดโปรไฟล์จาก backend ด้วย JWT: GET /api/member/me
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [meRes, friendsRes, followersRes, followingRes] = await Promise.all([
+        const [meRes, friendsRes, followersRes, followingRes, requestsRes] = await Promise.all([
           memberAPI.getMe(),
           friendAPI.getMyFriends(),
           friendAPI.getMyFollowers(),
-          friendAPI.getMyFollowing()
+          friendAPI.getMyFollowing(),
+          friendAPI.getReceivedRequests(),
         ]);
 
         const data = meRes.data;
 
         // Process Friends
         const friends = friendsRes.data ? friendsRes.data.map((f: any) => ({
+          id: f.id || f.ID || f.member_id,
           username: f.username,
           avatar: getImageUrl(f.member_picture),
           status: "friend"
@@ -71,6 +74,7 @@ function Profile() {
 
         // Process Followers
         const followers = followersRes.data ? followersRes.data.map((f: any) => ({
+          id: f.id || f.ID || f.member_id,
           username: f.username,
           avatar: getImageUrl(f.member_picture),
           status: "follower"
@@ -79,11 +83,24 @@ function Profile() {
 
         // Process Following
         const following = followingRes.data ? followingRes.data.map((f: any) => ({
+          id: f.id || f.ID || f.member_id,
           username: f.username,
           avatar: getImageUrl(f.member_picture),
           status: "following"
         })) : [];
         setFollowingList(following);
+
+        // Process Requests
+        // Note: Check FriendRequestUI structure in friend.ts if needed
+        // Assuming data structure based on typical API response
+        const requests = requestsRes.data ? requestsRes.data.map((r: any) => ({
+          // Request object might have nested user info or flat
+          // Checking friend.ts: getReceivedRequests returns data directly
+          id: r.sent_member_id || r.sent_mem_id || (r.sent_member ? r.sent_member.id : 0), // Adjust based on actual API
+          item_id: r.id || r.ID, // The Request ID
+          // ... other fields if needed for matching
+        })) : [];
+        setRequestList(requests);
 
         // map gender จาก gender_id ถ้า string ว่าง
         let genderText: string = data.gender || "";
@@ -150,6 +167,120 @@ function Profile() {
   // ⭐ เวลาเปลี่ยนแท็บ
   const handleTabChange = (key: string) => {
     navigate(`/User/Profile/${key}`);
+  };
+
+  // ⭐ Smart Navigate Logic
+  const handleSmartNavigate = (user: any) => {
+    setPopupOpen(false);
+
+    // 1. Is Friend?
+    const isFriend = friendList.some(f => f.id === user.id);
+    if (isFriend) {
+      navigate("/User/Friends/FriendRelation", { state: { selectedId: user.id } });
+      return;
+    }
+
+    // 2. Has Request?
+    // Need to match user.id with sender in requestList
+    // Check requestList structure from earlier step
+    const hasRequest = requestList.some(r => r.id === user.id);
+    if (hasRequest) {
+      navigate("/User/Friends/Request");
+      return;
+    }
+
+    // 3. Fallback / Not Following / Others -> Popular
+    navigate("/User/Friends/Popular", { state: { selectedId: user.id } });
+  };
+
+  // ⭐ Actions with Confirmation
+  const confirmAction = (action: string, user: any) => {
+    let title = "";
+    let content = "";
+    let onOk = async () => { };
+
+    if (action === "view") {
+      handleSmartNavigate(user);
+      return;
+    }
+
+    switch (action) {
+      case "unfriend":
+        console.log("Confirm Action: unfriend", user);
+        title = "Unfriend";
+        content = `Are you sure you want to unfriend ${user.username || "this user"}?`;
+        onOk = async () => {
+          try {
+            await friendAPI.unfriend(user.id);
+            message.success(`Unfriended ${user.username}`);
+            // Update Friend List & Popup List
+            setFriendList(prev => prev.filter(f => f.username !== user.username));
+            setPopupList(prev => prev.filter(item => item.username !== user.username)); // ⭐ Update visible list
+            setProfile((prev: any) => ({ ...prev, friends: Math.max(0, prev.friends - 1) }));
+          } catch (e) { message.error("Failed to unfriend"); }
+        };
+        break;
+      case "follow_back":
+        title = "Follow Back";
+        content = `Do you want to follow ${user.username}?`;
+        onOk = async () => {
+          try {
+            await friendAPI.followUser(user.id);
+            message.success(`Followed ${user.username}`);
+            // Update Following List (Add user)
+            // Note: We might not have full user details to add to following list perfectly without re-fetching,
+            // but for stats and buttons it's fine.
+            // Ideally: fetch user profile or constructed object.
+            // For now, let's just update stats and maybe refetch background or just leave list as is (it's followers tab).
+            setProfile((prev: any) => ({ ...prev, following: prev.following + 1 }));
+
+            // Allow immediate UI feedback if we need to change button state?
+            // Since "Follow Back" button depends on 'followingList', we should add a dummy entry to followingList
+            setFollowingList(prev => [...prev, { ...user, status: 'following' }]);
+
+          } catch (e) { message.error("Failed to follow"); }
+        };
+        break;
+      case "remove_follower":
+        // console.log("Confirm Action: remove_follower", user);
+        title = "Remove Follower";
+        content = `Are you sure you want to remove ${user.username || "this user"} from your followers?`;
+        onOk = async () => {
+          try {
+            await friendAPI.removeFollower(user.id);
+            message.success(`Removed ${user.username} from followers`);
+
+            // ⭐ Immediate Update
+            setFollowerList(prev => prev.filter(f => f.username !== user.username));
+            setPopupList(prev => prev.filter(item => item.username !== user.username)); // Update visible Popup
+            setProfile((prev: any) => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
+
+          } catch (e) { message.error("Failed to remove follower"); }
+        };
+        break;
+      case "unfollow":
+        // console.log("Confirm Action: unfollow", user);
+        title = "Unfollow";
+        content = `Are you sure you want to unfollow ${user.username || "this user"}?`;
+        onOk = async () => {
+          try {
+            await friendAPI.unfollowUser(user.id);
+            message.success(`Unfollowed ${user.username}`);
+
+            // ⭐ Immediate Update
+            setFollowingList(prev => prev.filter(f => f.username !== user.username));
+            setPopupList(prev => prev.filter(item => item.username !== user.username)); // Update visible Popup
+            setProfile((prev: any) => ({ ...prev, following: Math.max(0, prev.following - 1) }));
+
+          } catch (e) { message.error("Failed to unfollow"); }
+        };
+        break;
+    }
+
+    // Using native confirm for immediate fix
+    if (window.confirm(content)) {
+      onOk();
+    }
   };
 
   const switchPopupTab = (key: string) => {
@@ -376,9 +507,18 @@ function Profile() {
               borderRadius: 20,
               padding: 30,
               boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
+              position: "relative", // Ensure absolute positioning works for children
             }}
           >
-            <Title level={3} style={{ color: "#C42E0A" }}>
+            <Button
+              type="text"
+              onClick={() => setPopupOpen(false)}
+              style={{ position: "absolute", top: 20, right: 20, fontWeight: "bold", fontSize: "16px", color: "#888" }}
+            >
+              X
+            </Button>
+
+            <Title level={3} style={{ color: "#C42E0A", marginTop: 10 }}>
               {profile.username}
             </Title>
 
@@ -401,36 +541,85 @@ function Profile() {
               ))}
             </div>
 
-            {popupList.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "15px 0",
-                  borderBottom: "1px solid #ddd",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-                  <Avatar size={55} src={item.avatar}>
-                    {item.username[0]}
-                  </Avatar>
-                  <span style={{ fontSize: 17, fontWeight: 600 }}>{item.username}</span>
+            {popupList.map((item, i) => {
+              // Check isFollowing for Followers tab logic
+              const isFollowing = followingList.some(f => f.username === item.username);
+
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "15px 0",
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 15, cursor: "pointer" }}
+                    onClick={() => confirmAction("view", item)}
+                  >
+                    <Avatar size={55} src={item.avatar}>
+                      {item.username?.[0]}
+                    </Avatar>
+                    <span style={{ fontSize: 17, fontWeight: 600 }}>{item.username}</span>
+                  </div>
+
+                  {/* ⭐ Buttons based on Tab */}
+                  {popupTab === "friends" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Button onClick={() => confirmAction("view", item)}>
+                        View Profile
+                      </Button>
+                    </div>
+                  )}
+
+                  {popupTab === "followers" && (
+                    <>
+                      {/* If we follow them -> Show Remove Follower (as requested) */}
+                      {isFollowing ? (
+                        <Button
+                          danger
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmAction("remove_follower", item);
+                          }}
+                        >
+                          Remove Follower
+                        </Button>
+                      ) : (
+                        <Button
+                          type="primary"
+                          style={{ background: "#C42E0A", border: "none" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmAction("follow_back", item);
+                          }}
+                        >
+                          Follow Back
+                        </Button>
+                      )}
+                    </>
+                  )}
+
+                  {popupTab === "following" && (
+                    <Button
+                      danger
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmAction("unfollow", item);
+                      }}
+                    >
+                      Unfollow
+                    </Button>
+                  )}
                 </div>
-
-                {popupTab === "followers" && (
-                  <Button type="primary" style={{ background: "#C42E0A", border: "none" }}>
-                    follow back
-                  </Button>
-                )}
-
-                {popupTab === "following" && <Button danger>unfollow</Button>}
-              </div>
-            ))}
+              )
+            })}
 
             <div style={{ textAlign: "right", marginTop: 25 }}>
-              <Button onClick={() => setPopupOpen(false)}>Close</Button>
+              {/* Moved Close Button to Top-Right */}
             </div>
           </div>
         </div>

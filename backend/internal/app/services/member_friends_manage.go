@@ -224,6 +224,12 @@ func (s *FriendService) Unfollow(data dto.UnfollowDTO) error {
 	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 3)
 }
 
+func (s *FriendService) RemoveFollower(followedID, followerID int) error {
+	// เจ้าของโปรไฟล์ (followedID) ต้องการลบผู้ติดตาม (followerID)
+	// ใช้สถานะ 3 (Unfollowed) เช่นกัน
+	return s.Repo.UpdateFollowStatus(followerID, followedID, 3)
+}
+
 func (s *FriendService) Mute(data dto.MuteDTO) error {
 	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 2) // 2: Muted
 }
@@ -238,4 +244,18 @@ func (s *FriendService) GetPopularMembers(myID int) ([]entity.Member, error) {
 
 func (s *FriendService) GetAllMembers(myID int) ([]entity.Member, error) {
 	return s.Repo.GetAllMembers(myID)
+}
+
+// ---------------------- Public Access (Other Users) -------------------
+
+func (s *FriendService) GetMemberFriends(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFriendsForUser(memberID)
+}
+
+func (s *FriendService) GetMemberFollowers(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFollowers(memberID)
+}
+
+func (s *FriendService) GetMemberFollowing(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFollowing(memberID)
 }
