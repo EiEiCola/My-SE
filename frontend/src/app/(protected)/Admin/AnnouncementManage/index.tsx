@@ -12,12 +12,18 @@ import {
   message,
   Tooltip,
   Avatar,
+  Row,
+  Col,
+  Statistic,
 } from "antd";
 import {
   PlusOutlined,
   DeleteOutlined,
   FileTextOutlined,
   ExclamationCircleOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
 } from "@ant-design/icons";
 
 const { Title } = Typography;
@@ -93,6 +99,40 @@ const AnnouncementManage: React.FC = () => {
 
   useEffect(() => {
     fetchRequests();
+  }, [filterStatus]);
+
+  // Stats State
+  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 });
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const query = (status?: number) => `/api/admin/pr-submissions?page_size=1${status ? `&status_id=${status}` : ""}`;
+
+      const [resTotal, resPending, resApproved, resRejected] = await Promise.all([
+        fetch(query(), { headers }).then(r => r.json()),
+        fetch(query(1), { headers }).then(r => r.json()),
+        fetch(query(2), { headers }).then(r => r.json()),
+        fetch(query(3), { headers }).then(r => r.json())
+      ]);
+
+      setStats({
+        total: resTotal.total || 0,
+        pending: resPending.total || 0,
+        approved: resApproved.total || 0,
+        rejected: resRejected.total || 0
+      });
+    } catch (e) {
+      console.error("Fetch stats error", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+    fetchStats();
   }, [filterStatus]);
 
   // Delete Modal State
@@ -273,6 +313,58 @@ const AnnouncementManage: React.FC = () => {
             </Button>
           </Space>
         </div>
+
+        {/* Stats Section */}
+        <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-blue-100 text-sm font-medium">ทั้งหมด</span>}
+                  value={stats.total}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <FileTextOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-orange-400 to-amber-500 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-orange-100 text-sm font-medium">รอตรวจสอบ</span>}
+                  value={stats.pending}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <ClockCircleOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-emerald-500 to-green-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-green-100 text-sm font-medium">อนุมัติแล้ว</span>}
+                  value={stats.approved}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <CheckCircleOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-red-500 to-rose-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-red-100 text-sm font-medium">ปฏิเสธ</span>}
+                  value={stats.rejected}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <CloseCircleOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+        </Row>
 
         {/* Table Section */}
         <Table

@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { message } from "antd"; // Import message toast
+import { message, Card, Row, Col, Statistic } from "antd"; // Import message toast
+import {
+  FileTextOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  StopOutlined
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./AdminPollList.css";
 import { adminPollAPI } from "../../../../services/http/admin_poll";
@@ -268,22 +275,8 @@ const AdminPollList: React.FC = () => {
   const fetchPolls = async () => {
     setLoading(true);
     try {
-      const [pending, published, rejected, closed] = await Promise.all([
-        adminPollAPI.list(2),
-        adminPollAPI.list(3),
-        adminPollAPI.list(4),
-        adminPollAPI.list(5),
-      ]);
-
-      // Extract data from AxiosResponse
-      const allPolls = [
-        ...(Array.isArray(pending.data) ? pending.data : []),
-        ...(Array.isArray(published.data) ? published.data : []),
-        ...(Array.isArray(rejected.data) ? rejected.data : []),
-        ...(Array.isArray(closed.data) ? closed.data : []),
-      ];
-
-      setPolls(allPolls);
+      const res = await adminPollAPI.list(); // Fetch all
+      setPolls(res.data || []);
     } catch (err) {
       console.error("Failed to fetch polls:", err);
       message.error("โหลดข้อมูลไม่สำเร็จ");
@@ -527,28 +520,68 @@ const AdminPollList: React.FC = () => {
       </div>
 
       {/* STATS */}
-      <div className="stats">
-        <div className="stat">
-          <div className="k">ทั้งหมด</div>
-          <div className="v">{stats.total}</div>
-        </div>
-        <div className="stat">
-          <div className="k">รอตรวจสอบ</div>
-          <div className="v">{stats.pending}</div>
-        </div>
-        <div className="stat">
-          <div className="k">เผยแพร่แล้ว</div>
-          <div className="v">{stats.published}</div>
-        </div>
-        <div className="stat">
-          <div className="k">ปฏิเสธ</div>
-          <div className="v">{stats.rejected}</div>
-        </div>
-        <div className="stat">
-          <div className="k">ปิดแล้ว</div>
-          <div className="v">{stats.closed}</div>
-        </div>
-      </div>
+      <Row gutter={[24, 24]} justify="center" style={{ marginBottom: 32 }}>
+        <Col xs={24} sm={12} md={4}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-blue-100 text-sm font-medium">ทั้งหมด</span>}
+                value={stats.total}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <FileTextOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={4}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-orange-500 to-amber-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-orange-100 text-sm font-medium">รอตรวจสอบ</span>}
+                value={stats.pending}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <ClockCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={4}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-emerald-500 to-green-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-green-100 text-sm font-medium">เผยแพร่แล้ว</span>}
+                value={stats.published}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <CheckCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={4}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-red-500 to-rose-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-red-100 text-sm font-medium">ปฏิเสธ</span>}
+                value={stats.rejected}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <CloseCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={4}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-slate-500 to-slate-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-slate-100 text-sm font-medium">ปิดแล้ว</span>}
+                value={stats.closed}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <StopOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+      </Row>
 
       {/* TOOLBAR */}
       <div className="toolbar" style={{ marginBottom: 14 }}>

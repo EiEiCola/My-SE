@@ -169,7 +169,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
 
   // Memoize page title
   const title = useMemo(() => getPageTitle(), [location.pathname, role]);
-  const subtitle = role === "admin" ? "Admin Panel" : "Welcome back";
+  const subtitle = role === "admin" ? "Admin Panel" : "SUT Community Platform";
 
   return (
     <div className="bg-gradient-to-r from-orange-500 to-orange-600 backdrop-blur-xl border-b border-orange-400/50 px-6 py-4 relative z-40 shadow-lg">

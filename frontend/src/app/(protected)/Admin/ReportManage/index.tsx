@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar, App } from "antd";
-import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
+import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar, App, Statistic } from "antd";
+import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined, FileTextOutlined, ClockCircleOutlined, CloseCircleOutlined, SyncOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { ReportService, type Report } from "../../../../services/http/report";
@@ -72,9 +72,40 @@ const ReportManage: React.FC = () => {
     }
   };
 
+  const [stats, setStats] = useState({ total: 0, pending: 0, processing: 0, finished: 0, rejected: 0 });
+
+  const fetchStatsCounts = async () => {
+    try {
+      const getCount = (sid?: number) => ReportService.getAdminReports({
+        page: 1,
+        page_size: 1,
+        status_id: sid,
+        q: searchText,
+        target_type: filterType
+      });
+
+      const [all, p1, p2, p3, p4] = await Promise.all([
+        getCount(),
+        getCount(1),
+        getCount(2),
+        getCount(3),
+        getCount(4)
+      ]);
+
+      setStats({
+        total: all.data?.total || 0,
+        pending: p1.data?.total || 0,
+        processing: p2.data?.total || 0,
+        finished: p3.data?.total || 0,
+        rejected: p4.data?.total || 0
+      });
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     fetchReports();
     fetchReportStatuses();
+    fetchStatsCounts();
   }, [searchText, filterStatus, filterType]);
 
   const handleView = (report: Report) => {
