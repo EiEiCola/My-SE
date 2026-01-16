@@ -488,7 +488,29 @@ func (ctl *PostController) GetComments(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": comments})
+	// Get current user's member ID for checking liked status
+	memberID, ok := ctl.getMemberProfileID(c)
+
+	// Create response with is_liked field
+	type CommentResponse struct {
+		entity.Comment
+		IsLiked bool `json:"is_liked"`
+	}
+
+	var response []CommentResponse
+	for _, comment := range comments {
+		isLiked := false
+		if ok && memberID > 0 {
+			// Check if user liked this comment
+			isLiked = ctl.Service.HasUserLikedComment(comment.ID, memberID)
+		}
+		response = append(response, CommentResponse{
+			Comment: comment,
+			IsLiked: isLiked,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": response})
 }
 
 // CreateComment - POST /api/member/posts/:id/comments
@@ -603,9 +625,10 @@ func (ctl *PostController) GetBookmarkedPosts(c *gin.Context) {
 
 // GetMyPosts - GET /api/member/posts/mine
 func (ctl *PostController) GetMyPosts(c *gin.Context) {
-	memberID, ok := getMemberID(c)
+	// ✅ Fixed: Use getMemberProfileID to get correct Member Profile ID (not Account ID)
+	memberID, ok := ctl.getMemberProfileID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized (profile not found)"})
 		return
 	}
 
@@ -616,4 +639,31 @@ func (ctl *PostController) GetMyPosts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
+// ToggleLikeComment - POST /api/member/posts/:id/comments/:commentId/like
+func (ctl *PostController) ToggleLikeComment(c *gin.Context) {
+	memberID, ok := ctl.getMemberProfileID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	commentIdStr := c.Param("commentId")
+	commentID, err := strconv.ParseUint(commentIdStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment id"})
+		return
+	}
+
+	isLiked, likeCount, err := ctl.Service.ToggleLikeComment(uint(commentID), memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_liked":   isLiked,
+		"like_count": likeCount,
+	})
 }

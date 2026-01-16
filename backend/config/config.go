@@ -113,6 +113,7 @@ func Connect() *gorm.DB {
 		&entity.Comment{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
+		&entity.CommentLike{}, // สำหรับกดไลค์คอมเมนต์
 		&entity.PostImage{},
 		&entity.PostAttachment{},
 		&entity.ReviewImage{},

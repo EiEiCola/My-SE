@@ -216,6 +216,10 @@ export const postService = {
     deleteComment: (postId: number, commentId: number) =>
         api.delete(`/member/posts/${postId}/comments/${commentId}`),
 
+    // Toggle like on a comment
+    toggleLikeComment: (postId: number, commentId: number) =>
+        api.post<{ is_liked: boolean; like_count: number }>(`/member/posts/${postId}/comments/${commentId}/like`),
+
     // =============== PROFILE FEATURE API ===============
 
     // Get bookmarked posts (My Fav)

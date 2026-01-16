@@ -60,24 +60,27 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     fetchProfile();
   }, [role]);
 
-  // Fetch Notifications
+  // Fetch Notifications function
+  const fetchNotifications = async () => {
+    if (role !== 'user') return;
+    try {
+      const res = await notificationAPI.getAll();
+      // Check data structure carefully
+      // API returns { data: Notification[] } based on controller
+      if (res.data && Array.isArray(res.data.data)) {
+        setNotifications(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    }
+  };
+
+  // Fetch on initial load + Poll every 5 minutes (300000ms)
   useEffect(() => {
     if (role === 'user') {
-      const fetchNotifs = async () => {
-        try {
-          const res = await notificationAPI.getAll();
-          // Check data structure carefully
-          // API returns { data: Notification[] } based on controller
-          if (res.data && Array.isArray(res.data.data)) {
-            setNotifications(res.data.data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch notifications", err);
-        }
-      };
-      fetchNotifs();
-      // Poll every 30 seconds
-      const interval = setInterval(fetchNotifs, 30000);
+      fetchNotifications();
+      // Poll every 5 minutes instead of 30 seconds to reduce server load
+      const interval = setInterval(fetchNotifications, 300000);
       return () => clearInterval(interval);
     }
   }, [role]);
@@ -126,9 +129,9 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const adminTitles: { [key: string]: string } = {
         "/Admin": "หน้าหลัก",
         "/Admin/ProfileManage": "จัดการผู้ใช้",
-        "/Admin/Profile/Edit" : "แก้ไขโปรไฟล์" ,
+        "/Admin/Profile/Edit": "แก้ไขโปรไฟล์",
         "/Admin/RewardManage": "จัดการสะสมแต้ม",
-        "/Admin/RewardManage/PointRule" : "จัดการกฎการได้แต้ม" ,
+        "/Admin/RewardManage/PointRule": "จัดการกฎการได้แต้ม",
         "/Admin/MessageManage": "จัดการข้อความ",
         "/Admin/FriendsManage": "จัดการเพื่อน",
         "/Admin/PostManage": "จัดการโพสต์",
@@ -143,10 +146,10 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const userTitles: { [key: string]: string } = {
         "/User": "หน้าหลัก",
         "/User/Profile": "โปรไฟล์",
-        "/User/Profile/Edit" : "แก้ไขโปรไฟล์" ,
-        "/User/Profile/sticker" : "โปรไฟล์" ,
-        "/User/Profile/post" : "โปรไฟล์" , 
-         "/User/Profile/fav" : "โปรไฟล์" ,           
+        "/User/Profile/Edit": "แก้ไขโปรไฟล์",
+        "/User/Profile/sticker": "โปรไฟล์",
+        "/User/Profile/post": "โปรไฟล์",
+        "/User/Profile/fav": "โปรไฟล์",
         "/User/Reward": "สะสมแต้ม",
         "/User/Message": "ข้อความ",
         "/User/Friends": "เพื่อน",
@@ -196,7 +199,12 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
           {/* Notification Bell */}
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              onClick={() => {
+                const willOpen = !isNotifOpen;
+                setIsNotifOpen(willOpen);
+                // Fetch fresh notifications when opening dropdown
+                if (willOpen) fetchNotifications();
+              }}
               className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
               title="แจ้งเตือน"
             >
