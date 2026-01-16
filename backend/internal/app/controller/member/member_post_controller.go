@@ -172,7 +172,8 @@ func (ctl *PostController) GetAllPosts(c *gin.Context) {
 
 	// If no pagination params, return all (for backward compatibility)
 	if page == 0 && limit == 0 {
-		posts, err := ctl.Service.GetAllPosts()
+		// ✅ Use GetAllActivePosts to exclude deleted posts
+		posts, err := ctl.Service.GetAllActivePosts()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

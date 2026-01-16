@@ -27,10 +27,11 @@ type Post struct {
 	SubCategoryL1 *SubCategoryL1 `valid:"-" gorm:"foreignKey:SubCategoryL1ID" json:"SubCategoryL1,omitempty"`
 	SubCategoryL2 *SubCategoryL2 `valid:"-" gorm:"foreignKey:SubCategoryL2ID" json:"SubCategoryL2,omitempty"`
 
-	Status       string `valid:"required~Status is required,in(active|reported|deleted)~Status is invalid" json:"status"`
-	ViewCount    uint   `json:"view_count"`
-	LikeCount    uint   `json:"like_count"`
-	CommentCount uint   `json:"comment_count"`
+	Status        string `valid:"required~Status is required,in(active|reported|deleted)~Status is invalid" json:"status"`
+	ViewCount     uint   `json:"view_count"`
+	LikeCount     uint   `json:"like_count"`
+	CommentCount  uint   `json:"comment_count"`
+	DeletedReason string `json:"deleted_reason"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

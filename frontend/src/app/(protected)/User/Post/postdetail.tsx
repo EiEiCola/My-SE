@@ -941,8 +941,25 @@ const PostDetail: React.FC = () => {
                                             if (isFriend) {
                                                 // เป็นเพื่อนแล้ว -> ไปหน้าเพื่อนทั้งหมด พร้อม auto-select
                                                 navigate("/User/Friends/FriendRelation", { state: { selectedId: post.authorId } });
+                                                return;
+                                            }
+
+                                            // ไม่ใช่เพื่อน: เช็คว่าเขาส่งคำขอมาหาเราหรือไม่
+                                            const receivedData = await friendAPI.getReceivedRequests();
+                                            const receivedRequests = receivedData?.data || receivedData || [];
+                                            const hasPendingFromThem = Array.isArray(receivedRequests) && receivedRequests.some(
+                                                (req: any) => {
+                                                    // API ส่ง sent_mem_id หรือ sent_member.ID มา
+                                                    const senderMemberId = req.sent_mem_id || req.sent_member?.ID || req.sent_member?.id;
+                                                    return senderMemberId === post.authorId;
+                                                }
+                                            );
+
+                                            if (hasPendingFromThem) {
+                                                // เขาส่งคำขอมาหาเรา -> ไปหน้าคำขอเป็นเพื่อน พร้อม auto-select
+                                                navigate("/User/Friends/Request", { state: { selectedId: post.authorId } });
                                             } else {
-                                                // ยังไม่เป็นเพื่อน -> ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+                                                // เราส่งคำขอไปหาเขา หรือยังไม่มีคำขอ -> ไปหน้าเพื่อนแนะนำ
                                                 navigate("/User/Friends/Popular", { state: { selectedId: post.authorId } });
                                             }
                                         } catch (error) {
