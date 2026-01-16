@@ -12,7 +12,7 @@ const { Option } = Select;
 
 const ReportManage: React.FC = () => {
   const navigate = useNavigate();
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
   const resolveMediaUrl = (url?: string) => {
     if (!url) return "";
@@ -126,7 +126,7 @@ const ReportManage: React.FC = () => {
       cancelText: "ยกเลิก",
       onOk: async () => {
         try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
           const token = localStorage.getItem("token");
 
           let endpoint = "";

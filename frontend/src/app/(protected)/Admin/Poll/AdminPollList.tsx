@@ -14,7 +14,7 @@ type StatusName =
   | "UPCOMING"
   | "UNKNOWN";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 const toFullUrl = (u?: string) => {
   if (!u) return "";
   const s = String(u).trim();

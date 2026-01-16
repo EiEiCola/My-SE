@@ -52,7 +52,7 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const ORANGE = "#ff6a00";
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 // Helper function to format avatar URL
 const formatAvatarUrl = (url: string | undefined | null, seed?: string | number): string => {
@@ -774,7 +774,7 @@ const PostDetail: React.FC = () => {
                                             }}
                                         >
                                             <Image
-                                                src={`http://localhost:8080${img.url}`}
+                                                src={`${img.url}`}
                                                 alt={`Post image ${img.orderIndex + 1}`}
                                                 style={{
                                                     width: "100%",
@@ -834,7 +834,7 @@ const PostDetail: React.FC = () => {
                                     return (
                                         <a
                                             key={file.id}
-                                            href={`http://localhost:8080${file.fileUrl}`}
+                                            href={`${file.fileUrl}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             download={file.fileName}
@@ -1272,7 +1272,7 @@ const PostDetail: React.FC = () => {
                                                     {c.images.sort((a, b) => a.orderIndex - b.orderIndex).map((img) => (
                                                         <Image
                                                             key={img.id}
-                                                            src={`http://localhost:8080${img.url}`}
+                                                            src={`${img.url}`}
                                                             alt="comment image"
                                                             style={{
                                                                 width: 80,
@@ -1304,7 +1304,7 @@ const PostDetail: React.FC = () => {
                                                     return (
                                                         <a
                                                             key={file.id}
-                                                            href={`http://localhost:8080${file.fileUrl}`}
+                                                            href={`${file.fileUrl}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             download={file.fileName}
