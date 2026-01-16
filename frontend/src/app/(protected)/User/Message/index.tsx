@@ -97,7 +97,16 @@ const ChatPage: React.FC = () => {
    const messagesEndRef = useRef<HTMLDivElement>(null);
    const activeRoomIdRef = useRef<number | null>(null);
    const roomsRef = useRef<Room[]>([]); // ✅ Added roomsRef
-   const WS_URL = "ws://localhost:8080/api/member/chat/ws";
+   // Determine WebSocket protocol and host dynamically
+   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+   const host = window.location.host; // includes port (e.g. localhost:5173 or 20.2.232.189:80)
+   // If running on localhost:5173 (dev), we might still want localhost:8080 if not proxied, 
+   // but for production (Nginx), window.location.host is correct.
+   // Fallback for local dev without proxy:
+   const isDev = host.includes("localhost:5173");
+   const WS_URL = isDev
+      ? "ws://localhost:8080/api/member/chat/ws"
+      : `${protocol}//${host}/api/member/chat/ws`;
    const token = localStorage.getItem('token') || "";
    const [myUserID, setMyUserID] = useState<number>(() => {
       const saved = localStorage.getItem('my_member_id');

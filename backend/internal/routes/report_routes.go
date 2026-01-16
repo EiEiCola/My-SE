@@ -10,7 +10,7 @@ import (
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
-func SetupReportRoutes(api *gin.RouterGroup) {
+func SetupReportRoutes(api *gin.RouterGroup, memberService services.MemberService) {
 	db := config.DB
 
 	// Repo & Service

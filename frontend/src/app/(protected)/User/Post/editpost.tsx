@@ -315,7 +315,7 @@ const EditPost: React.FC = () => {
                                     .map((img) => (
                                         <div key={img.id} style={{ position: "relative" }}>
                                             <Image
-                                                src={`http://localhost:8080${img.url}`}
+                                                src={`${img.url}`}
                                                 alt="Existing"
                                                 width={100}
                                                 height={100}
@@ -394,7 +394,7 @@ const EditPost: React.FC = () => {
                                             <Button
                                                 type="text"
                                                 icon={<DownloadOutlined />}
-                                                href={`http://localhost:8080${att.fileUrl}`}
+                                                href={`${att.fileUrl}`}
                                                 target="_blank"
                                             />
                                             <Button

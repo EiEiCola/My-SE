@@ -26,7 +26,7 @@ function Login() {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:8080/api/auth/login", {
+      const res = await axios.post("/api/auth/login", {
         identifier,
         password,
       });

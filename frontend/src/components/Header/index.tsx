@@ -58,6 +58,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     fetchProfile();
   }, [role]);
 
+  /*
   // Fetch Notifications function
   const fetchNotifications = async () => {
     if (role !== 'user') return;
@@ -82,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       return () => clearInterval(interval);
     }
   }, [role]);
-
+  */
   // Memoize unread count
   const unreadCount = useMemo(
     () => notifications.filter(n => !n.is_read).length,
@@ -206,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
                 const willOpen = !isNotifOpen;
                 setIsNotifOpen(willOpen);
                 // Fetch fresh notifications when opening dropdown
-                if (willOpen) fetchNotifications();
+                //if (willOpen) fetchNotifications();
               }}
               className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
               title="แจ้งเตือน"

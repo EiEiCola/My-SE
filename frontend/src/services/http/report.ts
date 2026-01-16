@@ -30,6 +30,7 @@ export interface Report {
         id: number;
         username: string;
         email?: string;
+        member_picture?: string;
     };
     status?: {
         id: number;
