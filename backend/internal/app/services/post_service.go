@@ -690,6 +690,18 @@ func (s *PostService) GetMyPosts(memberID uint) ([]entity.Post, error) {
 	return s.PostRepo.FindByAuthorID(memberID)
 }
 
+// GetPostsByMemberID - Get posts by specific member ID (Public API)
+func (s *PostService) GetPostsByMemberID(memberID uint) ([]entity.Post, error) {
+	// In the future: Add visibility check here (public/friends only)
+	return s.PostRepo.FindByAuthorID(memberID)
+}
+
+// GetBookmarkedPostsByMemberID - Get bookmarks by specific member ID
+func (s *PostService) GetBookmarkedPostsByMemberID(memberID uint) ([]entity.Post, error) {
+	// In the future: Add visibility check here
+	return s.BookmarkRepo.GetBookmarkedPosts(memberID)
+}
+
 // =============== COMMENT LIKE METHODS ===============
 
 // ToggleLikeComment toggles like status for a comment and returns new status and count
