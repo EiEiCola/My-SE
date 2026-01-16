@@ -78,8 +78,10 @@ function HomeUser() {
     return date.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
   };
 
-  // Helper function to format image URLs
-  const API_BASE = import.meta.env.VITE_API_URL || "";
+  // Helper function to format image URLs - Auto-detect environment
+  const API_BASE = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8080'
+    : (import.meta.env.VITE_API_URL || '');
   const formatImageUrl = (url: string) => {
     if (!url) return "";
     if (url.startsWith("http")) return url;
