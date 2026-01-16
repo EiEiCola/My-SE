@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "./MyPolls.css";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd"; // ✅ Import message
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
 
 type StatusName =
@@ -97,6 +98,7 @@ const StatusBadge = ({ status }: { status: StatusName }) => {
 
 const MyPolls: React.FC = () => {
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage(); // ✅ Initialize hook
 
   // ✅ lightbox (ดูรูปใหญ่) — ต้องอยู่ใน component
   const [imgOpen, setImgOpen] = useState(false);
@@ -631,6 +633,7 @@ const MyPolls: React.FC = () => {
   const handleDelete = (id: number) => {
     openConfirm("ลบโพลนี้ใช่หรือไม่?", "การกระทำนี้ไม่สามารถย้อนกลับได้", true, async () => {
       await pollAPI.deletePoll(id);
+      messageApi.success("ลบโพลสำเร็จ");
       await fetchPolls(undefined); // ✅ refresh ทั้งหมด
     });
   };
@@ -642,6 +645,7 @@ const MyPolls: React.FC = () => {
       false,
       async () => {
         await pollAPI.submitForReview(id);
+        messageApi.success("ส่งโพลสำเร็จ");
         await fetchPolls(undefined); // ✅ refresh ทั้งหมด
       }
     );
@@ -726,6 +730,7 @@ const MyPolls: React.FC = () => {
 
   return (
     <div className="my-polls-page">
+      {contextHolder}
       {/* Back Button */}
       <div style={{ marginBottom: 16 }}>
         <button className="my-back-btn" onClick={() => navigate("/User/Polls")}>

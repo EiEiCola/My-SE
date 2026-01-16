@@ -10,6 +10,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 })
+ //ยุ้ยเพิ่ม Updating vite.config.ts to include a proxy rule for /uploads, ensuring images served by the backend are accessible via the frontend dev server. 

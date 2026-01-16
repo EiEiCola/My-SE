@@ -64,6 +64,9 @@ const ReviewManage: React.FC = () => {
   const [detailReview, setDetailReview] = useState<AdminReviewItem | null>(null);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
+  /* Confimation Modal State */
+  const [messageApi, contextHolder] = message.useMessage();
+
   const loadReviews = async () => {
     try {
       setLoading(true);
@@ -75,7 +78,7 @@ const ReviewManage: React.FC = () => {
       setReportedCount(data.reported_count || 0);
     } catch (error) {
       console.error("Failed to load reviews:", error);
-      message.error("ไม่สามารถโหลดข้อมูลรีวิวได้");
+      messageApi.error("ไม่สามารถโหลดข้อมูลรีวิวได้");
     } finally {
       setLoading(false);
     }
@@ -110,14 +113,14 @@ const ReviewManage: React.FC = () => {
       if (!selectedReview) return;
 
       await deleteAdminReview(selectedReview.id, values.reason);
-      message.success("ลบรีวิวสำเร็จ");
+      messageApi.success("ลบรีวิวสำเร็จ");
       setIsDeleteModalOpen(false);
 
       // reload
       setTimeout(() => loadReviews(), 200);
     } catch (error: any) {
       if (error?.name !== "ValidationError") {
-        message.error(error?.message || "ลบไม่สำเร็จ");
+        messageApi.error(error?.message || "ลบไม่สำเร็จ");
       }
     }
   };
@@ -168,20 +171,36 @@ const ReviewManage: React.FC = () => {
       title: "ผู้เขียน",
       dataIndex: "member",
       key: "member",
-      render: (member) => (
-        <Space>
-          <Avatar
-            src={member?.member_picture}
-            className="premium-avatar"
-            style={{ backgroundColor: "#87d068" }}
-          >
-            {(member?.username || "?").charAt(0).toUpperCase()}
-          </Avatar>
-          <div className="author-info">
-            <div className="author-name">{member?.username || "-"}</div>
-          </div>
-        </Space>
-      ),
+      render: (member) => {
+        const isAnon = false; // Admin view usually shows real user? Or should check record.is_anonymous?
+        // Note: record doesn't have is_anonymous directly here (it's inside member usually?), actually types say AdminReviewItem has member obj.
+        // Let's check if we need to handle anonymous in table. The UI shows username.
+        // If the user wants consistent "Letter Avatar", we replace Antd Avatar.
+
+        const avatarUrl = member?.member_picture;
+        const name = member?.username || "?";
+
+        return (
+          <Space>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="avatar"
+                style={{
+                  width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0"
+                }}
+              />
+            ) : (
+              <div className="admin-avatar-placeholder">
+                {name.charAt(0)}
+              </div>
+            )}
+            <div className="author-info">
+              <div className="author-name">{name}</div>
+            </div>
+          </Space>
+        );
+      },
     },
     {
       title: "รีวิว",
@@ -269,6 +288,7 @@ const ReviewManage: React.FC = () => {
 
   return (
     <div className="review-manage-page">
+      {contextHolder}
       <div className="page-header-premium">
         <div className="header-text">
           <h1>จัดการรีวิว</h1>
@@ -439,11 +459,11 @@ const ReviewManage: React.FC = () => {
                   </div>
                   {detailReview.deleted_by_type === "ADMIN" && detailReview.admin_delete_reason && (
                     <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>
-                      Reason: {detailReview.admin_delete_reason}
+                      เหตุผล: {detailReview.admin_delete_reason}
                     </div>
                   )}
                   <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
-                    Deleted at: {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
+                    ลบเมื่อ: {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
                       year: "numeric",
                       month: "2-digit",
                       day: "2-digit",
@@ -489,13 +509,21 @@ const ReviewManage: React.FC = () => {
                   <div className="detail-label">ผู้เขียน</div>
                   <div className="detail-value">
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Avatar
-                        src={detailReview.member?.member_picture}
-                        style={{ backgroundColor: "#87d068", border: "1px solid #cbd5e1" }}
-                        size={40}
-                      >
-                        {(detailReview.member?.username || "?").charAt(0).toUpperCase()}
-                      </Avatar>
+                      {/* Avatar Detail Modal */}
+                      {detailReview.member?.member_picture ? (
+                        <img
+                          src={detailReview.member.member_picture}
+                          alt="avatar"
+                          style={{
+                            width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "1px solid #cbd5e1"
+                          }}
+                        />
+                      ) : (
+                        <div className="admin-avatar-placeholder" style={{ width: 40, height: 40, fontSize: 18 }}>
+                          {(detailReview.member?.username || "?").charAt(0)}
+                        </div>
+                      )}
+
                       <div>
                         {detailReview.member?.username || "ไม่ระบุตัวตน"}
                         {detailReview.is_anonymous && (
