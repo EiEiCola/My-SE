@@ -24,7 +24,8 @@ func (r *PostRepository) Update(p *entity.Post) error {
 }
 
 func (r *PostRepository) Delete(id uint) error {
-	return r.DB.Delete(&entity.Post{}, id).Error
+	// Hard Delete: ลบออกจาก Database จริงๆ
+	return r.DB.Unscoped().Delete(&entity.Post{}, id).Error
 }
 
 func (r *PostRepository) FindByID(id uint) (*entity.Post, error) {
@@ -60,7 +61,7 @@ func (r *PostRepository) FindByAuthorID(authorID uint) ([]entity.Post, error) {
 	return posts, err
 }
 
-// ดึงโพสต์ทั้งหมด (สำหรับ admin และ public)
+// ดึงโพสต์ทั้งหมด (สำหรับ admin - รวม deleted)
 func (r *PostRepository) FindAll() ([]entity.Post, error) {
 	var posts []entity.Post
 	err := r.DB.
@@ -74,6 +75,50 @@ func (r *PostRepository) FindAll() ([]entity.Post, error) {
 		Order("created_at DESC").
 		Find(&posts).Error
 	return posts, err
+}
+
+// ดึงโพสต์ที่ Active เท่านั้น (สำหรับ Public/Member)
+func (r *PostRepository) FindAllActive() ([]entity.Post, error) {
+	var posts []entity.Post
+	err := r.DB.
+		Preload("Images").
+		Preload("Attachments").
+		Preload("Reports").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Author").
+		Where("status != ?", "deleted"). // ✅ กรอง deleted ออก
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// ดึงโพสต์ที่ Active แบบ Pagination
+func (r *PostRepository) FindActivePaginated(page, limit int) ([]entity.Post, int64, error) {
+	var posts []entity.Post
+	var total int64
+
+	offset := (page - 1) * limit
+
+	query := r.DB.Model(&entity.Post{}).Where("status != ?", "deleted")
+
+	query.Count(&total)
+
+	err := query.
+		Preload("Images").
+		Preload("Attachments").
+		Preload("Reports").
+		Preload("MainCategory").
+		Preload("SubCategoryL1").
+		Preload("SubCategoryL2").
+		Preload("Author").
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&posts).Error
+
+	return posts, total, err
 }
 
 // ---- PostImage ----

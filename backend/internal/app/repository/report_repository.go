@@ -69,7 +69,7 @@ func (r *ReportRepository) ListByReporter(reporterID uint, page, pageSize int, s
 	return items, total, err
 }
 
-func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType string, reporterID *uint, q string) ([]entity.Report, int64, error) {
+func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType string, targetID *uint, reporterID *uint, q string) ([]entity.Report, int64, error) {
 	var items []entity.Report
 	var total int64
 
@@ -84,6 +84,10 @@ func (r *ReportRepository) ListAll(page, pageSize int, statusID *int, targetType
 	db = r.DB.Model(&entity.Report{}).Where(&queryObj)
 	if targetType != "" {
 		db = db.Where("LOWER(target_type) = LOWER(?)", targetType)
+	}
+	// Filter by target_id (specific post/comment)
+	if targetID != nil {
+		db = db.Where("target_id = ?", *targetID)
 	}
 	if q != "" {
 		escaped := utils.EscapeLikePattern(q)

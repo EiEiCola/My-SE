@@ -64,7 +64,7 @@ export const ReportService = {
     getReportById,
     updateReport,
     deleteReport,
-    getAdminReports: async (params: { page?: number; page_size?: number; status_id?: number; target_type?: string; q?: string }) => {
+    getAdminReports: async (params: { page?: number; page_size?: number; status_id?: number; target_type?: string; target_id?: number; q?: string }) => {
         return await http.get("/admin/reports", { params });
     },
     getReportByIdAdmin: async (id: number) => {

@@ -1,5 +1,6 @@
 // PostManage.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Avatar,
   Button,
@@ -68,6 +69,8 @@ type PostItem = {
 
 // ---------- Component ----------
 const PostManage: React.FC = () => {
+  const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [reportCounts, setReportCounts] = useState<Record<number, number>>({});
@@ -166,6 +169,7 @@ const PostManage: React.FC = () => {
             status: postStatus,
             reportCount,
             content: p.content,
+            deletedReason: p.deleted_reason,
           };
         });
 
@@ -251,10 +255,10 @@ const PostManage: React.FC = () => {
           )
         );
         setDeleteModalOpen(false);
-        message.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
+        messageApi.success("ลบโพสต์และบันทึกเหตุผลเรียบร้อยแล้ว");
       } catch (error) {
         console.error("Failed to delete post:", error);
-        message.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
+        messageApi.error("ไม่สามารถลบโพสต์ได้ กรุณาลองใหม่");
       } finally {
         setDeleting(false);
       }
@@ -264,9 +268,48 @@ const PostManage: React.FC = () => {
   };
 
   // ---------- Drawer: รายละเอียดโพสต์ ----------
-  const openDetailDrawer = (post: PostItem) => {
+  const openDetailDrawer = async (post: PostItem) => {
     setDetailPost(post);
     setDetailOpen(true);
+
+    // Fetch reports for this specific post
+    try {
+      const reportsResponse = await ReportService.getAdminReports({
+        page: 1,
+        page_size: 100,
+        target_type: "post",
+        target_id: post.id,
+      });
+      const reports = reportsResponse.data.data || [];
+
+      // Map reports to PostReport format
+      const mappedReports: PostReport[] = reports.map((r: any) => {
+        // Reporter is a Member object with fields: Username, first_name, last_name
+        let reporterName = "ไม่ระบุผู้รายงาน";
+        if (r.reporter) {
+          reporterName = r.reporter.Username ||
+            r.reporter.username ||
+            (r.reporter.first_name && r.reporter.last_name
+              ? `${r.reporter.first_name} ${r.reporter.last_name}`
+              : `สมาชิก #${r.reporter_id}`);
+        }
+
+        return {
+          id: r.id || r.ID,
+          reporter: reporterName,
+          reason: r.description || r.title || "ไม่ระบุเหตุผล",
+          createdAt: new Date(r.created_at).toLocaleString("th-TH"),
+        };
+      });
+
+      // Update detailPost with reports
+      setDetailPost(prev => prev ? {
+        ...prev,
+        reports: mappedReports,
+      } : prev);
+    } catch (error) {
+      console.error("Failed to fetch reports for post:", error);
+    }
   };
 
   // ---------- Status Tag ----------
@@ -346,32 +389,46 @@ const PostManage: React.FC = () => {
       width: 80,
       align: "right",
       render: (_, record) => {
+        const isDeleted = record.status === "deleted";
         const items: MenuProps["items"] = [
           {
+            key: "view",
+            label: "ดูรายละเอียด",
+            icon: <SearchOutlined />, // หรือ EyeOutlined ถ้ามี
+          },
+        ];
+
+        // เพิ่มเมนูถ้ายังไม่ถูกลบ
+        if (!isDeleted) {
+          items.push({
             key: "delete",
             label: "ลบโพสต์นี้",
             icon: <DeleteOutlined />,
             danger: true,
-          },
-        ];
+          });
+        }
 
         return (
           <Space>
-            <Tooltip title="ลบโพสต์">
-              <Button
-                type="text"
-                icon={<DeleteOutlined style={{ color: "#ef4444" }} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openDeleteModal(record);
-                }}
-              />
-            </Tooltip>
+            {!isDeleted && (
+              <Tooltip title="ลบโพสต์">
+                <Button
+                  type="text"
+                  icon={<DeleteOutlined style={{ color: "#ef4444" }} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDeleteModal(record);
+                  }}
+                />
+              </Tooltip>
+            )}
+
             <Dropdown
               menu={{
                 items,
                 onClick: ({ key }) => {
                   if (key === "delete") openDeleteModal(record);
+                  if (key === "view") navigate(`/User/Post/detail/${record.id}`);
                 },
               }}
               trigger={["click"]}
@@ -382,6 +439,9 @@ const PostManage: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
               />
             </Dropdown>
+
+            {/* Optional: Show info icon or something for deleted posts? or just empty */}
+            {isDeleted && <span style={{ color: '#ccc', fontSize: 12 }}></span>}
           </Space>
         );
       },
@@ -399,6 +459,7 @@ const PostManage: React.FC = () => {
         background: "transparent",
       }}
     >
+      {contextHolder}
       <div style={{ maxWidth: 1040, margin: "0 auto" }}>
         {/* Header */}
         <Row
@@ -843,17 +904,19 @@ const PostManage: React.FC = () => {
               {/* Actions */}
               <Divider />
               <Space>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    if (!detailPost) return;
-                    openDeleteModal(detailPost);
-                  }}
-                  danger
-                  icon={<DeleteOutlined />}
-                >
-                  ลบโพสต์นี้
-                </Button>
+                {detailPost.status !== "deleted" && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      if (!detailPost) return;
+                      openDeleteModal(detailPost);
+                    }}
+                    danger
+                    icon={<DeleteOutlined />}
+                  >
+                    ลบโพสต์นี้
+                  </Button>
+                )}
               </Space>
             </div>
           )}

@@ -4,6 +4,7 @@ import type { Post } from "./post_service";
 // Admin-specific types
 export interface AdminPost extends Post {
     reports?: PostReport[];
+    deleted_reason?: string;
 }
 
 export interface PostReport {

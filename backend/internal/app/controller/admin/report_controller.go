@@ -54,6 +54,16 @@ func (ctl *AdminReportController) List(c *gin.Context) {
 		}
 	}
 	targetType := c.Query("target_type")
+
+	// Parse target_id for filtering reports by specific post/comment
+	var targetID *uint
+	if t := c.Query("target_id"); t != "" {
+		if n, err := strconv.Atoi(t); err == nil {
+			v := uint(n)
+			targetID = &v
+		}
+	}
+
 	var reporterID *uint
 	if r := c.Query("reporter_id"); r != "" {
 		if n, err := strconv.Atoi(r); err == nil {
@@ -63,7 +73,7 @@ func (ctl *AdminReportController) List(c *gin.Context) {
 	}
 	q := c.Query("q")
 
-	items, total, err := ctl.Service.AdminListReports(page, pageSize, statusID, targetType, reporterID, q)
+	items, total, err := ctl.Service.AdminListReports(page, pageSize, statusID, targetType, targetID, reporterID, q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

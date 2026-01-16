@@ -52,13 +52,27 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const ORANGE = "#ff6a00";
-const API_BASE = import.meta.env.VITE_API_URL || "";
+// Auto-detect API_BASE: localhost ใช้ http://localhost:8080, production ใช้ relative URL
+const API_BASE = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8080'
+    : (import.meta.env.VITE_API_URL || '');
 
 // Helper function to format avatar URL
 const formatAvatarUrl = (url: string | undefined | null, seed?: string | number): string => {
     if (!url) return `https://api.dicebear.com/7.x/thumbs/svg?seed=${seed || 'default'}`;
     if (url.startsWith("http")) return url;
     if (url.startsWith("data:")) return url; // Support Base64
+    if (url.startsWith("/")) return `${API_BASE}${url}`;
+    return `${API_BASE}/${url}`;
+};
+
+// Helper function to format file URL (images, attachments) - works for both dev and production
+const formatFileUrl = (url: string | undefined | null): string => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("data:")) return url;
+    // For production: relative URL works (nginx proxies /uploads to backend)
+    // For development: API_BASE = http://localhost:8080
     if (url.startsWith("/")) return `${API_BASE}${url}`;
     return `${API_BASE}/${url}`;
 };
@@ -95,7 +109,8 @@ interface PostData {
     createdAt: string;
     ownerName: string;
     ownerAvatar: string;
-    authorId: number | null;
+    authorId: number | null; // สำหรับ display/navigate (null ถ้า anonymous)
+    rawAuthorId: number | null; // สำหรับเช็ค ownership (มีค่าเสมอ)
     isAnonymous: boolean;
     isOwner: boolean;
     images: ImageItem[];
@@ -170,6 +185,9 @@ const PostDetail: React.FC = () => {
                     ownerAvatar = formatAvatarUrl(apiPost.author.member_picture, apiPost.author_id);
                 }
 
+                // เก็บ raw author_id ไว้เช็ค ownership (แยกจาก authorId ที่ใช้ display)
+                const rawAuthorId = apiPost.author_id;
+
                 setPost({
                     id: apiPost.ID,
                     title: apiPost.title,
@@ -179,7 +197,8 @@ const PostDetail: React.FC = () => {
                     createdAt: createdDate.toLocaleString("th-TH"),
                     ownerName,
                     ownerAvatar,
-                    authorId: apiPost.is_anonymous ? null : apiPost.author_id,
+                    authorId: apiPost.is_anonymous ? null : apiPost.author_id, // สำหรับ display/navigate
+                    rawAuthorId: rawAuthorId, // สำหรับเช็ค ownership
                     isAnonymous: apiPost.is_anonymous,
                     // ใช้ currentUser.ID (Member ID) แทน getUserIdFromToken() (Account ID)
                     isOwner: false, // จะถูก update หลัง currentUser โหลด
@@ -209,17 +228,23 @@ const PostDetail: React.FC = () => {
     }, [id, navigate]);
 
     // Update isOwner when currentUser is loaded (using Member ID, not Account ID)
+    // ใช้ rawAuthorId (ไม่ใช่ authorId) เพื่อให้เจ้าของโพสต์ anonymous ก็เห็นว่าเป็นโพสต์ตัวเอง
     useEffect(() => {
         if (currentUser && post) {
             const myMemberId = (currentUser as any)?.ID || (currentUser as any)?.id;
-            if (myMemberId && post.authorId) {
-                setPost(prev => prev ? {
-                    ...prev,
-                    isOwner: myMemberId === prev.authorId
-                } : prev);
+            const postRawAuthorId = post.rawAuthorId;
+            if (myMemberId && postRawAuthorId) {
+                const isOwner = myMemberId === postRawAuthorId;
+                // Only update if value changed to prevent infinite loop
+                if (post.isOwner !== isOwner) {
+                    setPost(prev => prev ? {
+                        ...prev,
+                        isOwner: isOwner
+                    } : prev);
+                }
             }
         }
-    }, [currentUser, post?.authorId]);
+    }, [currentUser, post?.rawAuthorId, post?.isOwner]);
 
     // Comments state
     const [comments, setComments] = useState<CommentItem[]>([]);
@@ -774,7 +799,7 @@ const PostDetail: React.FC = () => {
                                             }}
                                         >
                                             <Image
-                                                src={`${img.url}`}
+                                                src={formatFileUrl(img.url)}
                                                 alt={`Post image ${img.orderIndex + 1}`}
                                                 style={{
                                                     width: "100%",
@@ -834,7 +859,7 @@ const PostDetail: React.FC = () => {
                                     return (
                                         <a
                                             key={file.id}
-                                            href={`${file.fileUrl}`}
+                                            href={formatFileUrl(file.fileUrl)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             download={file.fileName}
@@ -941,8 +966,25 @@ const PostDetail: React.FC = () => {
                                             if (isFriend) {
                                                 // เป็นเพื่อนแล้ว -> ไปหน้าเพื่อนทั้งหมด พร้อม auto-select
                                                 navigate("/User/Friends/FriendRelation", { state: { selectedId: post.authorId } });
+                                                return;
+                                            }
+
+                                            // ไม่ใช่เพื่อน: เช็คว่าเขาส่งคำขอมาหาเราหรือไม่
+                                            const receivedData = await friendAPI.getReceivedRequests();
+                                            const receivedRequests = receivedData?.data || receivedData || [];
+                                            const hasPendingFromThem = Array.isArray(receivedRequests) && receivedRequests.some(
+                                                (req: any) => {
+                                                    // API ส่ง sent_mem_id หรือ sent_member.ID มา
+                                                    const senderMemberId = req.sent_mem_id || req.sent_member?.ID || req.sent_member?.id;
+                                                    return senderMemberId === post.authorId;
+                                                }
+                                            );
+
+                                            if (hasPendingFromThem) {
+                                                // เขาส่งคำขอมาหาเรา -> ไปหน้าคำขอเป็นเพื่อน พร้อม auto-select
+                                                navigate("/User/Friends/Request", { state: { selectedId: post.authorId } });
                                             } else {
-                                                // ยังไม่เป็นเพื่อน -> ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+                                                // เราส่งคำขอไปหาเขา หรือยังไม่มีคำขอ -> ไปหน้าเพื่อนแนะนำ
                                                 navigate("/User/Friends/Popular", { state: { selectedId: post.authorId } });
                                             }
                                         } catch (error) {
