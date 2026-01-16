@@ -227,41 +227,20 @@ func (s *PostService) GetAllPosts() ([]entity.Post, error) {
 	return s.PostRepo.FindAll()
 }
 
-// ดึงโพสต์แบบแบ่งหน้า (pagination)
+// ดึงโพสต์ที่ Active เท่านั้น (Public/Member)
+func (s *PostService) GetAllActivePosts() ([]entity.Post, error) {
+	return s.PostRepo.FindAllActive()
+}
+
+// ดึงโพสต์ที่ Active แบบ Pagination
+func (s *PostService) GetActivePostsPaginated(page, limit int) ([]entity.Post, int64, error) {
+	return s.PostRepo.FindActivePaginated(page, limit)
+}
+
+// ดึงโพสต์แบบ Pagination (Admin - รวม deleted)
+// ดึงโพสต์แบบ Pagination (สำหรับ Public/Member - ไม่รวม deleted)
 func (s *PostService) GetPostsPaginated(page, limit int) ([]entity.Post, int64, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 20
-	}
-	offset := (page - 1) * limit
-
-	var total int64
-	if err := s.DB.Model(&entity.Post{}).Where("status = ?", "Active").Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var posts []entity.Post
-	if err := s.DB.Preload("Author").
-		Preload("MainCategory").
-		Preload("SubCategoryL1").
-		Preload("SubCategoryL2").
-		Preload("Images", func(db *gorm.DB) *gorm.DB {
-			return db.Order("order_index ASC")
-		}).
-		Preload("Attachments", func(db *gorm.DB) *gorm.DB {
-			return db.Order("order_index ASC")
-		}).
-		Where("status = ?", "Active").
-		Order("created_at DESC").
-		Offset(offset).
-		Limit(limit).
-		Find(&posts).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return posts, total, nil
+	return s.PostRepo.FindActivePaginated(page, limit)
 }
 
 // อัปเดตโพสต์ (เฉพาะเจ้าของโพสต์เท่านั้น)
@@ -429,6 +408,7 @@ func (s *PostService) DeletePost(userID, postID uint) error {
 
 // ลบโพสต์โดย Admin (ไม่ต้องเช็ค ownership)
 // ลบโพสต์โดย Admin (ไม่ต้องเช็ค ownership)
+// ลบโพสต์โดย Admin (ไม่ต้องเช็ค ownership)
 func (s *PostService) AdminDeletePost(postID uint, reason string) error {
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
@@ -455,16 +435,13 @@ func (s *PostService) AdminDeletePost(postID uint, reason string) error {
 		fmt.Printf("Failed to create notification: %v\n", err)
 	}
 
-	// ลบ image, attachment ที่เกี่ยวข้อง
-	if err := s.ImageRepo.DeleteByPostID(post.ID); err != nil {
-		return err
-	}
+	// Soft Delete logic: Update status to "deleted" and save reason
+	// Do NOT delete images/attachments so we can keep record
+	post.Status = "deleted"
+	post.DeletedReason = reason
 
-	if err := s.AttachmentRepo.DeleteByPostID(post.ID); err != nil {
-		return err
-	}
-
-	return s.PostRepo.Delete(postID)
+	// ใช้ Save หรือ Update เพื่อบันทึกการเปลี่ยนแปลง
+	return s.PostRepo.Update(post)
 }
 
 // =============== LIKE METHODS ===============
