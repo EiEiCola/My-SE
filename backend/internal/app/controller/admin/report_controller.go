@@ -142,3 +142,19 @@ func (ctl *AdminReportController) UpdateStatus(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
+
+// DELETE /admin/reports/:id
+func (ctl *AdminReportController) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := ctl.Service.DeleteReportByAdmin(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}

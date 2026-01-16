@@ -77,14 +77,7 @@ const formatFileUrl = (url: string | undefined | null): string => {
     return `${API_BASE}/${url}`;
 };
 
-const REPORT_REASONS = [
-    "เนื้อหาไม่เหมาะสม / ลามก",
-    "สแปม / โฆษณา",
-    "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
-    "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
-    "การปนุ / คุกคาม",
-    "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
-];
+// REPORT_REASONS removed - fetching from API now
 
 interface ImageItem {
     id: number;
@@ -389,6 +382,22 @@ const PostDetail: React.FC = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedReportReason, setSelectedReportReason] = useState("");
     const [otherReportReason, setOtherReportReason] = useState("");
+    const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+
+    useEffect(() => {
+        const fetchReasons = async () => {
+            try {
+                const res = await fetch("/api/categories/report");
+                const json = await res.json();
+                if (json.data) {
+                    setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+                }
+            } catch (e) {
+                console.error("Failed to fetch report reasons", e);
+            }
+        };
+        fetchReasons();
+    }, []);
 
 
     const handleToggleLikePost = async () => {
@@ -489,10 +498,14 @@ const PostDetail: React.FC = () => {
             return;
         }
 
+        const reasonObj = reportReasons.find(r => r.title === selectedReportReason);
+        const reportReasonID = reasonObj ? reasonObj.id : undefined;
+
         try {
             await postService.reportPost(post.id, {
                 title,
                 description,
+                report_reason_id: reportReasonID,
                 medias: [],
             });
             message.success("ส่งรายงานเรียบร้อยแล้ว ทีมงานจะตรวจสอบในเร็วๆนี้");
@@ -1525,7 +1538,7 @@ const PostDetail: React.FC = () => {
             <ReportPostModal
                 open={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
-                reasons={REPORT_REASONS}
+                reasons={reportReasons.map(r => r.title)}
                 selectedReason={selectedReportReason}
                 setSelectedReason={setSelectedReportReason}
                 otherReason={otherReportReason}

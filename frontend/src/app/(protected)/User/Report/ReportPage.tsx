@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { ReportService } from "../../../../services/http/report";
-import type { CreateReportInput, Report as ReportType } from "../../../../services/http/report";
+import type { CreateReportInput as BaseCreateReportInput, Report as ReportType } from "../../../../services/http/report";
 import "./Report.css";
+
+// Extend the input type locally to include report_reason_id
+interface CreateReportInput extends BaseCreateReportInput {
+  report_reason_id?: number;
+}
 
 const ReportPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"create" | "list" | "detail">("create");
@@ -12,6 +17,8 @@ const ReportPage: React.FC = () => {
   const [description, setDescription] = useState("");
   const [targetType, setTargetType] = useState("system");
   const [targetId, setTargetId] = useState<string>("");
+  const [reportReasonId, setReportReasonId] = useState<string>("");
+  const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
   const [image, setImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -34,6 +41,21 @@ const ReportPage: React.FC = () => {
   useEffect(() => {
     if (activeTab === "list") {
       fetchReports();
+    }
+    // Fetch reasons for create form
+    if (activeTab === "create") {
+      const fetchReasons = async () => {
+        try {
+          const res = await fetch("/api/categories/report");
+          const json = await res.json();
+          if (json.data) {
+            setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+          }
+        } catch (e) {
+          console.error("Failed to fetch reasons", e);
+        }
+      };
+      fetchReasons();
     }
   }, [activeTab, page, pageSize, filterStatus, filterType]);
 
@@ -65,7 +87,9 @@ const ReportPage: React.FC = () => {
     setTitle(r.title);
     setDescription(r.description);
     setTargetType(r.target_type);
+    setTargetType(r.target_type);
     setTargetId(r.target_id?.toString() || "");
+    setReportReasonId(r.report_reason_id?.toString() || ""); // Ideally the API returns this field
     if (r.media && r.media.length > 0) {
       setImage(r.media[0].url);
     } else {
@@ -98,6 +122,7 @@ const ReportPage: React.FC = () => {
     setDescription("");
     setTargetType("system");
     setTargetId("");
+    setReportReasonId("");
     setImage("");
     setFormError(null);
     setFormSuccess(null);
@@ -120,6 +145,7 @@ const ReportPage: React.FC = () => {
         target_id: targetId ? parseInt(targetId) : undefined,
         title,
         description,
+        report_reason_id: reportReasonId ? parseInt(reportReasonId) : undefined,
         medias: image ? [{ url: image, type: 'image', is_attachment: false }] : []
       };
 
@@ -163,7 +189,7 @@ const ReportPage: React.FC = () => {
           <h2 className="report-title">
             {activeTab === "create" && !editId && "แจ้งปัญหา / ร้องเรียน"}
             {editId && "แก้ไขรายงาน"}
-            {activeTab === "list" && "ประวัติการแจ้งปัญหา"}
+            {activeTab === "list" && "ประวัติการแจ้งปัญหา (Updated)"}
             {activeTab === "detail" && selectedReport?.title}
           </h2>
           <div className="tab-switcher">
@@ -192,13 +218,31 @@ const ReportPage: React.FC = () => {
 
             <form className="report-form" onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">หัวข้อปัญหา *</label>
+                <label className="form-label">หัวข้อปัญหา / เหตุผล *</label>
+                {reportReasons.length > 0 ? (
+                  <select
+                    className="form-select"
+                    value={reportReasonId}
+                    onChange={(e) => {
+                      setReportReasonId(e.target.value);
+                      // Auto-fill title with reason name if title is empty
+                      const reason = reportReasons.find(r => r.id.toString() === e.target.value);
+                      if (reason && !title) setTitle(reason.title);
+                    }}
+                  >
+                    <option value="">-- เลือกเหตุผลหลัก --</option>
+                    {reportReasons.map(r => (
+                      <option key={r.id} value={r.id}>{r.title}</option>
+                    ))}
+                  </select>
+                ) : null}
                 <input
                   className="form-input"
+                  style={{ marginTop: '8px' }}
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="เช่น เว็บเข้าไม่ได้, พบเนื้อหาไม่เหมาะสม"
+                  placeholder="ระบุหัวข้อปัญหาเพิ่มเติม..."
                   required
                 />
               </div>
@@ -391,24 +435,7 @@ const ReportPage: React.FC = () => {
                       >
                         ดูรายละเอียด
                       </button>
-                      {report.status_id === 1 && (
-                        <>
-                          <button
-                            className="btn-action edit"
-                            onClick={() => handleEditClick(report)}
-                            title="แก้ไข"
-                          >
-                            ✏️ แก้ไข
-                          </button>
-                          <button
-                            className="btn-action delete"
-                            onClick={() => handleDeleteClick(report.id)}
-                            title="ลบ"
-                          >
-                            🗑️ ลบ
-                          </button>
-                        </>
-                      )}
+
                     </div>
                   </div>
                 ))}

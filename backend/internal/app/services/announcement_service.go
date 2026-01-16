@@ -29,14 +29,15 @@ func (s *AnnouncementService) ListAll(page, pageSize int, prID *int) ([]entity.A
 // CreateFromSubmission creates an Announcement and associated media from a PRSubmission using the provided tx
 func (s *AnnouncementService) CreateFromSubmission(tx *gorm.DB, submission *entity.PRSubmission, createdByAdmin int) (*entity.Announcement, error) {
 	ann := &entity.Announcement{
-		PRSubmissionID: &submission.ID,
-		Title:          submission.Title,
-		Content:        submission.Content,
-		PublishStartAt: submission.ReqStartAt,
-		PublishEndAt:   submission.ReqEndAt,
-		StatusID:       1,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		PRSubmissionID:         &submission.ID,
+		Title:                  submission.Title,
+		Content:                submission.Content,
+		AnnouncementCategoryID: submission.AnnouncementCategoryID,
+		PublishStartAt:         submission.ReqStartAt,
+		PublishEndAt:           submission.ReqEndAt,
+		StatusID:               1,
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
 	}
 	if err := tx.Create(ann).Error; err != nil {
 		return nil, err
@@ -56,24 +57,27 @@ func (s *AnnouncementService) CreateFromSubmission(tx *gorm.DB, submission *enti
 }
 
 type CreateAnnouncementInput struct {
-	Title          string     `json:"title" binding:"required"`
-	Content        string     `json:"content" binding:"required"`
-	PublishStartAt *time.Time `json:"publish_start_at"`
-	PublishEndAt   *time.Time `json:"publish_end_at"`
-	PinPriority    int        `json:"pin_priority"`
-	Medias         []string   `json:"medias"` // Simplified for now, just URLs
+	Title                  string     `json:"title" binding:"required"`
+	Content                string     `json:"content" binding:"required"`
+	Category               string     `json:"category"`
+	AnnouncementCategoryID *uint      `json:"announcement_category_id"`
+	PublishStartAt         *time.Time `json:"publish_start_at"`
+	PublishEndAt           *time.Time `json:"publish_end_at"`
+	PinPriority            int        `json:"pin_priority"`
+	Medias                 []string   `json:"medias"` // Simplified for now, just URLs
 }
 
 func (s *AnnouncementService) CreateAnnouncement(adminID int, in *CreateAnnouncementInput) (*entity.Announcement, error) {
 	uid := uint(adminID)
 	ann := &entity.Announcement{
-		AdminID:     &uid,
-		Title:       in.Title,
-		Content:     in.Content,
-		StatusID:    1, // Active
-		PinPriority: in.PinPriority,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		AdminID:                &uid,
+		Title:                  in.Title,
+		Content:                in.Content,
+		AnnouncementCategoryID: in.AnnouncementCategoryID,
+		StatusID:               1, // Active
+		PinPriority:            in.PinPriority,
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
 	}
 	if in.PublishStartAt != nil {
 		ann.PublishStartAt = *in.PublishStartAt
@@ -123,6 +127,9 @@ func (s *AnnouncementService) UpdateAnnouncement(id int, in *CreateAnnouncementI
 	}
 	ann.Title = in.Title
 	ann.Content = in.Content
+	if in.AnnouncementCategoryID != nil {
+		ann.AnnouncementCategoryID = in.AnnouncementCategoryID
+	}
 	ann.PinPriority = in.PinPriority
 	if in.PublishStartAt != nil {
 		ann.PublishStartAt = *in.PublishStartAt

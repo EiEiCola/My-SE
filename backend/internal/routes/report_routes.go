@@ -28,6 +28,7 @@ func SetupReportRoutes(api *gin.RouterGroup, memberService services.MemberServic
 		adminGroup.GET("/reports", adminReportCtl.List)
 		adminGroup.GET("/reports/:id", adminReportCtl.GetByID)
 		adminGroup.POST("/reports/:id/status", adminReportCtl.UpdateStatus)
+		adminGroup.DELETE("/reports/:id", adminReportCtl.Delete)
 	}
 
 	// Member Routes - Protected with JWT

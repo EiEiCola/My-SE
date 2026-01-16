@@ -25,19 +25,21 @@ type PRMediaInput struct {
 }
 
 type CreatePRSubmissionInput struct {
-	Title      string         `json:"title" binding:"required"`
-	Content    string         `json:"content" binding:"required"`
-	ReqStartAt *time.Time     `json:"req_start_at"`
-	ReqEndAt   *time.Time     `json:"req_end_at"`
-	Medias     []PRMediaInput `json:"medias"`
+	Title                  string         `json:"title" binding:"required"`
+	Content                string         `json:"content" binding:"required"`
+	AnnouncementCategoryID *uint          `json:"announcement_category_id"`
+	ReqStartAt             *time.Time     `json:"req_start_at"`
+	ReqEndAt               *time.Time     `json:"req_end_at"`
+	Medias                 []PRMediaInput `json:"medias"`
 }
 
 func (s *PRSubmissionService) CreateSubmission(memberID uint, in *CreatePRSubmissionInput) (*entity.PRSubmission, error) {
 	sub := &entity.PRSubmission{
-		MemberID: memberID,
-		Title:    in.Title,
-		Content:  in.Content,
-		StatusID: 1, // Default Pending
+		MemberID:               memberID,
+		Title:                  in.Title,
+		Content:                in.Content,
+		AnnouncementCategoryID: in.AnnouncementCategoryID,
+		StatusID:               1, // Default Pending
 	}
 	if in.ReqStartAt != nil {
 		sub.ReqStartAt = *in.ReqStartAt

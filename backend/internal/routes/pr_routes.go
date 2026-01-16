@@ -12,7 +12,7 @@ import (
 
 // SetupPRRoutes registers all routes related to the PR/Announcement system
 // It accepts a RouterGroup (e.g. /api) and appends admin/member routes to it
-func SetupPRRoutes(api *gin.RouterGroup) {
+func SetupPRRoutes(api *gin.RouterGroup, memberService services.MemberService) {
 	db := config.DB
 
 	annRepo := repository.NewAnnouncementRepository(db)
@@ -45,7 +45,7 @@ func SetupPRRoutes(api *gin.RouterGroup) {
 		adminGroup.DELETE("/pr-submissions/:id", prController.Delete)
 	}
 
-	memberAnnController := member_controller.NewMemberAnnouncementController(annService)
+	memberAnnController := member_controller.NewMemberAnnouncementController(annService, memberService)
 
 	// Member Routes - Protected with JWT
 	memberGroup := api.Group("/members", middlewares.JWTAuthMiddleware())

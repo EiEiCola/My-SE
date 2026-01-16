@@ -19,6 +19,7 @@ export interface Report {
     reporter_id: number;
     target_type: string;
     target_id?: number | null;
+    report_reason_id?: number | null; // Added field
     title: string;
     description: string;
     status_id: number;
@@ -35,7 +36,11 @@ export interface Report {
     status?: {
         id: number;
         status_name: string;
-    }
+    };
+    report_reason?: {
+        id: number;
+        title: string;
+    };
 }
 
 const createReport = async (data: CreateReportInput) => {

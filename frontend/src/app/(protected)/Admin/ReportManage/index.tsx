@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar } from "antd";
+import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar, App } from "antd";
 import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -25,6 +25,7 @@ const ReportManage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [detailVisible, setDetailVisible] = useState<boolean>(false);
   const [statusVisible, setStatusVisible] = useState<boolean>(false);
+  const [deleteVisible, setDeleteVisible] = useState<boolean>(false);
   const [currentReport, setCurrentReport] = useState<Report | null>(null);
   const [newStatus, setNewStatus] = useState<number>(0);
 
@@ -108,59 +109,50 @@ const ReportManage: React.FC = () => {
     }
   };
 
-  // Delete reported post/review
-  const handleDeleteTarget = (report: Report) => {
-    if (!report.target_id) {
-      message.warning("ไม่มีข้อมูลเป้าหมาย");
-      return;
+  // Delete REPORT (not the target)
+  const handleDeleteReport = (report: Report) => {
+    console.log("Delete button clicked for report:", report);
+    setCurrentReport(report);
+    setDeleteVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!currentReport) return;
+    
+    console.log("User confirmed - Attempting to delete report ID:", currentReport.id);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = `${API_BASE}/api/admin/reports/${currentReport.id}`;
+      console.log("Delete endpoint:", endpoint);
+      console.log("Token exists:", !!token);
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Delete response status:", response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Delete failed:", errorData);
+        throw new Error(errorData.error || `Failed to delete report (Status: ${response.status})`);
+      }
+
+      const result = await response.json();
+      console.log("Delete result:", result);
+      
+      message.success("ลบรายงานสำเร็จ");
+      setDeleteVisible(false);
+      await fetchReports(); // Refresh list
+    } catch (error) {
+      console.error("Delete error:", error);
+      message.error(`ไม่สามารถลบรายงานได้: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const targetType = (report.target_type || "").toLowerCase();
-
-    Modal.confirm({
-      title: `ยืนยันการลบ ${report.target_type}`,
-      icon: <ExclamationCircleOutlined />,
-      content: `คุณต้องการลบ ${report.target_type} ID: ${report.target_id} หรือไม่?`,
-      okText: "ลบ",
-      okType: "danger",
-      cancelText: "ยกเลิก",
-      onOk: async () => {
-        try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
-          const token = localStorage.getItem("token");
-
-          let endpoint = "";
-          if (targetType === "post") {
-            endpoint = `${API_BASE}/api/member/posts/${report.target_id}`;
-          } else if (targetType === "review") {
-            endpoint = `${API_BASE}/api/member/reviews/${report.target_id}`;
-          } else {
-            message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
-            return;
-          }
-
-          const response = await fetch(endpoint, {
-            method: "DELETE",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to delete");
-          }
-
-          message.success(`ลบ ${report.target_type} สำเร็จ`);
-
-          // Update report status to "resolved"
-          await ReportService.updateReportStatus(report.id, 3);
-          fetchReports();
-        } catch (error) {
-          console.error("Delete error:", error);
-          message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
-        }
-      },
-    });
   };
 
   const columns = [
@@ -182,6 +174,16 @@ const ReportManage: React.FC = () => {
       title: "หัวข้อ",
       dataIndex: "title",
       key: "title",
+      render: (text: string, record: Report) => (
+        <span>
+          {text}
+          {record.report_reason && (
+            <div style={{ fontSize: '12px', color: '#888' }}>
+              (เหตุผล: {record.report_reason.title})
+            </div>
+          )}
+        </span>
+      )
     },
     {
       title: "เป้าหมาย",
@@ -248,8 +250,8 @@ const ReportManage: React.FC = () => {
           <Button
             icon={<DeleteOutlined />}
             danger
-            onClick={() => handleDeleteTarget(record)}
-            title={`ลบ ${record.target_type}`}
+            onClick={() => handleDeleteReport(record)}
+            title="ลบรายงาน"
           />
         </Space>
       ),
@@ -314,6 +316,7 @@ const ReportManage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          scroll={{ x: 1200 }}
         />
 
         {/* Detail Modal */}
@@ -392,6 +395,33 @@ const ReportManage: React.FC = () => {
               <Option value={3}>เสร็จสิ้น</Option>
               <Option value={4}>ปฏิเสธ</Option>
             </Select>
+          </div>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          title={
+            <span>
+              <ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+              ยืนยันการลบรายงาน
+            </span>
+          }
+          open={deleteVisible}
+          onOk={confirmDelete}
+          onCancel={() => {
+            console.log("Delete cancelled by user");
+            setDeleteVisible(false);
+          }}
+          okText="ลบ"
+          okType="danger"
+          cancelText="ยกเลิก"
+          centered
+        >
+          <div style={{ padding: '20px 0' }}>
+            <p>คุณต้องการลบรายงาน ID: <strong>{currentReport?.id}</strong> หรือไม่?</p>
+            <p style={{ color: '#888', fontSize: '13px', marginTop: 12 }}>
+              (การลบรายงานจะไม่ลบโพสต์หรือรีวิวต้นทาง)
+            </p>
           </div>
         </Modal>
       </Card>

@@ -25,23 +25,25 @@ type ReportMediaInput struct {
 }
 
 type CreateReportInput struct {
-	TargetType  string             `json:"target_type" binding:"required"`
-	TargetID    *uint              `json:"target_id"`
-	Title       string             `json:"title" binding:"required"`
-	Description string             `json:"description" binding:"required"`
-	Medias      []ReportMediaInput `json:"medias"`
+	TargetType     string             `json:"target_type" binding:"required"`
+	TargetID       *uint              `json:"target_id"`
+	Title          string             `json:"title" binding:"required"`
+	Description    string             `json:"description" binding:"required"`
+	ReportReasonID *uint              `json:"report_reason_id"`
+	Medias         []ReportMediaInput `json:"medias"`
 }
 
 func (s *ReportService) CreateReport(reporterID uint, in *CreateReportInput) (*entity.Report, error) {
 	rep := &entity.Report{
-		ReporterID:  reporterID,
-		TargetType:  in.TargetType,
-		TargetID:    in.TargetID,
-		Title:       in.Title,
-		Description: in.Description,
-		StatusID:    1,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ReporterID:     reporterID,
+		TargetType:     in.TargetType,
+		TargetID:       in.TargetID,
+		Title:          in.Title,
+		Description:    in.Description,
+		ReportReasonID: in.ReportReasonID,
+		StatusID:       1,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	var media []entity.ReportMedia
@@ -63,7 +65,7 @@ func (s *ReportService) CreateReport(reporterID uint, in *CreateReportInput) (*e
 // Validates that:
 // 1. The post exists
 // 2. The reporter is not the post author (cannot report own posts)
-func (s *ReportService) ReportPost(postID uint, reporterID uint, title, description string, medias []ReportMediaInput) (*entity.Report, error) {
+func (s *ReportService) ReportPost(postID uint, reporterID uint, title, description string, reportReasonID *uint, medias []ReportMediaInput) (*entity.Report, error) {
 	// 1. Check if post exists
 	post, err := s.PostRepo.FindByID(postID)
 	if err != nil {
@@ -81,11 +83,12 @@ func (s *ReportService) ReportPost(postID uint, reporterID uint, title, descript
 	// 3. Create report
 	targetID := postID
 	in := &CreateReportInput{
-		TargetType:  "Post",
-		TargetID:    &targetID,
-		Title:       title,
-		Description: description,
-		Medias:      medias,
+		TargetType:     "Post",
+		TargetID:       &targetID,
+		Title:          title,
+		Description:    description,
+		ReportReasonID: reportReasonID,
+		Medias:         medias,
 	}
 
 	return s.CreateReport(reporterID, in)
@@ -154,6 +157,10 @@ func (s *ReportService) DeleteReport(id int, memberID uint) error {
 	if curr.StatusID != 1 {
 		return &CustomError{Message: "cannot delete processed report"}
 	}
+	return s.ReportRepo.Delete(id)
+}
+
+func (s *ReportService) DeleteReportByAdmin(id int) error {
 	return s.ReportRepo.Delete(id)
 }
 

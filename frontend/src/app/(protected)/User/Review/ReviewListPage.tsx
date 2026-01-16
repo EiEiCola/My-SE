@@ -51,14 +51,7 @@ const formatDate = (iso: string) => {
   });
 };
 
-const REPORT_REASONS = [
-  "เนื้อหาไม่เหมาะสม / ลามก",
-  "สแปม / โฆษณา",
-  "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
-  "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
-  "การข่มขู่ / คุกคาม",
-  "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
-];
+// REPORT_REASONS removed - fetching from API now
 
 type CatRow = { id: number; title: string };
 
@@ -116,6 +109,22 @@ const ReviewListPage: React.FC = () => {
   const [mainCats, setMainCats] = useState<CatRow[]>([]);
   const [l1Cats, setL1Cats] = useState<CatRow[]>([]);
   const [l2Cats, setL2Cats] = useState<CatRow[]>([]);
+  const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+
+  useEffect(() => {
+    const fetchReasons = async () => {
+      try {
+        const res = await fetch("/api/categories/report");
+        const json = await res.json();
+        if (json.data) {
+          setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch report reasons", e);
+      }
+    };
+    fetchReasons();
+  }, []);
 
   const [selectedMainId, setSelectedMainId] = useState<number | null>(null);
   const [selectedL1Id, setSelectedL1Id] = useState<number | null>(null);
@@ -497,7 +506,7 @@ const ReviewListPage: React.FC = () => {
       <ReportReviewModal
         open={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        reasons={REPORT_REASONS}
+        reasons={reportReasons.map(r => r.title)}
         selectedReason={selectedReportReason}
         setSelectedReason={setSelectedReportReason}
         otherReason={otherReason}
@@ -508,6 +517,8 @@ const ReviewListPage: React.FC = () => {
           try {
             const title = selectedReportReason;
             const description = selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)" ? otherReason : selectedReportReason;
+            const reasonObj = reportReasons.find(r => r.title === selectedReportReason);
+            const reportReasonID = reasonObj ? reasonObj.id : undefined;
 
             const token = localStorage.getItem("token");
             const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
@@ -523,6 +534,7 @@ const ReviewListPage: React.FC = () => {
                 target_id: selectedReviewIdForReport,
                 title,
                 description,
+                report_reason_id: reportReasonID,
                 medias: [],
               }),
             });

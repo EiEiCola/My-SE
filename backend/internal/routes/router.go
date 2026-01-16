@@ -36,7 +36,7 @@ func SetupRoutes(
 
 	{
 		SetupChatWSRoutes(api, chatController)
-		SetupPRRoutes(api)
+		SetupPRRoutes(api, memberService)
 		SetupPollRoutes(api)
 		SetupAdminRewardRoutes(api)
 		SetupPointRuleRoutes(api)
