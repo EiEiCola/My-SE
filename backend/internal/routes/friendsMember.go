@@ -30,6 +30,12 @@ func SetupFriendRoutes(memberGroup *gin.RouterGroup, adminGroup *gin.RouterGroup
 		// ไฟล์ routes.go (ใหม่)
 		memberGroup.GET("/members", friendshipCtl.GetAllMembers)             // ✅ ตรงกับ /api/member/members
 		memberGroup.GET("/members/popular", friendshipCtl.GetPopularMembers) // ✅ ตรงกับ /api/member/members/popular
+
+		// Public/Member Data (Anyone can view)
+		memberGroup.GET("/members/:target_id/friends", friendshipCtl.GetMemberFriends)
+		memberGroup.GET("/members/:target_id/followers", friendshipCtl.GetMemberFollowers)
+		memberGroup.GET("/members/:target_id/following", friendshipCtl.GetMemberFollowing)
+
 		// Friend Requests
 		memberGroup.POST("/friend-requests", friendReqCtl.Send)
 		memberGroup.PUT("/friend-requests/:id/respond", friendReqCtl.Respond)
@@ -44,6 +50,7 @@ func SetupFriendRoutes(memberGroup *gin.RouterGroup, adminGroup *gin.RouterGroup
 		// Follows
 		memberGroup.POST("/follows", followCtl.Follow)
 		memberGroup.PUT("/follows/:target_id/unfollow", followCtl.Unfollow)
+		memberGroup.PUT("/followers/:target_id/remove", followCtl.RemoveFollower) // ⭐ NEW
 		memberGroup.PUT("/follows/:target_id/mute", followCtl.Mute)
 		memberGroup.PUT("/follows/:target_id/unmute", followCtl.Unmute)
 		memberGroup.GET("/my/followers", friendshipCtl.GetMyFollowers)

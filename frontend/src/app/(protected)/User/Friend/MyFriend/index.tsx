@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Modal, message, App } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
@@ -15,10 +16,12 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import CrueltyFreeIcon from "@mui/icons-material/CrueltyFree";
 import { UserPlus, UserCheck } from "lucide-react";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service (Correct Path)
+import { memberRewardAPI } from "../../../../../services/http/member_reward"; // ✅ Import Member Reward API
 
 // Config Dayjs
 dayjs.extend(buddhistEra);
 dayjs.locale("th");
+import ProfilePopup from "../../../../../components/ProfilePopup";
 
 // --- Interfaces ---
 interface FriendItem {
@@ -44,6 +47,7 @@ interface FriendItem {
 const FriendRelation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const API_URL = "/api";
   const token = localStorage.getItem("token");
 
@@ -59,7 +63,21 @@ const FriendRelation: React.FC = () => {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [activeTab, setActiveTab] = useState("post");
 
+  const [stickerItems, setStickerItems] = useState<any[]>([]);
+  const [loadingStickers, setLoadingStickers] = useState(false);
+
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Popup State
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
+
+  const handleOpenPopup = (tab: 'friends' | 'followers' | 'following') => {
+    if (selectedProfile) {
+      setPopupTab(tab);
+      setPopupOpen(true);
+    }
+  };
 
   const headers = {
     "Authorization": `Bearer ${token}`,
@@ -82,6 +100,28 @@ const FriendRelation: React.FC = () => {
     if (!token) { navigate("/login"); return; }
     fetchInitialData();
   }, []);
+
+  // ✅ Fetch stickers for the selected profile
+  useEffect(() => {
+    if (selectedProfile?.id) {
+      fetchStickers(selectedProfile.id);
+    } else {
+      setStickerItems([]);
+    }
+  }, [selectedProfile]);
+
+  const fetchStickers = async (id: number) => {
+    setLoadingStickers(true);
+    try {
+      const res = await memberRewardAPI.getMemberStickers(id);
+      if (res.data) setStickerItems(res.data);
+      else setStickerItems([]);
+    } catch (err) {
+      console.error("Fetch Sticker Error:", err);
+      setStickerItems([]);
+    }
+    finally { setLoadingStickers(false); }
+  };
 
   // Auto-select friend from navigation state (from Chat)
   useEffect(() => {
@@ -176,45 +216,79 @@ const FriendRelation: React.FC = () => {
     }
   };
 
-  const handleUnfriend = async (friendId: number) => {
-    if (!window.confirm("คุณต้องการเลิกเป็นเพื่อนใช่หรือไม่?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/friends/${friendId}/unfriend`, { method: "PUT", headers });
-      if (res.ok) {
-        setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
-        // ถ้าคนที่ถูกลบ คือคนที่เปิดดูอยู่ ให้ปิดหน้าขวา
-        if (selectedProfile?.id === friendId) {
-          setSelectedProfile(null);
+  const handleUnfriend = (friendId: number) => {
+    modal.confirm({
+      title: "คุณต้องการเลิกเป็นเพื่อนใช่หรือไม่?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/friends/${friendId}/unfriend`, { method: "PUT", headers });
+          if (res.ok) {
+            setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
+            // ถ้าคนที่ถูกลบ คือคนที่เปิดดูอยู่ ให้ปิดหน้าขวา
+            if (selectedProfile?.id === friendId) {
+              setSelectedProfile(null);
+            }
+            message.success("เลิกเป็นเพื่อนเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
         }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
-  const handleBlock = async (friendId: number) => {
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: friendId })
-      });
-      if (res.ok) {
-        setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
-        if (selectedProfile?.id === friendId) setSelectedProfile(null); // ปิดหน้าขวา
-        alert("บล็อกเรียบร้อย");
+  const handleBlock = (friendId: number) => {
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks`, {
+            method: "POST", headers, body: JSON.stringify({ blocked_id: friendId })
+          });
+          if (res.ok) {
+            setFriends(prev => prev.filter(f => f.id !== friendId)); // ลบออกจาก list ซ้าย
+            if (selectedProfile?.id === friendId) setSelectedProfile(null); // ปิดหน้าขวา
+            message.success("บล็อกเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
-  const handleUnblock = async (blockedId: number) => {
-    if (!window.confirm("ต้องการปลดบล็อก?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, {
-        method: "PUT", headers
-      });
-      if (res.ok) {
-        setBlockedUsers(prev => prev.filter(u => u.id !== blockedId));
-        // อาจจะ fetch friends ใหม่เพื่อให้เขากลับมา (optional)
+  const handleUnblock = (blockedId: number) => {
+    modal.confirm({
+      title: "ต้องการปลดบล็อก?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks/${blockedId}/unblock`, {
+            method: "PUT", headers
+          });
+          if (res.ok) {
+            setBlockedUsers(prev => prev.filter(u => u.id !== blockedId));
+            message.success("ปลดบล็อกเรียบร้อย");
+          }
+        } catch (e) {
+          console.error(e);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (e) { console.error(e); }
+    });
   };
 
   const handleFollowToggle = async (targetId: number, isCurrentlyFollowing: boolean) => {
@@ -352,15 +426,15 @@ const FriendRelation: React.FC = () => {
                   </div>
 
                   <div className="flex mt-[15px] gap-[150px] ">
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">{selectedProfile.friendCount}</h4>
                       <span className="font-[500] text-[#5c5c5c]">friends</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('followers')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">{selectedProfile.followerCount}</h4>
                       <span className="font-[500] text-[#5c5c5c]">followers</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('following')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">{selectedProfile.followingCount}</h4>
                       <span className="font-[500] text-[#5c5c5c]">following</span>
                     </div>
@@ -438,7 +512,29 @@ const FriendRelation: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <div className="mt-5 flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">No content available in {activeTab}</div>
+              <div className="mt-5">
+                {activeTab === 'sticker' ? (
+                  loadingStickers ? <div className="text-center text-gray-400 py-10">กำลังโหลด...</div> :
+                    stickerItems.length === 0 ? <div className="text-center text-gray-400 py-10">ไม่มีสติ๊กเกอร์</div> :
+                      <div className="grid grid-cols-3 gap-4">
+                        {stickerItems.map((s) => {
+                          const rw = s.reward ?? s.Reward;
+                          const img = s.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
+                          const name = s.reward_name ?? rw?.reward_name ?? rw?.RewardName ?? "Sticker";
+                          return (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                              {img ? <img src={img} alt={name} className="w-20 h-20 object-contain" onError={(e) => (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/90?text=Sticker"} /> : <div className="w-20 h-20 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-400">No Image</div>}
+                              <span className="text-xs font-semibold text-[#C42E0A] text-center">{name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                ) : (
+                  <div className="flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
+                    No content available in {activeTab}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
@@ -451,6 +547,16 @@ const FriendRelation: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Profile Popup */}
+      {selectedProfile && (
+        <ProfilePopup
+          isOpen={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          userId={selectedProfile.id}
+          initialTab={popupTab}
+        />
+      )}
 
       {/* Blocked Users Modal */}
       {showBlockModal && (

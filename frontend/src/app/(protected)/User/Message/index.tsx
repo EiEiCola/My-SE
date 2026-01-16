@@ -1,6 +1,7 @@
 // \frontend\src\app\(protected)\User\Message\page.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import { App } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
    Send, Search, MessageCircle, MoreVertical, Paperclip, Smile, Image as ImageIcon,
@@ -32,6 +33,7 @@ const STICKERS = [
 const ChatPage: React.FC = () => {
    const navigate = useNavigate();
    const location = useLocation();
+   const { message, modal } = App.useApp();
 
    // --- Data State ---
    const [rooms, setRooms] = useState<Room[]>([]);
@@ -376,47 +378,62 @@ const ChatPage: React.FC = () => {
 
    // --- Group Management Handlers (Defined below) ---
 
-   const handleLeaveRoom = async () => {
+   const handleLeaveRoom = () => {
       if (!currentRoom) return;
       const admins = currentRoom.member?.filter(m => m.rm_role === 'admin') || [];
       const isLastAdmin = amIAdmin && admins.length === 1 && (currentRoom.member?.length || 0) > 1;
 
       if (isLastAdmin) {
-         alert("⚠️ คุณเป็น Admin เพียงคนเดียวในกลุ่ม\nกรุณาตั้งสมาชิกอื่นเป็น Admin ก่อนออกจากกลุ่ม");
+         message.warning("⚠️ คุณเป็น Admin เพียงคนเดียวในกลุ่ม\nกรุณาตั้งสมาชิกอื่นเป็น Admin ก่อนออกจากกลุ่ม");
          setShowGroupInfoModal(true);
          return;
       }
 
-      if (!confirm("ต้องการออกจากกลุ่มใช่หรือไม่?")) return;
-
-      try {
-         await chatService.leaveRoom(currentRoom.room_id);
-         setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
-         setCurrentRoom(null);
-         setShowGroupInfoModal(false);
-      } catch (err: any) { alert(err.response?.data?.error || "ไม่สามารถออกจากกลุ่มได้"); }
+      modal.confirm({
+         title: "ต้องการออกจากกลุ่มใช่หรือไม่?",
+         centered: true,
+         okText: "ตกลง",
+         cancelText: "ยกเลิก",
+         onOk: async () => {
+            try {
+               await chatService.leaveRoom(currentRoom.room_id);
+               setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+               setCurrentRoom(null);
+               setShowGroupInfoModal(false);
+               message.success("ออกจากกลุ่มเรียบร้อย");
+            } catch (err: any) { message.error(err.response?.data?.error || "ไม่สามารถออกจากกลุ่มได้"); }
+         }
+      });
    };
 
-   const handleBlockUser = async () => {
+   const handleBlockUser = () => {
       if (!currentRoom || currentRoom.rc_type !== 'private') return;
       const target = currentRoom.member?.find(m => m.member_id !== myUserID);
       if (!target) return;
       const info = getChatInfo(currentRoom);
-      if (confirm(`ต้องการจัดการ Block ผู้ใช้ ${info.name}?`)) {
-         try {
-            await friendAPI.blockUser(target.member_id);
-            // Add to blocked users set
-            setBlockedUsers(prev => {
-               const newSet = new Set(prev);
-               newSet.add(target.member_id);
-               return newSet;
-            });
-            // Remove the room from the list immediately
-            setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
-            setCurrentRoom(null);
-            alert("บล็อกผู้ใช้เรียบร้อย");
-         } catch (err) { console.error(err); alert("เกิดข้อผิดพลาด"); }
-      }
+
+      modal.confirm({
+         title: `ต้องการจัดการ Block ผู้ใช้ ${info.name}?`,
+         centered: true,
+         okText: "ตกลง",
+         cancelText: "ยกเลิก",
+         zIndex: 3000,
+         onOk: async () => {
+            try {
+               await friendAPI.blockUser(target.member_id);
+               // Add to blocked users set
+               setBlockedUsers(prev => {
+                  const newSet = new Set(prev);
+                  newSet.add(target.member_id);
+                  return newSet;
+               });
+               // Remove the room from the list immediately
+               setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+               setCurrentRoom(null);
+               message.success("บล็อกผู้ใช้เรียบร้อย");
+            } catch (err) { console.error(err); message.error("เกิดข้อผิดพลาด"); }
+         }
+      });
    };
 
    // --- Search & Create Logic ---
@@ -556,22 +573,28 @@ const ChatPage: React.FC = () => {
       } catch (err) { alert('แก้ไขชื่อกลุ่มไม่สำเร็จ'); }
    };
 
-   const handlePromoteAdmin = async (targetId: number, currentRole: string) => {
+   const handlePromoteAdmin = (targetId: number, currentRole: string) => {
       if (!currentRoom) return;
       const newRole = currentRole === 'admin' ? 'member' : 'admin';
       const action = newRole === 'admin' ? 'ตั้งเป็นแอดมิน' : 'ลดสถานะเป็นสมาชิก';
 
-      if (!confirm(`ต้องการ${action}ใช่หรือไม่?`)) return;
-
-      try {
-         await chatService.updateMemberRole(currentRoom.room_id, targetId, newRole as 'admin' | 'member');
-         // Update local state
-         const updatedMembers = currentRoom.member?.map(m =>
-            Number(m.member_id) === targetId ? { ...m, rm_role: newRole } : m
-         );
-         setCurrentRoom(prev => prev ? { ...prev, member: updatedMembers } : null);
-         alert(`${action}สำเร็จ`);
-      } catch (err) { alert('ดำเนินการไม่สำเร็จ'); }
+      modal.confirm({
+         title: `ต้องการ${action}ใช่หรือไม่?`,
+         centered: true,
+         okText: "ตกลง",
+         cancelText: "ยกเลิก",
+         onOk: async () => {
+            try {
+               await chatService.updateMemberRole(currentRoom.room_id, targetId, newRole as 'admin' | 'member');
+               // Update local state
+               const updatedMembers = currentRoom.member?.map(m =>
+                  Number(m.member_id) === targetId ? { ...m, rm_role: newRole } : m
+               );
+               setCurrentRoom(prev => prev ? { ...prev, member: updatedMembers } : null);
+               message.success(`${action}สำเร็จ`);
+            } catch (err) { message.error('ดำเนินการไม่สำเร็จ'); }
+         }
+      });
    };
 
    const toggleMemberSelection = (id: number) => {
@@ -775,28 +798,46 @@ const ChatPage: React.FC = () => {
    };
 
    // --- Other Handlers ---
-   const handleUnsend = async (msgId: number) => { if (confirm("ยกเลิกข้อความ?")) try { await chatService.unsendMessage(msgId); } catch (err) { } };
-
-   const handleClearHistory = async () => {
-      if (currentRoom && confirm("ล้างแชท?")) {
-         // ⭐ Optimistic Update: Clear UI immediately
-         const previousMessages = [...messages];
-         const roomId = currentRoom.room_id;
-
-         setMessages([]);
-         setShowMenu(false);
-         // Update sidebar immediately: Reset sender to 0 so "You:" prefix doesn't appear
-         updateLastMessage(roomId, "เริ่มการสนทนา", 0, "");
-
-         try {
-            await chatService.clearHistory(roomId);
-         } catch (err) {
-            console.error(err);
-            alert("เกิดข้อผิดพลาดในการล้างแชท");
-            // Revert on failure (optional, but good UX)
-            setMessages(previousMessages);
+   const handleUnsend = (msgId: number) => {
+      modal.confirm({
+         title: "ยกเลิกข้อความ?",
+         centered: true,
+         okText: "ตกลง",
+         cancelText: "ยกเลิก",
+         onOk: async () => {
+            try { await chatService.unsendMessage(msgId); } catch (err) { }
          }
-      }
+      });
+   };
+
+   const handleClearHistory = () => {
+      if (!currentRoom) return;
+      modal.confirm({
+         title: "ล้างแชท?",
+         centered: true,
+         okText: "ตกลง",
+         cancelText: "ยกเลิก",
+         onOk: async () => {
+            // ⭐ Optimistic Update: Clear UI immediately
+            const previousMessages = [...messages];
+            const roomId = currentRoom.room_id;
+
+            setMessages([]);
+            setShowMenu(false);
+            // Update sidebar immediately: Reset sender to 0 so "You:" prefix doesn't appear
+            updateLastMessage(roomId, "เริ่มการสนทนา", 0, "");
+
+            try {
+               await chatService.clearHistory(roomId);
+               message.success("ล้างแชทเรียบร้อย");
+            } catch (err) {
+               console.error(err);
+               message.error("เกิดข้อผิดพลาดในการล้างแชท");
+               // Revert on failure (optional, but good UX)
+               setMessages(previousMessages);
+            }
+         }
+      });
    };
    const handleStartChat = async (targetId: number) => {
       // Check if we blocked this user
