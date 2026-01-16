@@ -347,7 +347,7 @@ func (r *chatRepository) GetMemberIDByAccountID(accountID uint) (uint, error) {
 func (r *chatRepository) IsRoomAdmin(roomID, userID uint) (bool, error) {
 	var count int64
 	err := r.db.Model(&entity.RoomMember{}).
-		Where("room_id = ? AND member_id = ? AND role = 'admin'", roomID, userID).
+		Where(&entity.RoomMember{RoomID: roomID, MemberID: userID, Role: "admin"}).
 		Count(&count).Error
 	return count > 0, err
 }
