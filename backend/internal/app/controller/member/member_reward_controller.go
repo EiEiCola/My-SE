@@ -144,3 +144,21 @@ func (c *MemberRewardController) MyPoints(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"total_point": p})
 }
+
+// GET /member/:id/stickers
+func (c *MemberRewardController) GetMemberStickers(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	targetID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || targetID == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid member id"})
+		return
+	}
+
+	items, err := c.svc.MyStickers(uint(targetID))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, items)
+}

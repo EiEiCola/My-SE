@@ -29,6 +29,8 @@ import {
   getImageUrl
 } from "../../../../../services/http/friend";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
+import { memberRewardAPI } from "../../../../../services/http/member_reward"; // ✅ Import Member Reward API
+
 
 // Config Dayjs
 dayjs.extend(buddhistEra);
@@ -71,6 +73,9 @@ const FriendRequest: React.FC = () => {
   const [selectedProfile, setSelectedProfile] = useState<FriendRequestItem | null>(null);
   const [activeTab, setActiveTab] = useState("post");
 
+  const [stickerItems, setStickerItems] = useState<any[]>([]);
+  const [loadingStickers, setLoadingStickers] = useState(false);
+
   // Menus
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -82,6 +87,28 @@ const FriendRequest: React.FC = () => {
     }
     fetchData();
   }, []);
+
+  // ✅ Fetch stickers for the selected profile
+  useEffect(() => {
+    if (selectedProfile?.member_id) {
+      fetchStickers(selectedProfile.member_id);
+    } else {
+      setStickerItems([]);
+    }
+  }, [selectedProfile]);
+
+  const fetchStickers = async (id: number) => {
+    setLoadingStickers(true);
+    try {
+      const res = await memberRewardAPI.getMemberStickers(id);
+      if (res.data) setStickerItems(res.data);
+      else setStickerItems([]);
+    } catch (err) {
+      console.error("Fetch Sticker Error:", err);
+      setStickerItems([]);
+    }
+    finally { setLoadingStickers(false); }
+  };
 
   // Reset Menus when profile changes
   useEffect(() => {
@@ -565,8 +592,28 @@ const FriendRequest: React.FC = () => {
                 ))}
               </div>
 
-              <div className="mt-5 flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
-                No content available in {activeTab}
+              <div className="mt-5">
+                {activeTab === 'sticker' ? (
+                  loadingStickers ? <div className="text-center text-gray-400 py-10">กำลังโหลด...</div> :
+                    stickerItems.length === 0 ? <div className="text-center text-gray-400 py-10">ไม่มีสติ๊กเกอร์</div> :
+                      <div className="grid grid-cols-3 gap-4">
+                        {stickerItems.map((s) => {
+                          const rw = s.reward ?? s.Reward;
+                          const img = s.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
+                          const name = s.reward_name ?? rw?.reward_name ?? rw?.RewardName ?? "Sticker";
+                          return (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                              {img ? <img src={img} alt={name} className="w-20 h-20 object-contain" onError={(e) => (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/90?text=Sticker"} /> : <div className="w-20 h-20 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-400">No Image</div>}
+                              <span className="text-xs font-semibold text-[#C42E0A] text-center">{name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                ) : (
+                  <div className="flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
+                    No content available in {activeTab}
+                  </div>
+                )}
               </div>
             </div>
           </div>
