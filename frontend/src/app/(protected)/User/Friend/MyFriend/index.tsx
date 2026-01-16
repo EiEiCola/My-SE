@@ -325,7 +325,7 @@ const FriendRelation: React.FC = () => {
     <div className="flex h-full bg-gray-100" onClick={() => setActiveMenu(null)}>
 
       {/* ----------------- LEFT SIDEBAR ----------------- */}
-      <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
+      <div className="w-80 lg:w-96 min-w-[280px] bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-3 mb-4">
             <button onClick={() => navigate('/User/Friends')} className="hover:bg-gray-100 rounded-full p-2 transition-colors cursor-pointer">
@@ -362,12 +362,12 @@ const FriendRelation: React.FC = () => {
                 `}
             >
               {/* Avatar */}
-              <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
                 {friend.avatar ? <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-800 truncate text-sm">{friend.name}</h3>
+                <h3 className="font-semibold text-gray-800 truncate text-sm max-w-[150px]">{friend.name}</h3>
                 <p className="text-xs text-gray-500">เพื่อน</p>
               </div>
               {/* Menu (3 Dots) */}
@@ -422,12 +422,12 @@ const FriendRelation: React.FC = () => {
                 </div>
 
                 <div className="flex-1 ml-[10px]">
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1">{selectedProfile.username}</h3>
-                    <p className="text-slate-500 text-lg m-0">{selectedProfile.name}</p>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1 break-words max-w-full">{selectedProfile.username}</h3>
+                    <p className="text-slate-500 text-lg m-0 break-words max-w-full">{selectedProfile.name}</p>
                   </div>
 
-                  <div className="flex mt-[15px] gap-[150px] ">
+                  <div className="flex mt-[15px] gap-[150px]">
                     <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">{selectedProfile.friendCount}</h4>
                       <span className="font-[500] text-[#5c5c5c]">friends</span>
@@ -443,7 +443,7 @@ const FriendRelation: React.FC = () => {
                   </div>
 
                   <div className="mt-[18px]">
-                    <p className="whitespace-pre-line text-[16px] font-[400] text-slate-700 leading-relaxed">{selectedProfile.bio !== "-" ? selectedProfile.bio : "No biography."}</p>
+                    <p className="whitespace-pre-wrap break-words text-[16px] font-[400] text-slate-700 leading-relaxed overflow-hidden">{selectedProfile.bio !== "-" ? selectedProfile.bio : "No biography."}</p>
                     <div className="flex items-center mt-[14px] text-[#C42E0A] text-[16px] font-[600] gap-[16px]">
                       <div className="flex items-center"><PeopleAltIcon style={{ color: "#C42E0A", marginRight: 6 }} />{selectedProfile.gender}</div>
                       <span>•</span>

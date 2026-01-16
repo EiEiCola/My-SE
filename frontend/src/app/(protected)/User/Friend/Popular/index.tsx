@@ -462,7 +462,7 @@ const FriendPopular: React.FC = () => {
                   }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
                     {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
                     {person.avatar ? (
                       <img src={person.avatar} alt={person.name} className="w-full h-full object-cover" />
@@ -475,7 +475,7 @@ const FriendPopular: React.FC = () => {
 
                   <div className="flex-1 min-w-0">
                     <div className="mb-1">
-                      <h3 className="font-semibold text-base text-gray-800 truncate">{person.name}</h3>
+                      <h3 className="font-semibold text-base text-gray-800 truncate max-w-[180px]">{person.name}</h3>
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         {person.status === 'self'
                           ? 'คุณเอง'
@@ -559,16 +559,16 @@ const FriendPopular: React.FC = () => {
                 </div>
 
                 <div className="flex-1 ml-[10px]">
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1 break-words max-w-full">
                       {selectedProfile.username}
                     </h3>
-                    <p className="text-slate-500 text-lg m-0">
+                    <p className="text-slate-500 text-lg m-0 break-words max-w-full">
                       {selectedProfile.name}
                     </p>
                   </div>
 
-                  <div className="flex mt-[15px] gap-[150px] ">
+                  <div className="flex mt-[15px] gap-[150px]">
                     <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.friendCount}
@@ -590,7 +590,7 @@ const FriendPopular: React.FC = () => {
                   </div>
 
                   <div className="mt-[18px]">
-                    <p className="whitespace-pre-line text-[16px] font-[400] text-slate-700 leading-relaxed">
+                    <p className="whitespace-pre-wrap break-words text-[16px] font-[400] text-slate-700 leading-relaxed overflow-hidden">
                       {selectedProfile.bio !== "-" ? selectedProfile.bio : "No biography."}
                     </p>
                     <div className="flex items-center mt-[14px] text-[#C42E0A] text-[16px] font-[600] gap-[16px]">

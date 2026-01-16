@@ -343,7 +343,7 @@ const FriendRequest: React.FC = () => {
     <div className="flex h-full bg-gray-100 overflow-hidden">
 
       {/* ----------------- LEFT SIDEBAR ----------------- */}
-      <div className="w-96 bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
+      <div className="w-80 lg:w-96 min-w-[280px] bg-white flex flex-col border-r border-slate-200 shadow-sm z-10 flex-shrink-0">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-4 mb-2">
             <button
@@ -382,7 +382,7 @@ const FriendRequest: React.FC = () => {
                   }
                     `}
               >
-                <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
                   {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
                   {request.avatar ? (
                     <img src={request.avatar} alt={request.name} className="w-full h-full object-cover" />
@@ -394,7 +394,7 @@ const FriendRequest: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-semibold text-base text-gray-800 truncate pr-2">
+                    <h3 className="font-semibold text-base text-gray-800 truncate pr-2 max-w-[180px]">
                       {request.name}
                     </h3>
                     <span className="text-[10px] text-gray-400 whitespace-nowrap">
@@ -453,17 +453,17 @@ const FriendRequest: React.FC = () => {
 
                 {/* Info Section */}
                 <div className="flex-1 ml-[10px]">
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                    <h3 className="text-[28px] font-[650] text-[#C42E0A] mr-1 break-words max-w-full">
                       {selectedProfile.username}
                     </h3>
-                    <p className="text-slate-500 text-lg m-0">
+                    <p className="text-slate-500 text-lg m-0 break-words max-w-full">
                       {selectedProfile.name}
                     </p>
                   </div>
 
                   {/* Stats */}
-                  <div className="flex mt-[15px] gap-[150px] ">
+                  <div className="flex mt-[15px] gap-[150px]">
                     <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.friendCount}
@@ -486,7 +486,7 @@ const FriendRequest: React.FC = () => {
 
                   {/* Bio & Meta */}
                   <div className="mt-[18px]">
-                    <p className="whitespace-pre-line text-[16px] font-[400] text-slate-700 leading-relaxed">
+                    <p className="whitespace-pre-wrap break-words text-[16px] font-[400] text-slate-700 leading-relaxed overflow-hidden">
                       {selectedProfile.bio !== "-" ? selectedProfile.bio : "No biography."}
                     </p>
                     <div className="flex items-center mt-[14px] text-[#C42E0A] text-[16px] font-[600] gap-[16px]">
