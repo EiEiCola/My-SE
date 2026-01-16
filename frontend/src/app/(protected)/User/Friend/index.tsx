@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { App } from 'antd';
 import { Image, MoreHorizontal, MessageCircle, UserPlus, UserMinus, Ban, User } from "lucide-react";
 
 import {
@@ -13,6 +14,7 @@ import { chatService } from "../../../../services/http/chat"; // ✅ Import Chat
 const Friends: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp(); // ⭐ Use Hook
   // const API_URL = "/api";  <-- No longer needed here
 
   const [friendRequests, setFriendRequests] = useState<FriendRequestUI[]>([]);
@@ -177,26 +179,48 @@ const Friends: React.FC = () => {
   };
 
   const handleAddFriend = async (targetId: number) => {
-    if (myId && targetId === myId) { alert("เพิ่มตัวเองไม่ได้"); return; }
+    if (myId && targetId === myId) { message.warning("เพิ่มตัวเองไม่ได้"); return; }
     try {
       const res = await friendAPI.sendRequest(targetId);
-      if (res.status === 200 || res.status === 201) fetchData();
+      if (res.status === 200 || res.status === 201) {
+        // ⭐ Optimistic Update with ID Capture
+        const data = res.data;
+        const reqId = Number(data?.data?.rf_id || data?.data?.ID || data?.data?.id || data?.rf_id || 0);
+
+        setSuggestedFriends(prev => prev.map(f =>
+          f.id === targetId ? { ...f, status: 'pending', requestId: reqId } : f
+        ));
+        message.success("ส่งคำขอเรียบร้อย");
+      }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || "Error";
-      alert(errorMsg);
+      const errorMsg = err.response?.data?.error || "เกิดข้อผิดพลาด";
+      message.error(errorMsg);
     }
   };
 
-  const handleCancelRequest = async (reqId: number | undefined, memberId: number) => {
-    if (!reqId || !window.confirm("ต้องการยกเลิกคำขอเป็นเพื่อน?")) return;
-    try {
-      const res = await friendAPI.cancelRequest(reqId);
-      if (res.status === 200) {
-        setSuggestedFriends(prev => prev.map(f =>
-          f.id === memberId ? { ...f, status: 'none', requestId: undefined } : f
-        ));
+  const handleCancelRequest = (reqId: number | undefined, memberId: number) => {
+    if (!reqId) return;
+    modal.confirm({
+      title: "ต้องการยกเลิกคำขอเป็นเพื่อน?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await friendAPI.cancelRequest(reqId);
+          if (res.status === 200) {
+            setSuggestedFriends(prev => prev.map(f =>
+              f.id === memberId ? { ...f, status: 'none', requestId: undefined } : f
+            ));
+            message.success("ยกเลิกคำขอเรียบร้อย");
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleRemoveSuggestion = (id: number) => {
@@ -209,33 +233,41 @@ const Friends: React.FC = () => {
         const res = await friendAPI.unfollowUser(targetId);
         if (res.status === 200) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: false } : f));
-          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: false } : r)); // ✅ Sync FriendRequests
-          alert("เลิกติดตามแล้ว");
+          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: false } : r));
+          message.success("เลิกติดตามแล้ว");
         }
       } else {
         const res = await friendAPI.followUser(targetId);
         if (res.status === 200 || res.status === 201) {
           setSuggestedFriends(prev => prev.map(f => f.id === targetId ? { ...f, isFollowing: true } : f));
-          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: true } : r)); // ✅ Sync FriendRequests
-          alert("ติดตามเรียบร้อย");
+          setFriendRequests(prev => prev.map(r => r.memberId === targetId ? { ...r, isFollowing: true } : r));
+          message.success("ติดตามเรียบร้อย");
         }
       }
     } catch (err) { console.error(err); }
   };
 
-  const handleBlock = async (targetId: number) => {
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await friendAPI.blockUser(targetId);
-      if (res.status === 200 || res.status === 201) {
-        alert("บล็อกผู้ใช้เรียบร้อย");
-        setSuggestedFriends(prev => prev.filter(f => f.id !== targetId));
-        setFriendRequests(prev => prev.filter(r => r.id !== targetId));
+  const handleBlock = (targetId: number) => {
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      zIndex: 3000,
+      onOk: async () => {
+        try {
+          const res = await friendAPI.blockUser(targetId);
+          if (res.status === 200 || res.status === 201) {
+            message.success("บล็อกผู้ใช้เรียบร้อย");
+            setSuggestedFriends(prev => prev.filter(f => f.id !== targetId));
+            setFriendRequests(prev => prev.filter(r => r.id !== targetId));
+          }
+        } catch (err: any) {
+          const errorMsg = err.response?.data?.error || "เกิดข้อผิดพลาด";
+          message.error(errorMsg);
+        }
       }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || "เกิดข้อผิดพลาด";
-      alert(errorMsg);
-    }
+    });
   };
 
 
@@ -249,7 +281,7 @@ const Friends: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to start chat:", err);
-      alert("ไม่สามารถเริ่มแชทได้");
+      message.error("ไม่สามารถเริ่มแชทได้");
     }
   };
 

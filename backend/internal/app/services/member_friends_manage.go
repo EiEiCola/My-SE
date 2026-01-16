@@ -21,20 +21,20 @@ func NewFriendService(repo *repository.FriendRepository) *FriendService {
 
 // ---------------------- Friend Requests -----------------------
 
-func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
+func (s *FriendService) SendRequest(data dto.SendRequestDTO) (*entity.RequesFriend, error) {
 	if data.SenderID == data.ReceiverID {
-		return errors.New("ไม่สามารถส่งคำขอเป็นเพื่อนให้ตนเองได้")
+		return nil, errors.New("ไม่สามารถส่งคำขอเป็นเพื่อนให้ตนเองได้")
 	}
 
 	isBlocked, err := s.Repo.IsBlocked(data.SenderID, data.ReceiverID)
 	if err == nil && isBlocked {
-		return errors.New("ไม่สามารถส่งคำขอได้ เนื่องจากมีการบล็อกผู้ใช้")
+		return nil, errors.New("ไม่สามารถส่งคำขอได้ เนื่องจากมีการบล็อกผู้ใช้")
 	}
 
 	// ตรวจสอบในตาราง Relation ว่าเป็นเพื่อนกันอยู่หรือไม่ (Active: true)
 	isFriend, err := s.Repo.CheckActiveFriend(data.SenderID, data.ReceiverID)
 	if err == nil && isFriend {
-		return errors.New("คุณเป็นเพื่อนกับสมาชิกท่านนี้อยู่แล้ว")
+		return nil, errors.New("คุณเป็นเพื่อนกับสมาชิกท่านนี้อยู่แล้ว")
 	}
 
 	// 2. ค้นหาคำขอล่าสุดเพื่อเช็คประวัติ (Logic เดิมที่คุณมี)
@@ -43,7 +43,7 @@ func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
 	if err != nil {
 		// ถ้า Error ไม่ใช่ "หาไม่เจอ" (แปลว่า DB มีปัญหาจริง) ให้ return error ออกไปเลย
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
+			return nil, err
 		}
 		// ถ้า Error คือ "หาไม่เจอ" (RecordNotFound) -> ปล่อยผ่านไปทำบรรทัดล่าง (สร้างใหม่)
 	}
@@ -51,7 +51,7 @@ func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
 	// ถ้าเจอข้อมูลเดิม (err == nil)
 	if existingReq != nil {
 		if existingReq.RequesStatusID == 1 {
-			return errors.New("คุณมีคำขอที่รอดำเนินการอยู่แล้ว")
+			return nil, errors.New("คุณมีคำขอที่รอดำเนินการอยู่แล้ว")
 		}
 
 		// กรณีเป็น Accepted (2) ไปแล้วแต่ในตาราง Relation อาจจะถูก Unfriend (Active: false)
@@ -60,7 +60,10 @@ func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
 		if existingReq.RequesStatusID == 4 {
 			existingReq.RequesStatusID = 1
 			existingReq.FinishedAt = time.Now()
-			return s.Repo.UpdateFullRequest(existingReq)
+			if err := s.Repo.UpdateFullRequest(existingReq); err != nil {
+				return nil, err
+			}
+			return existingReq, nil
 		}
 	}
 
@@ -72,7 +75,10 @@ func (s *FriendService) SendRequest(data dto.SendRequestDTO) error {
 		CreatedAt:      time.Now(),
 		FinishedAt:     time.Now(),
 	}
-	return s.Repo.CreateRequest(&req)
+	if err := s.Repo.CreateRequest(&req); err != nil {
+		return nil, err
+	}
+	return &req, nil
 }
 
 func (s *FriendService) RespondRequest(data dto.RespondRequestDTO) error {
@@ -224,6 +230,12 @@ func (s *FriendService) Unfollow(data dto.UnfollowDTO) error {
 	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 3)
 }
 
+func (s *FriendService) RemoveFollower(followedID, followerID int) error {
+	// เจ้าของโปรไฟล์ (followedID) ต้องการลบผู้ติดตาม (followerID)
+	// ใช้สถานะ 3 (Unfollowed) เช่นกัน
+	return s.Repo.UpdateFollowStatus(followerID, followedID, 3)
+}
+
 func (s *FriendService) Mute(data dto.MuteDTO) error {
 	return s.Repo.UpdateFollowStatus(data.FollowerID, data.FollowedID, 2) // 2: Muted
 }
@@ -238,4 +250,18 @@ func (s *FriendService) GetPopularMembers(myID int) ([]entity.Member, error) {
 
 func (s *FriendService) GetAllMembers(myID int) ([]entity.Member, error) {
 	return s.Repo.GetAllMembers(myID)
+}
+
+// ---------------------- Public Access (Other Users) -------------------
+
+func (s *FriendService) GetMemberFriends(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFriendsForUser(memberID)
+}
+
+func (s *FriendService) GetMemberFollowers(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFollowers(memberID)
+}
+
+func (s *FriendService) GetMemberFollowing(memberID int) ([]entity.Member, error) {
+	return s.Repo.GetFollowing(memberID)
 }

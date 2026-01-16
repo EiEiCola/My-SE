@@ -142,3 +142,50 @@ func (c *FriendshipController) GetAllMembers(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, gin.H{"data": members})
 }
+
+// ---------------------- Get Other Member Lists ----------------------
+
+func (c *FriendshipController) GetMemberFriends(ctx *gin.Context) {
+	targetID, err := strconv.Atoi(ctx.Param("target_id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target ID"})
+		return
+	}
+
+	friends, err := c.Service.GetMemberFriends(targetID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": friends})
+}
+
+func (c *FriendshipController) GetMemberFollowers(ctx *gin.Context) {
+	targetID, err := strconv.Atoi(ctx.Param("target_id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target ID"})
+		return
+	}
+
+	followers, err := c.Service.GetMemberFollowers(targetID)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{"data": []entity.Member{}}) // Return empty if error/empty
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": followers})
+}
+
+func (c *FriendshipController) GetMemberFollowing(ctx *gin.Context) {
+	targetID, err := strconv.Atoi(ctx.Param("target_id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target ID"})
+		return
+	}
+
+	following, err := c.Service.GetMemberFollowing(targetID)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{"data": []entity.Member{}})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"data": following})
+}
