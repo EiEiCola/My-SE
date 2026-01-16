@@ -28,6 +28,7 @@ const ReportManage: React.FC = () => {
   const [deleteVisible, setDeleteVisible] = useState<boolean>(false);
   const [currentReport, setCurrentReport] = useState<Report | null>(null);
   const [newStatus, setNewStatus] = useState<number>(0);
+  const [reportStatuses, setReportStatuses] = useState<any[]>([]);
 
   // Filter States
   const [searchText, setSearchText] = useState<string>("");
@@ -60,8 +61,20 @@ const ReportManage: React.FC = () => {
     }
   };
 
+  const fetchReportStatuses = async () => {
+    try {
+      const res = await ReportService.getReportStatuses();
+      if (res.data && Array.isArray(res.data.data)) {
+        setReportStatuses(res.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch report statuses:", error);
+    }
+  };
+
   useEffect(() => {
     fetchReports();
+    fetchReportStatuses();
   }, [searchText, filterStatus, filterType]);
 
   const handleView = (report: Report) => {
@@ -389,11 +402,11 @@ const ReportManage: React.FC = () => {
               onChange={setNewStatus}
               style={{ width: "100%" }}
             >
-              {/* TODO: Fetch these from backend if possible, or use constants */}
-              <Option value={1}>รอดำเนินการ</Option>
-              <Option value={2}>กำลังดำเนินการ</Option>
-              <Option value={3}>เสร็จสิ้น</Option>
-              <Option value={4}>ปฏิเสธ</Option>
+              {reportStatuses.map((status) => (
+                <Option key={status.id} value={status.id}>
+                  {status.name}
+                </Option>
+              ))}
             </Select>
           </div>
         </Modal>

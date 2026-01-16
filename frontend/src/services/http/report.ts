@@ -78,4 +78,7 @@ export const ReportService = {
     updateReportStatus: async (id: number, status_id: number) => {
         return await http.post(`/admin/reports/${id}/status`, { status_id });
     },
+    getReportStatuses: async () => {
+        return await http.get("/admin/report-statuses");
+    },
 };

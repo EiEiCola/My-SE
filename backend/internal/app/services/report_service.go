@@ -164,6 +164,14 @@ func (s *ReportService) DeleteReportByAdmin(id int) error {
 	return s.ReportRepo.Delete(id)
 }
 
+func (s *ReportService) GetAllStatuses() ([]entity.ReportStatus, error) {
+	var statuses []entity.ReportStatus
+	if err := s.DB.Order("id").Find(&statuses).Error; err != nil {
+		return nil, err
+	}
+	return statuses, nil
+}
+
 type CustomError struct {
 	Message string
 }

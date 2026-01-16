@@ -8,7 +8,26 @@ import (
 )
 
 func SeedSeparateCategories(db *gorm.DB) {
-	// 1. Announcement Categories
+	// 1. Report Statuses (สำคัญ! ต้อง seed ก่อน)
+	reportStatuses := []entity.ReportStatus{
+		{ID: 1, Name: "รอดำเนินการ"},
+		{ID: 2, Name: "กำลังดำเนินการ"},
+		{ID: 3, Name: "เสร็จสิ้น"},
+		{ID: 4, Name: "ปฏิเสธ"},
+	}
+
+	for _, status := range reportStatuses {
+		var exist entity.ReportStatus
+		if err := db.Where("id = ?", status.ID).First(&exist).Error; err != nil {
+			if err := db.Create(&status).Error; err != nil {
+				log.Println("❌ Create ReportStatus failed:", status.Name, err)
+			} else {
+				log.Println("✅ ReportStatus seeded:", status.Name)
+			}
+		}
+	}
+
+	// 2. Announcement Categories
 	annCats := []entity.AnnouncementCategory{
 		{Title: "ทั่วไป", Description: "ประกาศทั่วไป / General", DisplayOrder: 1},
 		{Title: "กิจกรรม", Description: "กิจกรรม / Activity", DisplayOrder: 2},
@@ -28,7 +47,7 @@ func SeedSeparateCategories(db *gorm.DB) {
 		}
 	}
 
-	// 2. Report Reasons
+	// 3. Report Reasons
 	reportReasons := []entity.ReportReason{
 		{Title: "เนื้อหาไม่เหมาะสม / ลามก", Description: "Inappropriate content", DisplayOrder: 1},
 		{Title: "สแปม / โฆษณา", Description: "Spam or Advertising", DisplayOrder: 2},
