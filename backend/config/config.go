@@ -115,6 +115,7 @@ func Connect() *gorm.DB {
 		&entity.CommentAttachment{},
 		&entity.PostImage{},
 		&entity.PostAttachment{},
+		&entity.PostLike{}, // Like feature for posts
 		&entity.ReviewImage{},
 		&entity.ReviewTag{},
 		&entity.ReviewVote{},

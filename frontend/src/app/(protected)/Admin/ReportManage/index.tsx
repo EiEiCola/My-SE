@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col } from "antd";
-import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { ReportService, type Report } from "../../../../services/http/report";
 
@@ -8,6 +9,7 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const ReportManage: React.FC = () => {
+  const navigate = useNavigate();
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
   const resolveMediaUrl = (url?: string) => {
@@ -83,6 +85,82 @@ const ReportManage: React.FC = () => {
     }
   };
 
+  // Navigate to reported post/review
+  const handleViewTarget = (report: Report) => {
+    if (!report.target_id) {
+      message.warning("ไม่มีข้อมูลเป้าหมาย");
+      return;
+    }
+
+    const targetType = (report.target_type || "").toLowerCase();
+
+    if (targetType === "post") {
+      // Navigate to post detail
+      window.open(`/User/Post/detail/${report.target_id}`, "_blank");
+    } else if (targetType === "review") {
+      // Navigate to review - you may need to adjust this path
+      window.open(`/User/Review`, "_blank");
+      message.info("กรุณาค้นหารีวิว ID: " + report.target_id);
+    } else {
+      message.warning(`ไม่สามารถดู ${report.target_type} ได้`);
+    }
+  };
+
+  // Delete reported post/review
+  const handleDeleteTarget = (report: Report) => {
+    if (!report.target_id) {
+      message.warning("ไม่มีข้อมูลเป้าหมาย");
+      return;
+    }
+
+    const targetType = (report.target_type || "").toLowerCase();
+
+    Modal.confirm({
+      title: `ยืนยันการลบ ${report.target_type}`,
+      icon: <ExclamationCircleOutlined />,
+      content: `คุณต้องการลบ ${report.target_type} ID: ${report.target_id} หรือไม่?`,
+      okText: "ลบ",
+      okType: "danger",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+          const token = localStorage.getItem("token");
+
+          let endpoint = "";
+          if (targetType === "post") {
+            endpoint = `${API_BASE}/api/member/posts/${report.target_id}`;
+          } else if (targetType === "review") {
+            endpoint = `${API_BASE}/api/member/reviews/${report.target_id}`;
+          } else {
+            message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
+            return;
+          }
+
+          const response = await fetch(endpoint, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to delete");
+          }
+
+          message.success(`ลบ ${report.target_type} สำเร็จ`);
+
+          // Update report status to "resolved"
+          await ReportService.updateReportStatus(report.id, 3);
+          fetchReports();
+        } catch (error) {
+          console.error("Delete error:", error);
+          message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
+        }
+      },
+    });
+  };
+
   const columns = [
     {
       title: "ID",
@@ -144,10 +222,32 @@ const ReportManage: React.FC = () => {
     {
       title: "จัดการ",
       key: "action",
+      width: 200,
       render: (_: any, record: Report) => (
-        <Space size="middle">
-          <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
-          <Button icon={<EditOutlined />} type="primary" onClick={() => handleEditStatus(record)} />
+        <Space size="small">
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => handleView(record)}
+            title="ดูรายละเอียดรายงาน"
+          />
+          <Button
+            icon={<LinkOutlined />}
+            onClick={() => handleViewTarget(record)}
+            title={`ดู ${record.target_type}`}
+            type="default"
+          />
+          <Button
+            icon={<EditOutlined />}
+            type="primary"
+            onClick={() => handleEditStatus(record)}
+            title="แก้ไขสถานะ"
+          />
+          <Button
+            icon={<DeleteOutlined />}
+            danger
+            onClick={() => handleDeleteTarget(record)}
+            title={`ลบ ${record.target_type}`}
+          />
         </Space>
       ),
     },
