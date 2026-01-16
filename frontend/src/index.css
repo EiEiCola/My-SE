@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix Ant Design Z-Index to be above custom popups (z-index 2000) */
+.ant-message {
+  z-index: 9999 !important;
+}
+.ant-modal-wrap {
+  z-index: 3000 !important;
+}
+.ant-modal-mask {
+  z-index: 3000 !important;
+}

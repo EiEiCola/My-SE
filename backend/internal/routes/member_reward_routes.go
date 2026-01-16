@@ -18,5 +18,6 @@ func SetupMemberRewardRoutes(r *gin.RouterGroup) {
 	// ✅ r ที่ส่งเข้ามา “คือ /api/member แล้ว” (จาก router.go)
 	r.POST("/rewards/:id/redeem", ctrl.Redeem)
 	r.GET("/my-stickers", ctrl.MyStickers)
+	r.GET("/:id/stickers", ctrl.GetMemberStickers)
 	r.GET("/points", ctrl.MyPoints)
 }

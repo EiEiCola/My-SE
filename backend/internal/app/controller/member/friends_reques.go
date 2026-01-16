@@ -51,11 +51,12 @@ func (c *FriendRequestController) Send(ctx *gin.Context) {
 	body.SenderID = memberID
 
 	// ⭐ 2. ส่ง Service
-	if err := c.Service.SendRequest(body); err != nil {
+	req, err := c.Service.SendRequest(body)
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Friend request sent"})
+	ctx.JSON(http.StatusCreated, gin.H{"message": "Friend request sent", "data": req})
 }
 
 // Respond: ตอบรับ/ปฏิเสธ คำขอ
