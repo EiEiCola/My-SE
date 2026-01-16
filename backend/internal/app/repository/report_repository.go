@@ -140,3 +140,32 @@ func (r *ReportRepository) Delete(id int) error {
 		return nil
 	})
 }
+
+func (r *ReportRepository) CountReportsByTarget(targetType string, targetIDs []uint) (map[uint]int64, error) {
+	out := make(map[uint]int64)
+	if len(targetIDs) == 0 {
+		return out, nil
+	}
+
+	type result struct {
+		TargetID uint
+		Count    int64
+	}
+
+	var results []result
+	err := r.DB.Model(&entity.Report{}).
+		Select("target_id, count(*) as count").
+		Where("target_type = ? AND target_id IN ?", targetType, targetIDs).
+		Group("target_id").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range results {
+		out[res.TargetID] = res.Count
+	}
+
+	return out, nil
+}

@@ -108,6 +108,7 @@ type PollResponse struct {
 	AdminDeleteReason *string    `json:"admin_delete_reason,omitempty"`
 	DeletedByType     *string    `json:"deleted_by_type,omitempty"` // "OWNER" or "ADMIN"
 	DeletedAt         *time.Time `json:"deleted_at,omitempty"`      // ✅ เพิ่ม
+	ReportCount       int64      `json:"report_count"`              // ✅ NEW: Count of reports
 }
 
 // สำหรับรายการโพลของสมาชิก (My Polls)
