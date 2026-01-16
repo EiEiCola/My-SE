@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import { friendAPI } from "../../../../services/http/friend";
 import "./PollList.css";
 import { toFullUrl } from "../../../../services/http/poll";
 
@@ -244,7 +245,15 @@ export const PollCard: React.FC<Props> = (props) => {
   const isMine = isOwner;
 
   // ✅ Handle username click (navigate to profile)
-  const handleUsernameClick = () => {
+  const handleUsernameClick = async () => {
+    // ✅ DEBUG
+    console.log('🔍 PollCard - handleUsernameClick clicked');
+    console.log('🔍 PollCard - isAnonymous:', isAnonymous);
+    console.log('🔍 PollCard - ownerId:', ownerId);
+    console.log('🔍 PollCard - myId (currentMemberId):', myId);
+    console.log('🔍 PollCard - isMine:', isMine);
+    console.log('🔍 PollCard - poll data:', p);
+
     if (isAnonymous) return;
 
     // ✅ ถ้าเป็นของตัวเอง ให้ไป /User/Profile เสมอ
@@ -253,8 +262,52 @@ export const PollCard: React.FC<Props> = (props) => {
       return;
     }
 
-    // ✅ ของคนอื่น -> /User/Profile/:memberId
-    if (ownerId) navigate(`/ User / Profile / ${ownerId} `);
+    // ✅ ของคนอื่น -> ตรวจสอบสถานะความสัมพันธ์
+    if (!ownerId) return;
+
+    try {
+      // เช็คว่าเป็นเพื่อนกันหรือไม่
+      const friendsData = await friendAPI.getMyFriends();
+      const friends = friendsData?.data || friendsData || [];
+      const isFriend = Array.isArray(friends) && friends.some(
+        (f: any) => f.id === ownerId || f.ID === ownerId || f.member_id === ownerId
+      );
+
+      if (isFriend) {
+        // เป็นเพื่อนแล้ว -> ไปหน้าเพื่อนทั้งหมด พร้อม auto-select
+        navigate("/User/Friends/FriendRelation", { state: { selectedId: ownerId } });
+      } else {
+        // ยังไม่เป็นเพื่อน -> ตรวจสอบว่ามีคำขอเป็นเพื่อนหรือไม่
+        const [receivedReqs, sentReqs] = await Promise.all([
+          friendAPI.getReceivedRequests(),
+          friendAPI.getSentRequests()
+        ]);
+
+        const received = receivedReqs?.data || receivedReqs || [];
+        const sent = sentReqs?.data || sentReqs || [];
+
+        // ✅ FIX: ใช้ field name ที่ถูกต้อง
+        // received: r.sent_mem_id (คนที่ส่งคำขอมา)
+        // sent: r.receive_mem_id (คนที่เราส่งคำขอไป)
+        const hasReceivedRequest =
+          Array.isArray(received) && received.some((r: any) => {
+            const senderId = r.sent_mem_id || r.sent_member?.ID || r.sent_member?.id;
+            return senderId === ownerId;
+          });
+
+        if (hasReceivedRequest) {
+          // คนนี้ส่งคำขอมาหาเรา -> ไปหน้าคำขอเป็นเพื่อน พร้อม auto-select
+          navigate("/User/Friends/Request", { state: { selectedId: ownerId } });
+        } else {
+          // ไม่มีคำขอจากคนนี้ (อาจเราส่งไปหาเขา หรือไม่มีเลย) -> ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+          navigate("/User/Friends/Popular", { state: { selectedId: ownerId } });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check friend status:", error);
+      // Fallback: ไปหน้าเพื่อนแนะนำ พร้อม auto-select
+      navigate("/User/Friends/Popular", { state: { selectedId: ownerId } });
+    }
   };
 
   // ✅ ล็อกเฉพาะเจ้าของจริง ๆ เท่านั้น

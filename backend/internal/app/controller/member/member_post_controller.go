@@ -644,6 +644,40 @@ func (ctl *PostController) GetMyPosts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": posts})
 }
 
+// GetPostsByUser - GET /api/member/posts/user/:userID
+func (ctl *PostController) GetPostsByUser(c *gin.Context) {
+	userIDStr := c.Param("userID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	posts, err := ctl.Service.GetPostsByMemberID(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
+// GetFavsByUser - GET /api/member/posts/user/:userID/fav
+func (ctl *PostController) GetFavsByUser(c *gin.Context) {
+	userIDStr := c.Param("userID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	posts, err := ctl.Service.GetBookmarkedPostsByMemberID(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
 // ToggleLikeComment - POST /api/member/posts/:id/comments/:commentId/like
 func (ctl *PostController) ToggleLikeComment(c *gin.Context) {
 	memberID, ok := ctl.getMemberProfileID(c)

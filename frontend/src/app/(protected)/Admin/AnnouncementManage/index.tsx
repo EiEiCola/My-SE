@@ -11,6 +11,7 @@ import {
   Modal,
   message,
   Tooltip,
+  Avatar,
 } from "antd";
 import {
   PlusOutlined,
@@ -26,6 +27,8 @@ const { Option } = Select;
 interface RequestRow {
   id: number;
   user: string;
+  member_picture?: string;
+  member_id: number;
   title: string;
   submittedAt: string;
   displayFrom: string;
@@ -60,6 +63,8 @@ const AnnouncementManage: React.FC = () => {
       const mapped = (json.data || []).map((item: any) => ({
         id: item.id,
         user: item.member?.username || `Member #${item.member_id}`,
+        member_picture: item.member?.member_picture,
+        member_id: item.member_id,
         title: item.title,
         submittedAt: item.req_start_at
           ? new Date(item.req_start_at).toLocaleDateString("th-TH")
@@ -141,9 +146,14 @@ const AnnouncementManage: React.FC = () => {
     },
     {
       title: "ผู้ยื่นคำร้อง",
-      dataIndex: "user",
       key: "user",
-      width: 150,
+      width: 200,
+      render: (_: any, record: RequestRow) => (
+        <Space>
+          <Avatar src={record.member_picture || "https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous"} />
+          <span>{record.user}</span>
+        </Space>
+      ),
     },
     {
       title: "ชื่อหัวข้อ",

@@ -2,8 +2,12 @@ import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import SideBar from "../../components/SideBar";
 import Header from "../../components/Header";
+import { useActivityTracker } from "../../hooks/useActivityTracker";
 
 const AdminLayout: React.FC = () => {
+    // ✅ Track user activity system-wide (auto-logout after 5 min)
+    useActivityTracker();
+
     // Start collapsed by default, expand on hover
     const [isCollapsed, setIsCollapsed] = useState(true);
 

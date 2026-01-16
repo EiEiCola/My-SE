@@ -2,6 +2,10 @@ package websocket
 
 import (
 	"sync"
+	"time"
+
+	"github.com/sut68/team12/backend/internal/entity"
+	"gorm.io/gorm"
 )
 
 // Message struct สำหรับสื่อสารภายใน WS
@@ -25,6 +29,9 @@ type Hub struct {
 	// เก็บสถานะ Online: UserID -> จำนวน Device ที่ต่ออยู่
 	OnlineUsers map[uint]int
 	mu          sync.RWMutex
+
+	// ✅ Database connection for persisting status changes
+	db *gorm.DB
 }
 
 // Wrapper to carry target IDs
@@ -33,7 +40,7 @@ type WSMessageWithTargets struct {
 	TargetIDs []uint
 }
 
-func NewHub() *Hub {
+func NewHub(db *gorm.DB) *Hub {
 	return &Hub{
 		Register:          make(chan *Client),
 		Unregister:        make(chan *Client),
@@ -41,6 +48,7 @@ func NewHub() *Hub {
 		Broadcast:         make(chan WSMessage),
 		TargetedBroadcast: make(chan WSMessageWithTargets),
 		OnlineUsers:       make(map[uint]int),
+		db:                db,
 	}
 }
 
@@ -83,17 +91,29 @@ func (h *Hub) register(client *Client) {
 	h.Clients[client] = true
 
 	h.mu.Lock()
+	wasOffline := h.OnlineUsers[client.UserID] == 0
 	h.OnlineUsers[client.UserID]++
 	h.mu.Unlock()
+
+	// ✅ Update database: Set to Online if this is first device
+	if wasOffline {
+		now := time.Now()
+		h.db.Model(&entity.Member{}).Where("id = ?", client.UserID).Updates(map[string]interface{}{
+			"active_status_id": 1,
+			"last_activity":    now,
+		})
+	}
 
 	// 1. บอกคนมาใหม่ว่าใครออนไลน์บ้าง
 	h.sendOnlineListTo(client)
 
 	// 2. บอกคนอื่นว่า user นี้ออนไลน์แล้ว (Broadcast ทุกคน)
-	h.broadcastToAll(WSMessage{
-		Type:    "user_online",
-		Payload: client.UserID,
-	})
+	if wasOffline {
+		h.broadcastToAll(WSMessage{
+			Type:    "user_online",
+			Payload: client.UserID,
+		})
+	}
 }
 
 func (h *Hub) unregister(client *Client) {
@@ -111,6 +131,9 @@ func (h *Hub) unregister(client *Client) {
 		// ถ้าออฟไลน์จริง (ไม่เหลือ Device) ให้บอกคนอื่น
 		h.mu.RLock()
 		if _, stillOn := h.OnlineUsers[client.UserID]; !stillOn {
+			// ✅ Update database: Set to Offline
+			h.db.Model(&entity.Member{}).Where("id = ?", client.UserID).Update("active_status_id", 2)
+
 			h.broadcastToAll(WSMessage{
 				Type:    "user_offline",
 				Payload: client.UserID,

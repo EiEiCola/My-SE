@@ -15,6 +15,7 @@ interface Announcement {
   status: "active" | "archived";
   content?: string;
   category?: string;
+  categoryObj?: { id: number; title: string }; // New field
 }
 
 interface PRSubmission {
@@ -36,6 +37,7 @@ interface BackendAnnouncement {
   category?: string;
   category_name?: string;
   main_category?: { name: string };
+  AnnouncementCategory?: { id: number; title: string }; // New relation
 }
 
 interface BackendPRSubmission {
@@ -51,6 +53,23 @@ const Announcement: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<{ id: number; title: string }[]>([]);
+
+  // Fetch Categories
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/categories/announcement");
+        const json = await res.json();
+        if (json.data) {
+          setCategories(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch categories", e);
+      }
+    };
+    fetchCats();
+  }, []);
 
   // Fetch announcements from API
   useEffect(() => {
@@ -80,8 +99,10 @@ const Announcement: React.FC = () => {
           date: item.publish_start_at,
           status: item.status_id === 1 ? "active" : "archived",
           content: item.content,
-          // Backend currently has no explicit category; try common fields then default to "general" to make filter usable
-          category: (item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
+          // Use dynamic category if available
+          categoryObj: item.AnnouncementCategory ? { id: item.AnnouncementCategory.id, title: item.AnnouncementCategory.title } : undefined,
+          // Fallback string for legacy support
+          category: (item.AnnouncementCategory?.title || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
         }));
 
         setAnnouncements(mappedData);
@@ -106,7 +127,12 @@ const Announcement: React.FC = () => {
   const filteredAnnouncements = announcements.filter((item) => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !filterCategory || (item.category || "").toLowerCase() === filterCategory.toLowerCase();
+
+    // Filter by Category ID if selected, matching against categoryObj.id
+    // If filterCategory is a string/number ID
+    const matchesCategory = !filterCategory ||
+      (item.categoryObj && item.categoryObj.id.toString() === filterCategory) ||
+      (item.category || "").toLowerCase() === filterCategory.toLowerCase(); // Legacy fallback
     return matchesSearch && matchesCategory;
   });
 
@@ -226,10 +252,18 @@ const Announcement: React.FC = () => {
                 style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px' }}
               >
                 <option value="">ทั้งหมด</option>
-                <option value="general">ทั่วไป</option>
-                <option value="activity">กิจกรรม</option>
-                <option value="scholarship">ทุนการศึกษา</option>
-                <option value="urgent">ด่วน</option>
+                {categories.length > 0 ? (
+                  categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="general">ทั่วไป</option>
+                    <option value="activity">กิจกรรม</option>
+                    <option value="scholarship">ทุนการศึกษา</option>
+                    <option value="urgent">ด่วน</option>
+                  </>
+                )}
               </select>
               <button
                 className="create-btn"

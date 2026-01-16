@@ -238,7 +238,7 @@ const AnnouncementsList: React.FC = () => {
                   </div>
                 </Descriptions.Item>
                 <Descriptions.Item label="หมวดหมู่">
-                  {currentAnnouncement.category || "ทั่วไป"}
+                  {currentAnnouncement.AnnouncementCategory?.title || currentAnnouncement.category || "ทั่วไป"}
                 </Descriptions.Item>
               </Descriptions>
             </div>

@@ -19,6 +19,8 @@ type Member struct {
 	Bio           string `json:"bio"`
 	MemberPicture string `json:"member_picture"`
 
+	LastActivity *time.Time `json:"last_activity" gorm:"index"` // ✅ Track last activity for auto-logout
+
 	NationalID string `json:"national_id" gorm:"uniqueIndex;not null" valid:"required~NationalID is required,length(13|13)~NationalID must be 13 digits"`
 	StudentID  string `json:"student_id" gorm:"uniqueIndex;not null" valid:"required~StudentID is required"`
 
@@ -53,8 +55,8 @@ type Member struct {
 	ReceivedReports []Report `gorm:"polymorphic:Target;" json:"received_reports"`
 
 	FriendCount    int64 `gorm:"-" json:"friend_count"`
-    FollowerCount  int64 `gorm:"-" json:"follower_count"`
-    FollowingCount int64 `gorm:"-" json:"following_count"`
+	FollowerCount  int64 `gorm:"-" json:"follower_count"`
+	FollowingCount int64 `gorm:"-" json:"following_count"`
 }
 
 func ValidateMember(m Member) (bool, error) {

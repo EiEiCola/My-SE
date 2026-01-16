@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 import "../Poll/MyPolls.css";
 import "./ReviewListPage.css";
 
@@ -56,6 +57,7 @@ const formatDate = (iso: string) => {
 
 const MyReviews: React.FC = () => {
     const navigate = useNavigate();
+    const [messageApi, contextHolder] = message.useMessage();
 
     const [reviews, setReviews] = useState<ReviewItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -89,7 +91,9 @@ const MyReviews: React.FC = () => {
                         images = rawImgs
                             .map((img: any) => {
                                 if (typeof img === "string") return toFullUrl(img);
-                                return toFullUrl(img.url ?? img.URL);
+                                // ✅ Check multiple field name variations
+                                const urlValue = img.url ?? img.URL ?? img.Url ?? img.image_url ?? img.ImageURL ?? "";
+                                return toFullUrl(urlValue);
                             })
                             .filter(Boolean);
                     }
@@ -120,6 +124,7 @@ const MyReviews: React.FC = () => {
                         deletedAt: deletedAt && deletedAt !== "0001-01-01T00:00:00Z" ? deletedAt : null,
                         deletedByType: deletedByType === "ADMIN" || deletedByType === "OWNER" ? (deletedByType as any) : "",
                         adminDeleteReason: r.admin_delete_reason ?? r.AdminDeleteReason,
+                        isAnonymous: r.is_anonymous ?? r.IsAnonymous ?? false, // ✅ Map isAnonymous
                     } as ReviewItem;
                 })
                     .filter((r) => r.deletedByType !== "OWNER"); // ✅ Hide owner-deleted reviews
@@ -139,9 +144,13 @@ const MyReviews: React.FC = () => {
         if (selectedReviewIdForDelete == null) return;
         try {
             await deleteReview(selectedReviewIdForDelete);
-            window.location.reload();
+            messageApi.success("ลบรีวิวสำเร็จ");
+
+            // Remove from local state instead of reload to keep message visible
+            setReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
+            setIsDeleteModalOpen(false);
         } catch (e: any) {
-            alert(e.message);
+            messageApi.error(e.message || "ลบไม่สำเร็จ");
         }
     };
 
@@ -166,6 +175,7 @@ const MyReviews: React.FC = () => {
 
     return (
         <div className="my-polls-page">
+            {contextHolder}
             {/* Back Button */}
             <div style={{ marginBottom: 16 }}>
                 <button className="my-back-btn" onClick={() => navigate("/User/Review")}>
@@ -366,6 +376,7 @@ const MyReviews: React.FC = () => {
                                 <div className="card-sub">
                                     {selectedReview.date} •{" "}
                                     {[selectedReview.mainCat, selectedReview.sub1, selectedReview.sub2].filter(Boolean).join(" > ") || "ทั่วไป"}
+                                    {selectedReview.isAnonymous && <span style={{ marginLeft: 8, color: "#9333ea", fontWeight: 700 }}> (ไม่ระบุตัวตน)</span>}
                                 </div>
                             </div>
                             <button className="icon-btn" onClick={() => setDetailOpen(false)}>

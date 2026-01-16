@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { message, Modal } from "antd";
 import ReviewCard from "./components/ReviewCard";
 import ReportReviewModal from "./ReportReviewModal";
 import "./ReviewListPage.css";
@@ -51,14 +52,7 @@ const formatDate = (iso: string) => {
   });
 };
 
-const REPORT_REASONS = [
-  "เนื้อหาไม่เหมาะสม / ลามก",
-  "สแปม / โฆษณา",
-  "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
-  "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
-  "การข่มขู่ / คุกคาม",
-  "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
-];
+// REPORT_REASONS removed - fetching from API now
 
 type CatRow = { id: number; title: string };
 
@@ -92,6 +86,8 @@ const getMyMemberId = () => {
 
 const ReviewListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
   const myId = getMyMemberId();
   //console.log("DEBUG myId =", myId); // ✅ ใส่ตรงนี้
 
@@ -116,6 +112,22 @@ const ReviewListPage: React.FC = () => {
   const [mainCats, setMainCats] = useState<CatRow[]>([]);
   const [l1Cats, setL1Cats] = useState<CatRow[]>([]);
   const [l2Cats, setL2Cats] = useState<CatRow[]>([]);
+  const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+
+  useEffect(() => {
+    const fetchReasons = async () => {
+      try {
+        const res = await fetch("/api/categories/report");
+        const json = await res.json();
+        if (json.data) {
+          setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch report reasons", e);
+      }
+    };
+    fetchReasons();
+  }, []);
 
   const [selectedMainId, setSelectedMainId] = useState<number | null>(null);
   const [selectedL1Id, setSelectedL1Id] = useState<number | null>(null);
@@ -150,8 +162,12 @@ const ReviewListPage: React.FC = () => {
             const imgArr = Array.isArray(rawImgs) ? rawImgs : [];
             const images = imgArr
               .slice()
-              .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? 0))
-              .map((img: any) => toFullUrl(img.url ?? img.URL))
+              .sort((a: any, b: any) => (a.sort_order ?? a.SortOrder ?? a.SortOrder ?? 0) - (b.sort_order ?? b.SortOrder ?? b.SortOrder ?? 0))
+              .map((img: any) => {
+                // ✅ Check multiple field name variations
+                const urlValue = img.url ?? img.URL ?? img.Url ?? img.image_url ?? img.ImageURL ?? "";
+                return toFullUrl(urlValue);
+              })
               .filter((u: string) => !!u);
 
             const createdAt = r.created_at ?? r.CreatedAt ?? new Date().toISOString();
@@ -304,7 +320,19 @@ const ReviewListPage: React.FC = () => {
       setAllReviews((prev) => patch(prev));
       setMyReviews((prev) => patch(prev));
     } catch (e: any) {
-      alert(e.message);
+      const msg = e?.message || "";
+      if (msg.includes("owner_cannot_vote")) {
+        // ใช้ modal instance จาก hook
+        modal.warning({
+          title: "ไม่สามารถโหวตได้",
+          content: "เจ้าของรีวิวไม่สามารถโหวตรีวิวของตัวเองได้",
+          okText: "ตกลง",
+          centered: true,
+          zIndex: 9999,
+        });
+      } else {
+        messageApi.error(msg || "ไม่สามารถโหวตได้");
+      }
     }
   };
 
@@ -313,13 +341,14 @@ const ReviewListPage: React.FC = () => {
     if (selectedReviewIdForDelete == null) return;
     try {
       await deleteReview(selectedReviewIdForDelete);
+      messageApi.success("ลบรีวิวสำเร็จ");
 
       setAllReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
       setMyReviews((prev) => prev.filter((r) => r.id !== selectedReviewIdForDelete));
 
       setIsDeleteModalOpen(false);
     } catch (e: any) {
-      alert(e.message);
+      messageApi.error(e.message || "ลบไม่สำเร็จ");
     }
   };
   //รีเซ็ต fillter
@@ -336,6 +365,8 @@ const ReviewListPage: React.FC = () => {
   return (
 
     <div className="rl-page">
+      {contextHolder}
+      {modalContextHolder}
       <div className="rl-wrap">
         <div className="rl-stickyHead">
           <div className="rl-headTop" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "20px" }}>
@@ -497,7 +528,7 @@ const ReviewListPage: React.FC = () => {
       <ReportReviewModal
         open={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        reasons={REPORT_REASONS}
+        reasons={reportReasons.map(r => r.title)}
         selectedReason={selectedReportReason}
         setSelectedReason={setSelectedReportReason}
         otherReason={otherReason}
@@ -508,6 +539,8 @@ const ReviewListPage: React.FC = () => {
           try {
             const title = selectedReportReason;
             const description = selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)" ? otherReason : selectedReportReason;
+            const reasonObj = reportReasons.find(r => r.title === selectedReportReason);
+            const reportReasonID = reasonObj ? reasonObj.id : undefined;
 
             const token = localStorage.getItem("token");
             const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
@@ -523,6 +556,7 @@ const ReviewListPage: React.FC = () => {
                 target_id: selectedReviewIdForReport,
                 title,
                 description,
+                report_reason_id: reportReasonID,
                 medias: [],
               }),
             });

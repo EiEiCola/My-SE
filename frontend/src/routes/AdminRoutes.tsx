@@ -5,7 +5,7 @@ import ProfileManage from "../app/(protected)/Admin/ProfileManage";
 import EditAdminProfile from "../app/(protected)/Admin/ProfileManage/EditProfile";
 import RewardManage from "../app/(protected)/Admin/RewardManage";
 import PointRuleManage from "../app/(protected)/Admin/RewardManage/PointRuleManage";
-import MessageManage from "../app/(protected)/Admin/MessageManage";
+
 import FriendsManage from "../app/(protected)/Admin/FriendManage";
 import GroupManage from "../app/(protected)/Admin/CategoryManage";
 import PostManage from "../app/(protected)/Admin/PostManage";
@@ -37,7 +37,7 @@ function AdminRoutes() {
         <Route path="RewardManage" element={<RewardManage />} />
         <Route path="RewardManage/PointRule" element={<PointRuleManage />} />
 
-        <Route path="MessageManage" element={<MessageManage />} />
+
         <Route path="FriendsManage" element={<FriendsManage />} />
         <Route path="GroupManage" element={<GroupManage />} />
         <Route path="PostManage" element={<PostManage />} />

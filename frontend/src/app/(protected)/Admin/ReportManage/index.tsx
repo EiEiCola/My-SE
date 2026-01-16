@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar } from "antd";
+import { Table, Card, Typography, Button, Tag, Space, Modal, Select, message, Descriptions, Image, Input, Row, Col, Avatar, App } from "antd";
 import { EyeOutlined, EditOutlined, ExclamationCircleOutlined, SearchOutlined, ReloadOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -25,8 +25,10 @@ const ReportManage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [detailVisible, setDetailVisible] = useState<boolean>(false);
   const [statusVisible, setStatusVisible] = useState<boolean>(false);
+  const [deleteVisible, setDeleteVisible] = useState<boolean>(false);
   const [currentReport, setCurrentReport] = useState<Report | null>(null);
   const [newStatus, setNewStatus] = useState<number>(0);
+  const [reportStatuses, setReportStatuses] = useState<any[]>([]);
 
   // Filter States
   const [searchText, setSearchText] = useState<string>("");
@@ -59,8 +61,20 @@ const ReportManage: React.FC = () => {
     }
   };
 
+  const fetchReportStatuses = async () => {
+    try {
+      const res = await ReportService.getReportStatuses();
+      if (res.data && Array.isArray(res.data.data)) {
+        setReportStatuses(res.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch report statuses:", error);
+    }
+  };
+
   useEffect(() => {
     fetchReports();
+    fetchReportStatuses();
   }, [searchText, filterStatus, filterType]);
 
   const handleView = (report: Report) => {
@@ -108,59 +122,50 @@ const ReportManage: React.FC = () => {
     }
   };
 
-  // Delete reported post/review
-  const handleDeleteTarget = (report: Report) => {
-    if (!report.target_id) {
-      message.warning("ไม่มีข้อมูลเป้าหมาย");
-      return;
+  // Delete REPORT (not the target)
+  const handleDeleteReport = (report: Report) => {
+    console.log("Delete button clicked for report:", report);
+    setCurrentReport(report);
+    setDeleteVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!currentReport) return;
+    
+    console.log("User confirmed - Attempting to delete report ID:", currentReport.id);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = `${API_BASE}/api/admin/reports/${currentReport.id}`;
+      console.log("Delete endpoint:", endpoint);
+      console.log("Token exists:", !!token);
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Delete response status:", response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Delete failed:", errorData);
+        throw new Error(errorData.error || `Failed to delete report (Status: ${response.status})`);
+      }
+
+      const result = await response.json();
+      console.log("Delete result:", result);
+      
+      message.success("ลบรายงานสำเร็จ");
+      setDeleteVisible(false);
+      await fetchReports(); // Refresh list
+    } catch (error) {
+      console.error("Delete error:", error);
+      message.error(`ไม่สามารถลบรายงานได้: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const targetType = (report.target_type || "").toLowerCase();
-
-    Modal.confirm({
-      title: `ยืนยันการลบ ${report.target_type}`,
-      icon: <ExclamationCircleOutlined />,
-      content: `คุณต้องการลบ ${report.target_type} ID: ${report.target_id} หรือไม่?`,
-      okText: "ลบ",
-      okType: "danger",
-      cancelText: "ยกเลิก",
-      onOk: async () => {
-        try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
-          const token = localStorage.getItem("token");
-
-          let endpoint = "";
-          if (targetType === "post") {
-            endpoint = `${API_BASE}/api/member/posts/${report.target_id}`;
-          } else if (targetType === "review") {
-            endpoint = `${API_BASE}/api/member/reviews/${report.target_id}`;
-          } else {
-            message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
-            return;
-          }
-
-          const response = await fetch(endpoint, {
-            method: "DELETE",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to delete");
-          }
-
-          message.success(`ลบ ${report.target_type} สำเร็จ`);
-
-          // Update report status to "resolved"
-          await ReportService.updateReportStatus(report.id, 3);
-          fetchReports();
-        } catch (error) {
-          console.error("Delete error:", error);
-          message.error(`ไม่สามารถลบ ${report.target_type} ได้`);
-        }
-      },
-    });
   };
 
   const columns = [
@@ -182,6 +187,16 @@ const ReportManage: React.FC = () => {
       title: "หัวข้อ",
       dataIndex: "title",
       key: "title",
+      render: (text: string, record: Report) => (
+        <span>
+          {text}
+          {record.report_reason && (
+            <div style={{ fontSize: '12px', color: '#888' }}>
+              (เหตุผล: {record.report_reason.title})
+            </div>
+          )}
+        </span>
+      )
     },
     {
       title: "เป้าหมาย",
@@ -228,28 +243,34 @@ const ReportManage: React.FC = () => {
       width: 200,
       render: (_: any, record: Report) => (
         <Space size="small">
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-            title="ดูรายละเอียดรายงาน"
-          />
-          <Button
-            icon={<LinkOutlined />}
-            onClick={() => handleViewTarget(record)}
-            title={`ดู ${record.target_type}`}
-            type="default"
-          />
+          {(record.target_type || "").toLowerCase() === "post" && (
+            <Button
+              icon={<LinkOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewTarget(record);
+              }}
+              title={`ดู ${record.target_type}`}
+              type="default"
+            />
+          )}
           <Button
             icon={<EditOutlined />}
             type="primary"
-            onClick={() => handleEditStatus(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditStatus(record);
+            }}
             title="แก้ไขสถานะ"
           />
           <Button
             icon={<DeleteOutlined />}
             danger
-            onClick={() => handleDeleteTarget(record)}
-            title={`ลบ ${record.target_type}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteReport(record);
+            }}
+            title="ลบรายงาน"
           />
         </Space>
       ),
@@ -292,12 +313,13 @@ const ReportManage: React.FC = () => {
                 value={filterType}
                 onChange={(val) => setFilterType(val)}
               >
-                <Option value="announcement">Announcement</Option>
-                <Option value="pr_submission">PR Submission</Option>
-                <Option value="member">Member</Option>
-                <Option value="post">Post</Option>
-                <Option value="comment">Comment</Option>
-                <Option value="review">Review</Option>
+                <Option value="bug">แจ้งปัญหา (Bug)</Option>
+                <Option value="member">รายงานสมาชิก</Option>
+                <Option value="suggestion">ข้อเสนอแนะ</Option>
+                <Option value="post">โพสต์</Option>
+                <Option value="comment">ความเห็น</Option>
+                <Option value="review">รีวิว</Option>
+                <Option value="other">อื่นๆ</Option>
               </Select>
             </Col>
             <Col xs={24} sm={8} md={4}>
@@ -314,6 +336,11 @@ const ReportManage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          scroll={{ x: 1200 }}
+          onRow={(record) => ({
+            onClick: () => handleView(record),
+            style: { cursor: 'pointer' }
+          })}
         />
 
         {/* Detail Modal */}
@@ -385,13 +412,41 @@ const ReportManage: React.FC = () => {
               value={newStatus}
               onChange={setNewStatus}
               style={{ width: "100%" }}
+              getPopupContainer={(trigger) => trigger.parentElement!}
             >
-              {/* TODO: Fetch these from backend if possible, or use constants */}
-              <Option value={1}>รอดำเนินการ</Option>
-              <Option value={2}>กำลังดำเนินการ</Option>
-              <Option value={3}>เสร็จสิ้น</Option>
-              <Option value={4}>ปฏิเสธ</Option>
+              {reportStatuses.map((status) => (
+                <Option key={status.id} value={status.id}>
+                  {status.name}
+                </Option>
+              ))}
             </Select>
+          </div>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          title={
+            <span>
+              <ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+              ยืนยันการลบรายงาน
+            </span>
+          }
+          open={deleteVisible}
+          onOk={confirmDelete}
+          onCancel={() => {
+            console.log("Delete cancelled by user");
+            setDeleteVisible(false);
+          }}
+          okText="ลบ"
+          okType="danger"
+          cancelText="ยกเลิก"
+          centered
+        >
+          <div style={{ padding: '20px 0' }}>
+            <p>คุณต้องการลบรายงาน ID: <strong>{currentReport?.id}</strong> หรือไม่?</p>
+            <p style={{ color: '#888', fontSize: '13px', marginTop: 12 }}>
+              (การลบรายงานจะไม่ลบโพสต์หรือรีวิวต้นทาง)
+            </p>
           </div>
         </Modal>
       </Card>

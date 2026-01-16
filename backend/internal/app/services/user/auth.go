@@ -176,6 +176,15 @@ func (s *authSvc) Login(req dto.LoginReq) (string, error) {
 		if err := s.db.Where("member_account_id = ?", acc.ID).First(&member).Error; err != nil {
 			return "", errors.New("member not found for this account")
 		}
+
+		// ✅ Set user to ONLINE and update last activity
+		now := time.Now()
+		s.db.Model(&entity.Member{}).
+			Where("id = ?", member.ID).
+			Updates(map[string]interface{}{
+				"active_status_id": 1, // 1 = Online
+				"last_activity":    now,
+			})
 	}
 
 	// ✅ สำคัญที่สุด: token ต้องใส่ member_accounts.id

@@ -7,16 +7,18 @@ import (
 )
 
 type Report struct {
-	ID          int       `gorm:"column:report_ID;primaryKey;autoIncrement" json:"id"`
-	ReporterID  uint      `gorm:"column:reporter_ID" json:"reporter_id"`
-	TargetType  string    `gorm:"column:target_type" json:"target_type" valid:"required~TargetType is required"`
-	TargetID    *uint     `gorm:"column:target_id" json:"target_id,omitempty"`
-	Title       string    `gorm:"column:title" json:"title" valid:"required~Title is required"`
-	Description string    `gorm:"column:description" json:"description" valid:"required~Description is required"`
-	StatusID    int       `gorm:"column:status" json:"status_id"`
-	AdminID     *uint     `gorm:"column:admin_ID" json:"admin_id,omitempty"`
-	CreatedAt   time.Time `gorm:"column:CreatedAt" json:"created_at"`
-	UpdatedAt   time.Time `gorm:"column:UpdatedAt" json:"updated_at"`
+	ID             int           `gorm:"column:report_ID;primaryKey;autoIncrement" json:"id"`
+	ReporterID     uint          `gorm:"column:reporter_ID" json:"reporter_id"`
+	TargetType     string        `gorm:"column:target_type" json:"target_type" valid:"required~TargetType is required"`
+	TargetID       *uint         `gorm:"column:target_id" json:"target_id,omitempty"`
+	Title          string        `gorm:"column:title" json:"title" valid:"required~Title is required"`
+	Description    string        `gorm:"column:description" json:"description" valid:"required~Description is required"`
+	ReportReasonID *uint         `gorm:"column:report_reason_id" json:"report_reason_id"`
+	ReportReason   *ReportReason `gorm:"foreignKey:ReportReasonID;constraint:false" json:"report_reason,omitempty"`
+	StatusID       int           `gorm:"column:status" json:"status_id"`
+	AdminID        *uint         `gorm:"column:admin_ID" json:"admin_id,omitempty"`
+	CreatedAt      time.Time     `gorm:"column:CreatedAt" json:"created_at"`
+	UpdatedAt      time.Time     `gorm:"column:UpdatedAt" json:"updated_at"`
 
 	Reporter Member        `gorm:"foreignKey:ReporterID;references:ID" json:"reporter,omitempty"`
 	Admin    *Admin        `gorm:"foreignKey:AdminID;references:ID" json:"admin,omitempty"`

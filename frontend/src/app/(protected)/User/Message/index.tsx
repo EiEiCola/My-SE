@@ -215,7 +215,26 @@ const ChatPage: React.FC = () => {
       ws.current.onmessage = (event) => {
          try {
             const msg: WSMessage = JSON.parse(event.data);
-            if (msg.type === 'new_message') {
+
+            // ✅ Handle Online/Offline Status Updates
+            if (msg.type === 'online_users') {
+               // Initial list of online users when connecting
+               const userIds = msg.payload as number[];
+               setOnlineUsers(new Set(userIds));
+               console.log("📡 Online users:", userIds);
+            } else if (msg.type === 'user_online') {
+               const userId = msg.payload as number;
+               setOnlineUsers(prev => new Set([...prev, userId]));
+               console.log("🟢 User online:", userId);
+            } else if (msg.type === 'user_offline') {
+               const userId = msg.payload as number;
+               setOnlineUsers(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(userId);
+                  return newSet;
+               });
+               console.log("⚫ User offline:", userId);
+            } else if (msg.type === 'new_message') {
                const newMsg = msg.payload as Message;
 
                // ⭐ Optimistic Fix: Ignore own messages from WS to prevent duplicates

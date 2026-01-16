@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Typography, message } from "antd";
+import { Card, Typography, message, Empty } from "antd";
 import { memberRewardAPI } from "../../../../../services/http/member_reward";
 
 const { Text } = Typography;
@@ -78,7 +78,9 @@ const MySticker: React.FC = () => {
       {loading ? (
         <Text style={{ color: "#999" }}>กำลังโหลด...</Text>
       ) : normalized.length === 0 ? (
-        <Text style={{ color: "black" }}> My Sticker </Text>
+        <div style={{ padding: "50px 0", display: "flex", justifyContent: "center" }}>
+          <Empty description={<span style={{ color: "#999" }}> ยังไม่มีสติ๊กเกอร์ที่แลกไว้ </span>} />
+        </div>
       ) : (
         <div
           style={{

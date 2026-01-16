@@ -21,7 +21,11 @@ interface Post {
   };
 }
 
-const MyFav: React.FC = () => {
+interface MyFavProps {
+  userId?: number;
+}
+
+const MyFav: React.FC<MyFavProps> = ({ userId }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -30,7 +34,7 @@ const MyFav: React.FC = () => {
     const fetchBookmarkedPosts = async () => {
       try {
         setLoading(true);
-        const response = await postService.getBookmarkedPosts();
+        const response = userId ? await postService.getUserFavs(userId) : await postService.getBookmarkedPosts();
         setPosts(response.data.data || []);
       } catch (error) {
         console.error("Failed to fetch bookmarked posts:", error);

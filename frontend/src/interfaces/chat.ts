@@ -9,6 +9,9 @@ export interface User {
   member_picture?: string; // Correct field from Backend
   student_id?: string;
   dob?: string;
+  status?: 'online' | 'offline'; // ✅ Online/Offline status
+  status_id?: number; // ✅ 1 = Online, 2 = Offline
+  last_activity?: string; // ✅ Last activity timestamp
 }
 
 export interface RoomMember {
