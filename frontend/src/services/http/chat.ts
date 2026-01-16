@@ -1,7 +1,7 @@
 // src/services/chatService.ts
 import type { Room, Message } from '../../interfaces/chat';
 
-const API_URL = "http://localhost:8080/api/member/chat";
+const API_URL = "/api/member/chat";
 
 const getHeaders = () => {
   const token = localStorage.getItem('token'); // ✅ ดึง Token จาก LocalStorage

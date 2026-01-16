@@ -544,9 +544,9 @@ const ReviewManage: React.FC = () => {
                     {detailReview.review_images.map((img: any, i: number) => (
                       <img
                         key={i}
-                        src={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`}
-                        alt={`review-img-${i}`}
-                        onClick={() => setLightboxImg(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`)}
+                        src={`${import.meta.env.VITE_API_BASE_URL || ""}${img.url}`}
+                        alt={`review - img - ${i}`}
+                        onClick={() => setLightboxImg(`${import.meta.env.VITE_API_BASE_URL || ""}${img.url}`)}
                         style={{
                           height: 120,
                           borderRadius: 12,

@@ -45,7 +45,7 @@ func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	// Report controller
 	reportRepo := repository.NewReportRepository(db)
 	reportSvc := services.NewReportService(db, reportRepo, postRepo)
-	reportCtrl := memberctl.NewMemberReportController(reportSvc)
+	reportCtrl := memberctl.NewMemberReportController(reportSvc, memberSvc)
 
 	posts := r.Group("/posts")
 	{

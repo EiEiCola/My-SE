@@ -25,7 +25,7 @@ export interface SuggestedFriendUI {
 // 2. Helper Functions
 // ==========================================
 
-const BASE_IMAGE_URL = "http://localhost:8080";
+const BASE_IMAGE_URL = "";
 
 export const getImageUrl = (path: string | undefined | null) => {
   if (!path) return "";

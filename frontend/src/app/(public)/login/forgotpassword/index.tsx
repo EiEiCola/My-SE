@@ -36,7 +36,7 @@ export default function ForgotPassword() {
     try {
       setLoading(true);
 
-      const res = await axios.post("http://localhost:8080/api/auth/verify-reset", {
+      const res = await axios.post("/api/auth/verify-reset", {
         identifier: identifier.trim(),
         national_id: nationalID.trim(),
       });
