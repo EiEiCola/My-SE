@@ -398,161 +398,190 @@ const ReviewManage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Detail Drawer */}
-      <Drawer
-        title="รายละเอียดรีวิว"
-        placement="right"
-        width={600}
-        open={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-      >
-        {detailReview && (
-          <div className="review-detail-body">
-            <div className="detail-header">
-              <Space align="start" size="large">
-                <Avatar
-                  size={64}
-                  src={detailReview.member?.member_picture}
-                  style={{ backgroundColor: "#87d068" }}
+      {/* Detail Modal (Custom Card) */}
+      {isDetailModalOpen && detailReview && (
+        <div className="card-backdrop" onMouseDown={() => setIsDetailModalOpen(false)}>
+          <div className="card-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="card-head">
+              <div>
+                <div className="card-title">รายละเอียดรีวิว</div>
+                <div className="card-sub">
+                  ID #{detailReview.id} •{" "}
+                  {new Date(detailReview.created_at).toLocaleString("th-TH", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+              </div>
+              <button className="icon-btn" onClick={() => setIsDetailModalOpen(false)} type="button">
+                ✕
+              </button>
+            </div>
+
+            <div className="card-body">
+              {/* STATUS BANNER */}
+              {detailReview.deleted_at && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: detailReview.deleted_by_type === "ADMIN" ? "#fef2f2" : "#fffbeb",
+                    border: detailReview.deleted_by_type === "ADMIN" ? "1px solid #fee2e2" : "1px solid #fef3c7",
+                    borderRadius: 12,
+                    color: detailReview.deleted_by_type === "ADMIN" ? "#b91c1c" : "#92400e",
+                  }}
                 >
-                  {(detailReview.member?.username || "?").charAt(0).toUpperCase()}
-                </Avatar>
-                <div>
-                  <h2 className="detail-review-title">{detailReview.title}</h2>
-                  <div className="detail-author">
-                    โดย {detailReview.member?.username || "-"} •{" "}
-                    {new Date(detailReview.created_at).toLocaleString("th-TH", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    {detailReview.is_anonymous && (
-                      <Tag color="purple" style={{ marginLeft: 8 }}>
-                        🔒 ไม่เปิดเผยชื่อ
-                      </Tag>
-                    )}
-                  </div>
-                  <div className="detail-tags">
-                    <Tag color="gold" icon={<StarFilled />}>
-                      {Number(detailReview.rating).toFixed(1)}
-                    </Tag>
-                    {/* Category Hierarchy */}
-                    {detailReview.main_category && (
-                      <Tag color="cyan">
-                        {detailReview.main_category.title}
-                        {detailReview.sub_category_l1 && ` > ${detailReview.sub_category_l1.title}`}
-                        {detailReview.sub_category_l2 && ` > ${detailReview.sub_category_l2.title}`}
-                      </Tag>
-                    )}
-                    {(detailReview.report_count || 0) > 0 && (
-                      <Tag color="warning">ถูกรายงาน ({detailReview.report_count})</Tag>
-                    )}
-                  </div>
-                </div>
-              </Space>
-            </div>
-
-            <div className="detail-content-box">
-              <p>{detailReview.content}</p>
-            </div>
-
-            {/* Images - แสดงก่อน stats */}
-            {detailReview.review_images && detailReview.review_images.length > 0 && (
-              <div style={{ display: "flex", gap: 8, marginTop: 16, overflowX: "auto" }}>
-                {detailReview.review_images.map((img: any, i: number) => (
-                  <img
-                    key={i}
-                    src={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`}
-                    alt=""
-                    onClick={() => setLightboxImg(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`)}
-                    style={{ height: 150, borderRadius: 8, border: "1px solid #e2e8f0", cursor: "zoom-in" }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Reports - แสดงรายงาน */}
-            {detailReview.report_count > 0 && (
-              <div
-                style={{
-                  background: "#fff7ed",
-                  border: "1px solid #ffedd5",
-                  padding: 16,
-                  borderRadius: 8,
-                  marginTop: 16,
-                }}
-              >
-                <div style={{ fontWeight: 600, color: "#9a3412", marginBottom: 12 }}>
-                  ⚠️ รีวิวนี้ถูกรายงาน ({detailReview.report_count} ครั้ง)
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
-                  รีวิวนี้ได้รับการรายงานจากผู้ใช้งาน กรุณาตรวจสอบเนื้อหา
-                </div>
-              </div>
-            )}
-
-            <Row gutter={16} className="detail-stats" style={{ marginTop: 16 }}>
-              <Col span={12}>
-                <div className="mini-stat-box">
-                  <div className="label"><LikeOutlined /> มีประโยชน์</div>
-                  <div className="value">{detailReview.helpful_count}</div>
-                </div>
-              </Col>
-              <Col span={12}>
-                <div className="mini-stat-box">
-                  <div className="label"><DislikeOutlined /> ไม่มีประโยชน์</div>
-                  <div className="value">{detailReview.not_helpful_count}</div>
-                </div>
-              </Col>
-            </Row>
-
-            {detailReview.deleted_at && (
-              <div
-                style={{
-                  background: detailReview.deleted_by_type === "ADMIN" ? "#fef2f2" : "#fffbeb",
-                  border: detailReview.deleted_by_type === "ADMIN" ? "2px solid #dc2626" : "2px solid #d97706",
-                  color: detailReview.deleted_by_type === "ADMIN" ? "#b91c1c" : "#92400e",
-                  padding: 16,
-                  borderRadius: 12,
-                  marginTop: 20,
-                }}
-              >
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                  {detailReview.deleted_by_type === "ADMIN" && "🚫 รีวิวนี้ถูกลบโดยแอดมิน"}
-                  {detailReview.deleted_by_type === "OWNER" && "🗑️ รีวิวนี้ถูกลบโดยเจ้าของ"}
-                  {!detailReview.deleted_by_type && "❌ รีวิวนี้ถูกลบแล้ว"}
-                </div>
-                <div style={{ fontSize: 14, marginTop: 8, lineHeight: 1.6 }}>
-                  <div>
-                    <strong>ลบเมื่อ:</strong> {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <div style={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 6 }}>
+                    {detailReview.deleted_by_type === "ADMIN" ? "🚫 ลบโดยแอดมิน" : "🗑 ลบโดยเจ้าของ"}
                   </div>
                   {detailReview.deleted_by_type === "ADMIN" && detailReview.admin_delete_reason && (
-                    <div style={{ marginTop: 8, padding: 12, background: "rgba(220, 38, 38, 0.1)", borderRadius: 8 }}>
-                      <strong>📌 เหตุผลจากแอดมิน:</strong>
-                      <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600 }}>
-                        "{detailReview.admin_delete_reason}"
-                      </div>
+                    <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>
+                      Reason: {detailReview.admin_delete_reason}
                     </div>
                   )}
-                  {detailReview.deleted_by_type === "OWNER" && (
-                    <div style={{ marginTop: 8, fontStyle: "italic", opacity: 0.9 }}>
-                      เจ้าของรีวิวเป็นผู้ลบเอง
-                    </div>
-                  )}
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    Deleted at: {new Date(detailReview.deleted_at).toLocaleString("th-TH", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* REPORT BANNER */}
+              {(detailReview.report_count || 0) > 0 && !detailReview.deleted_at && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    background: "#fff7ed",
+                    border: "1px solid #ffedd5",
+                    borderRadius: 12,
+                    color: "#9a3412",
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>⚠️ ถูกรายงาน {detailReview.report_count} ครั้ง</div>
+                </div>
+              )}
+
+              <div className="detail-block">
+                <div className="detail-label">หัวข้อ</div>
+                <div className="detail-value" style={{ fontSize: 18 }}>
+                  {detailReview.title}
                 </div>
               </div>
-            )}
+
+              <div className="detail-block">
+                <div className="detail-label">เนื้อหา</div>
+                <div className="detail-value" style={{ fontWeight: 500, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  {detailReview.content}
+                </div>
+              </div>
+
+              <div className="detail-grid">
+                <div className="detail-block">
+                  <div className="detail-label">ผู้เขียน</div>
+                  <div className="detail-value">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Avatar
+                        src={detailReview.member?.member_picture}
+                        style={{ backgroundColor: "#87d068", border: "1px solid #cbd5e1" }}
+                        size={40}
+                      >
+                        {(detailReview.member?.username || "?").charAt(0).toUpperCase()}
+                      </Avatar>
+                      <div>
+                        {detailReview.member?.username || "ไม่ระบุตัวตน"}
+                        {detailReview.is_anonymous && (
+                          <span style={{ fontSize: 11, color: "#9333ea", display: "block", fontWeight: 700 }}>
+                            (ไม่เปิดเผยชื่อ)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-block">
+                  <div className="detail-label">คะแนน</div>
+                  <div className="detail-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <StarFilled style={{ color: "#fadb14", fontSize: 20 }} />
+                    <span style={{ fontSize: 20 }}>{Number(detailReview.rating).toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="detail-grid">
+                <div className="detail-block">
+                  <div className="detail-label">หมวดหมู่</div>
+                  <div className="detail-value">
+                    <Tag color="cyan">
+                      {detailReview.main_category?.title || "ทั่วไป"}
+                    </Tag>
+                  </div>
+                </div>
+
+                <div className="detail-block">
+                  <div className="detail-label">สถิติ</div>
+                  <div className="detail-value" style={{ display: "flex", gap: 16 }}>
+                    <span style={{ color: "#16a34a" }}><LikeOutlined /> {detailReview.helpful_count}</span>
+                    <span style={{ color: "#dc2626" }}><DislikeOutlined /> {detailReview.not_helpful_count}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* IMAGES */}
+              {detailReview.review_images && detailReview.review_images.length > 0 && (
+                <div className="detail-block">
+                  <div className="detail-label">รูปภาพ</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, overflowX: "auto", paddingBottom: 4 }}>
+                    {detailReview.review_images.map((img: any, i: number) => (
+                      <img
+                        key={i}
+                        src={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`}
+                        alt={`review-img-${i}`}
+                        onClick={() => setLightboxImg(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}${img.url}`)}
+                        style={{
+                          height: 120,
+                          borderRadius: 12,
+                          border: "1px solid #e2e8f0",
+                          cursor: "zoom-in",
+                          objectFit: "cover"
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ACTION BUTTONS IN MODAL (Optional duplicate actions) */}
+              {!detailReview.deleted_at && (
+                <div className="card-actions">
+                  <Button
+                    danger
+                    type="primary"
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      setIsDetailModalOpen(false);
+                      handleDeleteClick(detailReview);
+                    }}
+                    className="premium-btn-danger"
+                  >
+                    ลบรีวิว
+                  </Button>
+                </div>
+              )}
+
+            </div>
           </div>
-        )}
-      </Drawer>
+        </div>
+      )}
 
       {/* LIGHTBOX */}
       {lightboxImg && (

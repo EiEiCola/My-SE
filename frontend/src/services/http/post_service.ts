@@ -216,6 +216,10 @@ export const postService = {
     deleteComment: (postId: number, commentId: number) =>
         api.delete(`/member/posts/${postId}/comments/${commentId}`),
 
+    // Toggle like on a comment
+    toggleLikeComment: (postId: number, commentId: number) =>
+        api.post<{ is_liked: boolean; like_count: number }>(`/member/posts/${postId}/comments/${commentId}/like`),
+
     // =============== PROFILE FEATURE API ===============
 
     // Get bookmarked posts (My Fav)
@@ -225,6 +229,12 @@ export const postService = {
     // Get user's own posts (My Post)
     getMyPosts: () =>
         api.get<ApiResponse<Post[]>>("/member/posts/mine"),
+
+    // =============== REPORT API ===============
+
+    // Report a post
+    reportPost: (postId: number, data: { title: string; description: string; medias?: { url: string; type: string; is_attachment: boolean }[] }) =>
+        api.post(`/member/posts/${postId}/report`, data),
 };
 
 export default postService;

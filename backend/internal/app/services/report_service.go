@@ -11,10 +11,11 @@ import (
 type ReportService struct {
 	DB         *gorm.DB
 	ReportRepo *repository.ReportRepository
+	PostRepo   *repository.PostRepository
 }
 
-func NewReportService(db *gorm.DB, repo *repository.ReportRepository) *ReportService {
-	return &ReportService{DB: db, ReportRepo: repo}
+func NewReportService(db *gorm.DB, repo *repository.ReportRepository, postRepo *repository.PostRepository) *ReportService {
+	return &ReportService{DB: db, ReportRepo: repo, PostRepo: postRepo}
 }
 
 type ReportMediaInput struct {
@@ -56,6 +57,38 @@ func (s *ReportService) CreateReport(reporterID uint, in *CreateReportInput) (*e
 		return nil, err
 	}
 	return s.ReportRepo.GetByID(rep.ID)
+}
+
+// ReportPost creates a report specifically for a post
+// Validates that:
+// 1. The post exists
+// 2. The reporter is not the post author (cannot report own posts)
+func (s *ReportService) ReportPost(postID uint, reporterID uint, title, description string, medias []ReportMediaInput) (*entity.Report, error) {
+	// 1. Check if post exists
+	post, err := s.PostRepo.FindByID(postID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, &CustomError{Message: "โพสต์ไม่พบ"}
+		}
+		return nil, err
+	}
+
+	// 2. Check if user is trying to report their own post
+	if post.AuthorID == reporterID {
+		return nil, &CustomError{Message: "ไม่สามารถรายงานโพสต์ของตัวเองได้"}
+	}
+
+	// 3. Create report
+	targetID := postID
+	in := &CreateReportInput{
+		TargetType:  "Post",
+		TargetID:    &targetID,
+		Title:       title,
+		Description: description,
+		Medias:      medias,
+	}
+
+	return s.CreateReport(reporterID, in)
 }
 
 func (s *ReportService) GetByID(id int) (*entity.Report, error) {

@@ -7,11 +7,21 @@ import "./PollList.css";
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
 import { PollCard } from "./PollCard";
 import { PollCategoryDropdown, type CategoryOption } from "./PollCategoryDropdown";
+import ReportPollModal from "./ReportPollModal";
 
 dayjs.extend(relativeTime);
 
 type StatusFilter = "ALL" | "OPEN" | "UPCOMING" | "CLOSED";
 type SortMode = "LATEST" | "POPULAR" | "CLOSING_SOON";
+
+const REPORT_REASONS = [
+  "เนื้อหาไม่เหมาะสม / ลามก",
+  "สแปม / โฆษณา",
+  "เนื้อหาแสดงความเกลียดชัง / พาดพิง",
+  "ข้อมูลส่วนตัว / ละเมิดลิขสิทธิ์",
+  "การข่มขู่ / คุกคาม",
+  "เหตุผลอื่นๆ (ระบุเพิ่มเติม)",
+];
 
 const clampStr = (s: any) => String(s ?? "").trim();
 const base64UrlToJson = (part: string) => {
@@ -94,6 +104,13 @@ const PollList: React.FC = () => {
   // ✅ Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pollToDelete, setPollToDelete] = useState<number | null>(null);
+
+  // ✅ Report modal state
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [selectedPollIdForReport, setSelectedPollIdForReport] = useState<number | null>(null);
+  const [selectedReportReason, setSelectedReportReason] = useState<string>("");
+  const [otherReason, setOtherReason] = useState<string>("");
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   const mainNameById = useMemo<Record<number, string>>(() => {
     const out: Record<number, string> = {};
@@ -790,6 +807,19 @@ const PollList: React.FC = () => {
                 ? (p as any).myOptionIds
                 : [];
 
+            // ✅ Calculate owner status
+            const ownerId =
+              Number(
+                (p as any)?.created_by_id ??
+                (p as any)?.CreatedByID ??
+                (p as any)?.member_id ??
+                (p as any)?.MemberID ??
+                (p as any)?.member?.id ??
+                (p as any)?.Member?.ID ??
+                0
+              ) || 0;
+            const isOwner = ownerId > 0 && currentMemberId > 0 && ownerId === currentMemberId;
+
             return (
               <PollCard
                 key={pid}
@@ -825,6 +855,12 @@ const PollList: React.FC = () => {
                 toastMessage={toastByPoll[pid] ?? ""}
                 // ✅ NEW: delete handler for owners
                 onDelete={() => handleDeletePoll(pid)}
+                //  ✅ NEW: report handler for non-owners
+                canReport={!isOwner && currentMemberId > 0}
+                onReport={() => {
+                  setSelectedPollIdForReport(pid);
+                  setIsReportModalOpen(true);
+                }}
               />
             );
           })
@@ -879,6 +915,106 @@ const PollList: React.FC = () => {
               >
                 ยกเลิก
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Report Poll Modal */}
+      <ReportPollModal
+        open={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        reasons={REPORT_REASONS}
+        selectedReason={selectedReportReason}
+        setSelectedReason={setSelectedReportReason}
+        otherReason={otherReason}
+        setOtherReason={setOtherReason}
+        onSubmit={async () => {
+          if (!selectedPollIdForReport) return;
+
+          try {
+            const title = selectedReportReason;
+            const description = selectedReportReason === "เหตุผลอื่นๆ (ระบุเพิ่มเติม)" ? otherReason : selectedReportReason;
+
+            const token = localStorage.getItem("token");
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+            const response = await fetch(`${API_BASE}/api/members/reports`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                target_type: "Poll",
+                target_id: selectedPollIdForReport,
+                title,
+                description,
+                medias: [],
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to submit report");
+            }
+
+            // Show success toast
+            setShowSuccessToast(true);
+            setIsReportModalOpen(false);
+
+            // Auto-hide toast and reload after 2 seconds
+            setTimeout(() => {
+              setShowSuccessToast(false);
+              window.location.reload();
+            }, 2000);
+          } catch (error) {
+            console.error("Report error:", error);
+            alert("เกิดข้อผิดพลาดในการส่งรายงาน");
+          }
+        }}
+      />
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 10000,
+            background: "#ffffff",
+            color: "#1e293b",
+            padding: "32px 48px",
+            borderRadius: "24px",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            textAlign: "center",
+            animation: "fadeIn 0.2s ease-out",
+            border: "1px solid #f1f5f9"
+          }}
+        >
+          <div style={{
+            width: "64px",
+            height: "64px",
+            background: "#10b981",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "32px",
+            boxShadow: "0 0 0 8px rgba(16, 185, 129, 0.15)"
+          }}>
+            ✅
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "20px", marginBottom: "4px", color: "#0f172a" }}>แจ้งปัญหาสำเร็จ!</div>
+            <div style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
+              ขอบคุณที่แจ้งปัญหา เราจะตรวจสอบโดยเร็วที่สุด
             </div>
           </div>
         </div>

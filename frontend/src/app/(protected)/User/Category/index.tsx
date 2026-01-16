@@ -563,7 +563,7 @@ const Group: React.FC = () => {
                   if (selectedCategory) params.set("mainCategoryId", selectedCategory.key);
                   if (selectedSubKey !== "all") params.set("subCategory1Id", selectedSubKey);
                   if (selectedSubSubKey !== "all") params.set("subCategory2Id", selectedSubSubKey);
-                  navigate(`/User/Voting/create?${params.toString()}`);
+                  navigate(`/User/Polls/create?${params.toString()}`);
                 }}
               >
                 สร้างโพล

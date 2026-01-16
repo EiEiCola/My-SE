@@ -712,3 +712,51 @@ func (s *PostService) GetBookmarkedPosts(memberID uint) ([]entity.Post, error) {
 func (s *PostService) GetMyPosts(memberID uint) ([]entity.Post, error) {
 	return s.PostRepo.FindByAuthorID(memberID)
 }
+
+// =============== COMMENT LIKE METHODS ===============
+
+// ToggleLikeComment toggles like status for a comment and returns new status and count
+func (s *PostService) ToggleLikeComment(commentID, memberID uint) (bool, uint, error) {
+	var existingLike entity.CommentLike
+	// Use Unscoped to include soft-deleted records
+	err := s.DB.Unscoped().Where("comment_id = ? AND member_id = ?", commentID, memberID).First(&existingLike).Error
+
+	if err == nil {
+		// Already liked (or soft-deleted) -> Hard delete
+		if err := s.DB.Unscoped().Delete(&existingLike).Error; err != nil {
+			return false, 0, err
+		}
+		// Decrement like_count only if it wasn't already soft-deleted
+		if existingLike.DeletedAt.Valid == false {
+			s.DB.Model(&entity.Comment{}).Where("id = ?", commentID).Update("like_count", gorm.Expr("GREATEST(like_count - 1, 0)"))
+		}
+
+		// Get updated like_count
+		var comment entity.Comment
+		s.DB.Select("like_count").First(&comment, commentID)
+		return false, comment.LikeCount, nil
+	} else {
+		// Not liked -> Like
+		newLike := entity.CommentLike{
+			CommentID: commentID,
+			MemberID:  memberID,
+		}
+		if err := s.DB.Create(&newLike).Error; err != nil {
+			return false, 0, err
+		}
+		// Increment like_count
+		s.DB.Model(&entity.Comment{}).Where("id = ?", commentID).Update("like_count", gorm.Expr("like_count + 1"))
+
+		// Get updated like_count
+		var comment entity.Comment
+		s.DB.Select("like_count").First(&comment, commentID)
+		return true, comment.LikeCount, nil
+	}
+}
+
+// HasUserLikedComment checks if a user has liked a specific comment
+func (s *PostService) HasUserLikedComment(commentID, memberID uint) bool {
+	var count int64
+	s.DB.Model(&entity.CommentLike{}).Where("comment_id = ? AND member_id = ?", commentID, memberID).Count(&count)
+	return count > 0
+}

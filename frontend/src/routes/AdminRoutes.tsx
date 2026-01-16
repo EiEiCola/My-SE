@@ -17,12 +17,17 @@ import AnnouncementRequestDetail from "../app/(protected)/Admin/AnnouncementMana
 import AdminAnnouncementCreate from "../app/(protected)/Admin/AnnouncementManage/AdminAnnouncementCreate";
 import ReportManage from "../app/(protected)/Admin/ReportManage";
 import AdminPollList from "../app/(protected)/Admin/Poll/AdminPollList";
+import AdminRoute from "../components/ProtectedRoute/AdminRoute";
 
 function AdminRoutes() {
   return (
     <Routes>
-      {/* ✅ ให้ Layout match /Admin ทุกหน้า */}
-      <Route path="/Admin/*" element={<AdminLayout />}>
+      {/* ✅ Protected Admin Routes - Only accessible by admins */}
+      <Route path="/Admin/*" element={
+        <AdminRoute>
+          <AdminLayout />
+        </AdminRoute>
+      }>
         {/* ✅ /Admin */}
         <Route index element={<Home />} />
 
@@ -44,7 +49,7 @@ function AdminRoutes() {
         <Route path="AnnouncementManage/Announcements" element={<AnnouncementsList />} />
         <Route path="AnnouncementManage/:id" element={<AnnouncementRequestDetail />} />
         <Route path="ReportManage" element={<ReportManage />} />
-        
+
       </Route>
     </Routes>
   );

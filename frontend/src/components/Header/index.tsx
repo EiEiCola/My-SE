@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   Search, Settings, Help, DarkMode, ChatBubble, ExitToApp, Person,
@@ -29,15 +29,14 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const [profileName, setProfileName] = useState(defaultUsername);
   const [profileImage, setProfileImage] = useState("");
 
+  // Fetch profile data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         if (role === "user") {
           const res = await memberAPI.getMe();
-          // Ensure we access the correct property structure
-          // Assuming res.data contains the profile fields directly or inside data
           const data: any = res.data;
-          const user = data.data || data; // flexible check
+          const user = data.data || data;
 
           if (user) {
             setProfileName(user.username || user.first_name || "User");
@@ -57,34 +56,41 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       }
     };
     fetchProfile();
-    fetchProfile();
   }, [role]);
 
-  // Fetch Notifications
+  // Fetch Notifications function
+  const fetchNotifications = async () => {
+    if (role !== 'user') return;
+    try {
+      const res = await notificationAPI.getAll();
+      // Check data structure carefully
+      // API returns { data: Notification[] } based on controller
+      if (res.data && Array.isArray(res.data.data)) {
+        setNotifications(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    }
+  };
+
+  // Fetch on initial load + Poll every 5 minutes (300000ms)
   useEffect(() => {
     if (role === 'user') {
-      const fetchNotifs = async () => {
-        try {
-          const res = await notificationAPI.getAll();
-          // Check data structure carefully
-          // API returns { data: Notification[] } based on controller
-          if (res.data && Array.isArray(res.data.data)) {
-            setNotifications(res.data.data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch notifications", err);
-        }
-      };
-      fetchNotifs();
-      // Poll every 30 seconds
-      const interval = setInterval(fetchNotifs, 30000);
+      fetchNotifications();
+      // Poll every 5 minutes instead of 30 seconds to reduce server load
+      const interval = setInterval(fetchNotifications, 300000);
       return () => clearInterval(interval);
     }
   }, [role]);
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // Memoize unread count
+  const unreadCount = useMemo(
+    () => notifications.filter(n => !n.is_read).length,
+    [notifications]
+  );
 
-  const handleRead = async (n: Notification) => {
+  // Memoized callback for marking notification as read
+  const handleRead = useCallback(async (n: Notification) => {
     if (!n.is_read) {
       try {
         await notificationAPI.markAsRead(n.ID);
@@ -93,9 +99,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         console.error(err);
       }
     }
-    // Navigate or show detail?
-    // For now just mark as read
-  };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -111,12 +115,13 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  // Memoized logout handler
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("id");
     navigate("/");
-  };
+  }, [navigate]);
 
   // Map path to page title
   const getPageTitle = () => {
@@ -126,9 +131,9 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const adminTitles: { [key: string]: string } = {
         "/Admin": "หน้าหลัก",
         "/Admin/ProfileManage": "จัดการผู้ใช้",
-        "/Admin/Profile/Edit" : "แก้ไขโปรไฟล์" ,
+        "/Admin/Profile/Edit": "แก้ไขโปรไฟล์",
         "/Admin/RewardManage": "จัดการสะสมแต้ม",
-        "/Admin/RewardManage/PointRule" : "จัดการกฎการได้แต้ม" ,
+        "/Admin/RewardManage/PointRule": "จัดการกฎการได้แต้ม",
         "/Admin/MessageManage": "จัดการข้อความ",
         "/Admin/FriendsManage": "จัดการเพื่อน",
         "/Admin/PostManage": "จัดการโพสต์",
@@ -143,10 +148,10 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
       const userTitles: { [key: string]: string } = {
         "/User": "หน้าหลัก",
         "/User/Profile": "โปรไฟล์",
-        "/User/Profile/Edit" : "แก้ไขโปรไฟล์" ,
-        "/User/Profile/sticker" : "โปรไฟล์" ,
-        "/User/Profile/post" : "โปรไฟล์" , 
-         "/User/Profile/fav" : "โปรไฟล์" ,           
+        "/User/Profile/Edit": "แก้ไขโปรไฟล์",
+        "/User/Profile/sticker": "โปรไฟล์",
+        "/User/Profile/post": "โปรไฟล์",
+        "/User/Profile/fav": "โปรไฟล์",
         "/User/Reward": "สะสมแต้ม",
         "/User/Message": "ข้อความ",
         "/User/Friends": "เพื่อน",
@@ -161,7 +166,8 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     }
   };
 
-  const title = getPageTitle();
+  // Memoize page title
+  const title = useMemo(() => getPageTitle(), [location.pathname, role]);
   const subtitle = role === "admin" ? "Admin Panel" : "Welcome back";
 
   return (
@@ -196,7 +202,12 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
           {/* Notification Bell */}
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              onClick={() => {
+                const willOpen = !isNotifOpen;
+                setIsNotifOpen(willOpen);
+                // Fetch fresh notifications when opening dropdown
+                if (willOpen) fetchNotifications();
+              }}
               className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
               title="แจ้งเตือน"
             >

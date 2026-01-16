@@ -22,11 +22,20 @@ services:
 
   # Backend (Go)
   backend:
+    image: juribers/team12-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: team12-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -44,11 +53,20 @@ services:
 
   # Frontend (React + Vite)
   frontend:
+    image: juribers/team12-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: team12-frontend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     ports:
       - "80:80"
     depends_on:

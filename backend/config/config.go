@@ -66,10 +66,10 @@ func Connect() *gorm.DB {
 	}
 	log.Println("Connected to database")
 
-	// s.ResetDatabaseByDROP(db) // Reset here
+	//s.ResetDatabaseByDROP(db) // Reset here
 
 	DB = db
-	
+
 	// AutoMigrate entities to create/update tables in the database
 	log.Println("Running database migrations...")
 	if err := db.AutoMigrate(
@@ -113,8 +113,10 @@ func Connect() *gorm.DB {
 		&entity.Comment{},
 		&entity.CommentImage{},
 		&entity.CommentAttachment{},
+		&entity.CommentLike{}, // สำหรับกดไลค์คอมเมนต์
 		&entity.PostImage{},
 		&entity.PostAttachment{},
+		&entity.PostLike{}, // Like feature for posts
 		&entity.ReviewImage{},
 		&entity.ReviewTag{},
 		&entity.ReviewVote{},
@@ -177,7 +179,7 @@ func Connect() *gorm.DB {
 	s.SeedStatusData(db)
 	// s.SeedPRSystem(db)
 	s.SeedReviewSystem(db)
-	s.SeedPollSystem(db)
+	// s.SeedPollSystem(db)
 
 	log.Println("Master data seeding completed.")
 	//hello
