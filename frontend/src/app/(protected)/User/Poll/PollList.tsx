@@ -5,6 +5,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import "./PollList.css";
 
 import { type Poll, pollAPI, categoryAPI } from "../../../../services/http/poll";
+import { friendAPI } from "../../../../services/http/friend";
 import { PollCard } from "./PollCard";
 import { PollCategoryDropdown, type CategoryOption } from "./PollCategoryDropdown";
 import ReportPollModal from "./ReportPollModal";
@@ -41,6 +42,9 @@ const getCurrentMemberId = () => {
   try {
     const payload = base64UrlToJson(token.split(".")[1]);
 
+    // ✅ DEBUG: ดู payload ทั้งหมด
+    console.log('🔍 getCurrentMemberId - JWT payload:', payload);
+
     // ✅ สำคัญ: ของเธอน่าจะใช้ user_id (ดูจากรูป)
     const id = Number(
       payload?.member_id ??
@@ -51,6 +55,11 @@ const getCurrentMemberId = () => {
       payload?.sub ??
       0
     );
+
+    console.log('🔍 getCurrentMemberId - extracted ID:', id);
+    console.log('🔍 getCurrentMemberId - payload.member_id:', payload?.member_id);
+    console.log('🔍 getCurrentMemberId - payload.user_id:', payload?.user_id);
+    console.log('🔍 getCurrentMemberId - payload.id:', payload?.id);
 
     return Number.isFinite(id) ? id : 0;
   } catch {
@@ -84,7 +93,23 @@ const PollList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
 
-  const currentMemberId = getCurrentMemberId();
+  // ✅ เปลี่ยนเป็นดึง member.ID จาก API แทนการ parse JWT
+  // เพราะ JWT มี user_id (member_account_id) แต่เราต้องการ member.ID
+  const [currentMemberId, setCurrentMemberId] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchMemberId = async () => {
+      try {
+        const me = await friendAPI.getMe();
+        const memberId = Number(me?.id || me?.ID || 0);
+        setCurrentMemberId(memberId);
+      } catch (error) {
+        console.error('Failed to fetch member ID:', error);
+        setCurrentMemberId(0);
+      }
+    };
+    fetchMemberId();
+  }, []);
 
   // filters
   const [q, setQ] = useState("");
