@@ -16,6 +16,7 @@ import {
     Modal,
     Upload,
     App,
+    Select,
 } from "antd";
 import type { UploadFile } from "antd";
 import {
@@ -50,6 +51,7 @@ import ReportPostModal from "./ReportPostModal";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+const { Option } = Select;
 
 const ORANGE = "#ff6a00";
 // Auto-detect API_BASE: localhost ใช้ http://localhost:8080, production ใช้ relative URL
@@ -383,20 +385,37 @@ const PostDetail: React.FC = () => {
     const [selectedReportReason, setSelectedReportReason] = useState("");
     const [otherReportReason, setOtherReportReason] = useState("");
     const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+    const [loadingReasons, setLoadingReasons] = useState(false);
+
+    // Fetch report reasons
+    const fetchReportReasons = async () => {
+        setLoadingReasons(true);
+        try {
+            const res = await fetch("/api/categories/report");
+            const json = await res.json();
+            
+            let reasons: Array<{ id: number; title: string }> = [];
+            // Structure: { data: { data: [...] } } or { data: [...] }
+            const dataArray = json.data?.data || json.data;
+            
+            if (Array.isArray(dataArray)) {
+                reasons = dataArray.map((c: any) => ({
+                    id: c.ID || c.id,
+                    title: c.title || c.Title,
+                }));
+            }
+            
+            setReportReasons(reasons);
+        } catch (e) {
+            console.error("Failed to fetch report reasons", e);
+            message.error("ไม่สามารถโหลดเหตุผลการรายงาน");
+        } finally {
+            setLoadingReasons(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchReasons = async () => {
-            try {
-                const res = await fetch("/api/categories/report");
-                const json = await res.json();
-                if (json.data) {
-                    setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
-                }
-            } catch (e) {
-                console.error("Failed to fetch report reasons", e);
-            }
-        };
-        fetchReasons();
+        fetchReportReasons();
     }, []);
 
 

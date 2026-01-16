@@ -15,10 +15,11 @@ const ReportPage: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [targetType, setTargetType] = useState("system");
+  const [targetType, setTargetType] = useState("bug");
   const [targetId, setTargetId] = useState<string>("");
   const [reportReasonId, setReportReasonId] = useState<string>("");
   const [reportReasons, setReportReasons] = useState<{ id: number; title: string }[]>([]);
+  const [targetTypes, setTargetTypes] = useState<{ id?: number; name: string; description: string; display_order?: number }[]>([]);
   const [image, setImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -42,20 +43,30 @@ const ReportPage: React.FC = () => {
     if (activeTab === "list") {
       fetchReports();
     }
-    // Fetch reasons for create form
+    // Fetch reasons and target types for create form
     if (activeTab === "create") {
-      const fetchReasons = async () => {
+      const fetchFormData = async () => {
         try {
-          const res = await fetch("/api/categories/report");
-          const json = await res.json();
-          if (json.data) {
-            setReportReasons(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+          // Fetch report reasons
+          const reasonRes = await fetch("/api/categories/report");
+          const reasonJson = await reasonRes.json();
+          if (reasonJson.data) {
+            setReportReasons(reasonJson.data.map((c: any) => ({ id: c.ID, title: c.title })));
+          }
+
+          // Fetch target types
+          const typeRes = await fetch("/api/categories/target-types");
+          const typeJson = await typeRes.json();
+          if (typeJson.data && typeJson.data.length > 0) {
+            setTargetTypes(typeJson.data);
+            // Set default target type to first available
+            setTargetType(typeJson.data[0].name);
           }
         } catch (e) {
-          console.error("Failed to fetch reasons", e);
+          console.error("Failed to fetch form data", e);
         }
       };
-      fetchReasons();
+      fetchFormData();
     }
   }, [activeTab, page, pageSize, filterStatus, filterType]);
 
@@ -256,11 +267,13 @@ const ReportPage: React.FC = () => {
                     onChange={(e) => setTargetType(e.target.value)}
                     required
                   >
-                    <option value="system">ปัญหาการใช้งานระบบ (Bug)</option>
-                    <option value="content">เนื้อหาไม่เหมาะสม</option>
-                    <option value="user">รายงานผู้ใช้งาน</option>
-                    <option value="post">แจ้งเรื่องโพสต์</option>
-                    <option value="other">อื่นๆ</option>
+                    {targetTypes.length > 0 ? (
+                      targetTypes.map(type => (
+                        <option key={type.name} value={type.name}>{type.description}</option>
+                      ))
+                    ) : (
+                      <option value="">กำลังโหลด...</option>
+                    )}
                   </select>
                 </div>
 

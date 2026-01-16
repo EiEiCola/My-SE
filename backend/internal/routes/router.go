@@ -47,6 +47,9 @@ func SetupRoutes(
 		SetupPublicReviewRoutes(api)
 
 		SetupReportRoutes(api, memberService)
+
+		// ✅ public target types สำหรับ report form
+		SetupTargetTypeRoutes(api)
 	}
 
 	{

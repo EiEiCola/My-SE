@@ -220,7 +220,7 @@ const ReportManage: React.FC = () => {
           if (statusId === 2) return "กำลังดำเนินการ";
           if (statusId === 3) return "เสร็จสิ้น";
           if (statusId === 4) return "ปฏิเสธ";
-          return record.status?.name || "ไม่ทราบ";
+          return record.status?.status_name || "ไม่ทราบ";
         })();
 
         if (statusId === 1) color = "orange";
@@ -243,27 +243,33 @@ const ReportManage: React.FC = () => {
       width: 200,
       render: (_: any, record: Report) => (
         <Space size="small">
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-            title="ดูรายละเอียดรายงาน"
-          />
-          <Button
-            icon={<LinkOutlined />}
-            onClick={() => handleViewTarget(record)}
-            title={`ดู ${record.target_type}`}
-            type="default"
-          />
+          {(record.target_type || "").toLowerCase() === "post" && (
+            <Button
+              icon={<LinkOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewTarget(record);
+              }}
+              title={`ดู ${record.target_type}`}
+              type="default"
+            />
+          )}
           <Button
             icon={<EditOutlined />}
             type="primary"
-            onClick={() => handleEditStatus(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditStatus(record);
+            }}
             title="แก้ไขสถานะ"
           />
           <Button
             icon={<DeleteOutlined />}
             danger
-            onClick={() => handleDeleteReport(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteReport(record);
+            }}
             title="ลบรายงาน"
           />
         </Space>
@@ -307,12 +313,13 @@ const ReportManage: React.FC = () => {
                 value={filterType}
                 onChange={(val) => setFilterType(val)}
               >
-                <Option value="announcement">Announcement</Option>
-                <Option value="pr_submission">PR Submission</Option>
-                <Option value="member">Member</Option>
-                <Option value="post">Post</Option>
-                <Option value="comment">Comment</Option>
-                <Option value="review">Review</Option>
+                <Option value="bug">แจ้งปัญหา (Bug)</Option>
+                <Option value="member">รายงานสมาชิก</Option>
+                <Option value="suggestion">ข้อเสนอแนะ</Option>
+                <Option value="post">โพสต์</Option>
+                <Option value="comment">ความเห็น</Option>
+                <Option value="review">รีวิว</Option>
+                <Option value="other">อื่นๆ</Option>
               </Select>
             </Col>
             <Col xs={24} sm={8} md={4}>
@@ -330,6 +337,10 @@ const ReportManage: React.FC = () => {
           loading={loading}
           pagination={{ pageSize: 10 }}
           scroll={{ x: 1200 }}
+          onRow={(record) => ({
+            onClick: () => handleView(record),
+            style: { cursor: 'pointer' }
+          })}
         />
 
         {/* Detail Modal */}
@@ -364,7 +375,7 @@ const ReportManage: React.FC = () => {
                   if (sid === 2) return "กำลังดำเนินการ";
                   if (sid === 3) return "เสร็จสิ้น";
                   if (sid === 4) return "ปฏิเสธ";
-                  return currentReport.status?.name || "ไม่ทราบ";
+                  return currentReport.status?.status_name || "ไม่ทราบ";
                 })()}
               </Descriptions.Item>
               <Descriptions.Item label="สื่อ">

@@ -67,4 +67,24 @@ func SeedSeparateCategories(db *gorm.DB) {
 			}
 		}
 	}
+
+	// 4. Target Types (สำหรับระบบ Report)
+	targetTypes := []entity.TargetType{
+		{Name: "bug", Description: "แจ้งปัญหาการใช้งาน (Bug)", DisplayOrder: 1},
+		{Name: "member", Description: "รายงานสมาชิก", DisplayOrder: 2},
+		{Name: "suggestion", Description: "ข้อเสนอแนะ / คำแนะนำ", DisplayOrder: 3},
+		{Name: "post", Description: "โพสต์", DisplayOrder: 4},
+		{Name: "review", Description: "รีวิว", DisplayOrder: 5},
+	}
+
+	for _, tt := range targetTypes {
+		var exist entity.TargetType
+		if err := db.Where("name = ?", tt.Name).First(&exist).Error; err != nil {
+			if err := db.Create(&tt).Error; err != nil {
+				log.Println("❌ Create TargetType failed:", tt.Name, err)
+			} else {
+				log.Println("✅ TargetType seeded:", tt.Name)
+			}
+		}
+	}
 }
