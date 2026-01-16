@@ -7,7 +7,6 @@ import (
 	adminCtl "github.com/sut68/team12/backend/internal/app/controller/admin"
 	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/services"
-	"github.com/sut68/team12/backend/internal/app/websocket"
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
@@ -18,9 +17,8 @@ func SetupRoutes(
 	adminCategoryController *adminCtl.AdminCategoryController,
 	chatController *memberCtl.ChatController,
 	adminReviewController *adminCtl.AdminReviewController,
-	uploadController *memberCtl.UploadController,
-	memberService services.MemberService,
-	wsHub *websocket.Hub, // ✅ เพิ่ม WebSocket Hub
+	uploadController *memberCtl.UploadController, // ✅ เพิ่ม UploadController
+	memberService services.MemberService, // ✅ เพิ่ม MemberService
 ) {
 	r.Static("/uploads", "./uploads")
 
@@ -63,7 +61,7 @@ func SetupRoutes(
 		SetupAdminReviewRoutes(adminAPI, adminReviewController)
 
 		// ✅ admin post management
-		SetupAdminPostRoutes(adminAPI, wsHub)
+		SetupAdminPostRoutes(adminAPI)
 
 		// ✅ public: list rewards (/api/rewards) ไม่ต้องล็อกอิน
 
@@ -74,7 +72,7 @@ func SetupRoutes(
 		SetupMemberProfileRoutes(memberAPI)
 		SetupMemberRewardRoutes(memberAPI)
 		SetupChatHTTPRoutes(memberAPI, chatController)
-		SetupMemberPostRoutes(memberAPI, wsHub)
+		SetupMemberPostRoutes(memberAPI)
 		SetupMemberCategoryRoutes(memberAPI, adminCategoryController)
 		SetupNotificationRoutes(memberAPI)
 		SetupUploadRoutes(memberAPI, uploadController) // ✅ เรียกใช้ route upload

@@ -6,11 +6,10 @@ import (
 	memberctl "github.com/sut68/team12/backend/internal/app/controller/member"
 	"github.com/sut68/team12/backend/internal/app/repository"
 	"github.com/sut68/team12/backend/internal/app/services"
-	"github.com/sut68/team12/backend/internal/app/websocket"
 )
 
 // SetupMemberPostRoutes register ใต้ /api/member (protected)
-func SetupMemberPostRoutes(r *gin.RouterGroup, wsHub *websocket.Hub) {
+func SetupMemberPostRoutes(r *gin.RouterGroup) {
 	db := config.DB
 
 	postRepo := repository.NewPostRepository(db)
@@ -32,8 +31,8 @@ func SetupMemberPostRoutes(r *gin.RouterGroup, wsHub *websocket.Hub) {
 	// สร้าง pointService เพื่อส่งเข้าไปใน PostService ตามโครงสร้างใหม่
 	pointService := services.NewPointService(db)
 
-	// แก้ไขบรรทัดนี้โดยส่ง pointService และ wsHub เข้าไป
-	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService, wsHub)
+	// แก้ไขบรรทัดนี้โดยส่ง pointService เข้าไปเป็นลำดับสุดท้าย
+	postSvc := services.NewPostService(db, postRepo, imgRepo, attRepo, likeRepo, commentRepo, bookmarkRepo, notificationRepo, pointService)
 
 	pointTxSvc := services.NewPointTransactionService(pointTxRepo, pointRuleRepo, mpbRepo)
 

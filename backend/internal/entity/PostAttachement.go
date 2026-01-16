@@ -5,7 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
 type PostAttachment struct {
 	gorm.Model
 
