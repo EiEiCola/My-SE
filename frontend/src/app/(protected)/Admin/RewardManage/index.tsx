@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Card, Typography, Button, Input, Table, message, Modal } from "antd";
 import { UploadOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import "./RewardManage.css";
 
 import {
   adminRewardAPI,
@@ -90,6 +91,10 @@ const RewardManage: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
+  // ✅ Custom Success Modal
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
   // ------------------ LOAD ------------------
   const loadRewards = async () => {
     try {
@@ -153,10 +158,20 @@ const RewardManage: React.FC = () => {
         }
 
         await adminRewardAPI.update(safeEditId, payload);
-        message.success("อัปเดตรางวัลสำเร็จ ✅");
+        // Modal.success({
+        //   content: "อัปเดตรางวัลสำเร็จ ✅",
+        //   centered: true,
+        // });
+        setSuccessMessage("Reward updated successfully");
+        setSuccessOpen(true);
       } else {
         await adminRewardAPI.create(payload);
-        message.success("สร้างรางวัลสำเร็จ ✅");
+        // Modal.success({
+        //   content: "สร้างรางวัลสำเร็จ ✅",
+        //   centered: true,
+        // });
+        setSuccessMessage("Reward created successfully");
+        setSuccessOpen(true);
       }
 
       setForm({ name: "", points: "", image: null, preview: "" });
@@ -504,29 +519,14 @@ const RewardManage: React.FC = () => {
                   }}
                 >
                   <Button
-                    style={{
-                      borderRadius: 10,
-                      padding: "0 30px",
-                      height: 38,
-                      fontWeight: 600,
-                      border: "1px solid #C42E0A",
-                      color: "#C42E0A",
-                      backgroundColor: "#ffffff",
-                    }}
+                    className="btn-cancel"
                     onClick={() => setOpen(false)}
                   >
                     Cancel
                   </Button>
 
                   <Button
-                    style={{
-                      backgroundColor: "#C42E0A",
-                      borderRadius: 10,
-                      padding: "0 30px",
-                      height: 38,
-                      fontWeight: 600,
-                      color: "white",
-                    }}
+                    className="btn-submit"
                     onClick={handleSave}
                   >
                     {isEditMode ? "Save" : "Create"}
@@ -550,6 +550,61 @@ const RewardManage: React.FC = () => {
             }}
           >
             <div>ต้องการลบรางวัลนี้ใช่ไหม ?</div>
+          </Modal>
+
+          {/* ✅ SUCCESS MODAL */}
+          <Modal
+            open={successOpen}
+            footer={null}
+            onCancel={() => setSuccessOpen(false)}
+            centered
+            width={400}
+            styles={{
+              content: {
+                borderRadius: 20,
+                padding: "40px 20px",
+                textAlign: "center",
+                border: "2px solid #28a745",
+                backgroundColor: "#f0fff4",
+              },
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+              {/* Icon Check */}
+              <div style={{
+                width: 80, height: 80, borderRadius: "50%",
+                background: "#28a745", display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <h2 style={{ margin: 0, color: "#28a745", fontSize: 24, fontWeight: 600 }}>
+                Success!
+              </h2>
+
+              <p style={{ margin: 0, color: "#333", fontSize: 16 }}>
+                {successMessage}
+              </p>
+
+              <Button
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  height: 45,
+                  fontSize: 16,
+                  backgroundColor: "#28a745",
+                  color: "white",
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  border: "none"
+                }}
+                onClick={() => setSuccessOpen(false)}
+              >
+                OK
+              </Button>
+            </div>
           </Modal>
 
           <Table

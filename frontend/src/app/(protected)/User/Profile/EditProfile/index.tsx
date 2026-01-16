@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Card, Typography, Input, Select, DatePicker, Button, Upload } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { Card, Typography, Input, Select, DatePicker, Button, Upload, Modal } from "antd";
+import { UploadOutlined, CheckCircleFilled, CheckOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 // ✅ use separated API (edit profile)
 import { editProfileAPI } from "../../../../../services/http/edit_profile";
+
+// ✅ Custom Animated Modal Content
+import { SuccessModalContent } from "./SuccessModalContent";
 
 // ✅ decode user_id from JWT
 import { getUserIdFromToken } from "../../../../../utils/jwt";
@@ -93,6 +96,9 @@ function EditProfile() {
       });
   }, [navigate]);
 
+  // ✅ Use Modal hook for better Context support
+  const [modal, contextHolder] = Modal.useModal();
+
   const handleSave = async () => {
     try {
       const userId = getUserIdFromToken();
@@ -102,7 +108,11 @@ function EditProfile() {
       }
 
       if (!form.genderId) {
-        alert("กรุณาเลือกเพศก่อนบันทึก");
+        modal.warning({
+          title: "Warning",
+          content: "กรุณาเลือกเพศก่อนบันทึก",
+          centered: true,
+        });
         return;
       }
 
@@ -114,14 +124,31 @@ function EditProfile() {
         username: form.username,
         bio: form.bio,
         dob: form.dob,
-        gender_id: Number(form.genderId), // ✅ แปลงเป็น number ตอนส่ง backend
+        gender_id: Number(form.genderId),
         member_picture: form.avatar,
       };
 
       await editProfileAPI.updateMe(payload);
 
-      alert("Profile updated!");
-      navigate("/User/Profile/post");
+      // ✨ Custom Beautiful Modal with Animations
+      const instance = modal.success({
+        title: null,
+        icon: null,
+        footer: null,
+        centered: true,
+        closable: true,
+        maskClosable: true,
+        width: 420,
+        style: { padding: 0, borderRadius: 24, overflow: "hidden" },
+        content: (
+          <SuccessModalContent
+            onClose={() => {
+              instance.destroy();
+              navigate("/User/Profile/post");
+            }}
+          />
+        ),
+      });
     } catch (err: any) {
       console.error("Update profile error:", err?.response?.status, err?.response?.data);
 
@@ -134,7 +161,11 @@ function EditProfile() {
       const backendError =
         err?.response?.data?.error || "อัปเดตโปรไฟล์ไม่สำเร็จ ลองใหม่อีกครั้งนะ";
 
-      alert(backendError);
+      modal.error({
+        title: "Update Failed",
+        content: backendError,
+        centered: true,
+      });
     } finally {
       setSaving(false);
     }
@@ -150,6 +181,7 @@ function EditProfile() {
         justifyContent: "center",
       }}
     >
+      {contextHolder}
       <div style={{ width: "100%", maxWidth: 1100 }}>
         <Card
           style={{
@@ -249,7 +281,7 @@ function EditProfile() {
               }}
             >
               <Button icon={<UploadOutlined />} style={{ marginTop: 10, borderRadius: 8 }}>
-                Change Photo
+                
               </Button>
             </Upload>
           </div>
@@ -324,18 +356,31 @@ function EditProfile() {
               type="primary"
               loading={saving}
               style={{
-                backgroundColor: "#9c2510",
-                borderRadius: 10,
-                padding: "0 20px",
-                height: 35,
+                background: "#9c2510", // Matched Back button color
+                borderRadius: 25,
+                padding: "0 35px",
+                height: 40,
                 fontWeight: 600,
                 fontSize: 14,
+                border: "none",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
                 justifyContent: "center",
+                boxShadow: "0 4px 10px rgba(156, 37, 16, 0.3)", // Adjusted shadow
+                transition: "all 0.3s ease",
               }}
               onClick={handleSave}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px) scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 6px 12px rgba(156, 37, 16, 0.4)";
+                e.currentTarget.style.backgroundColor = "#c42e0a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0) scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 10px rgba(156, 37, 16, 0.3)";
+                e.currentTarget.style.backgroundColor = "#9c2510";
+              }}
             >
               SAVE
             </Button>
