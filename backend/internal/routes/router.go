@@ -6,6 +6,7 @@ import (
 
 	adminCtl "github.com/sut68/team12/backend/internal/app/controller/admin"
 	memberCtl "github.com/sut68/team12/backend/internal/app/controller/member"
+	"github.com/sut68/team12/backend/internal/app/services"
 	"github.com/sut68/team12/backend/internal/middlewares"
 )
 
@@ -17,6 +18,7 @@ func SetupRoutes(
 	chatController *memberCtl.ChatController,
 	adminReviewController *adminCtl.AdminReviewController,
 	uploadController *memberCtl.UploadController, // ✅ เพิ่ม UploadController
+	memberService services.MemberService, // ✅ เพิ่ม MemberService
 ) {
 	r.Static("/uploads", "./uploads")
 
@@ -44,7 +46,7 @@ func SetupRoutes(
 		// ✅ แยก public reviews ออก (ให้ list ได้โดยไม่ต้อง member middleware)
 		SetupPublicReviewRoutes(api)
 
-		SetupReportRoutes(api)
+		SetupReportRoutes(api, memberService)
 	}
 
 	{

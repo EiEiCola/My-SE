@@ -30,6 +30,7 @@ export interface Report {
         id: number;
         username: string;
         email?: string;
+        member_picture?: string;
     };
     status?: {
         id: number;
@@ -54,7 +55,7 @@ const updateReport = async (id: number, data: CreateReportInput) => {
 };
 
 const deleteReport = async (id: number) => {
-    return await    http.delete(`/members/reports/${id}`);
+    return await http.delete(`/members/reports/${id}`);
 };
 
 export const ReportService = {
