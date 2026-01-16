@@ -26,7 +26,8 @@ func (c *FriendRequestController) getMemberID(ctx *gin.Context) (int, error) {
 
 	// 2. ค้นหาว่า Account ID นี้ ผูกกับ Member ID อะไรในตาราง members
 	var member entity.Member
-	if err := c.Service.Repo.DB.Where("id = ?", accountID).First(&member).Error; err != nil {
+	// Fix: Query by member_account_id, not id
+	if err := c.Service.Repo.DB.Where("member_account_id = ?", accountID).First(&member).Error; err != nil {
 		return 0, err
 	}
 

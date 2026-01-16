@@ -45,7 +45,7 @@ func Connect() *gorm.DB {
 		logger.Config{
 			SlowThreshold:             time.Second, // ⭐ ต้องช้าเกิน 1 วินาที ถึงจะบ่น (เดิม 200ms)
 			LogLevel:                  logger.Warn, // ระดับการแจ้งเตือน
-			IgnoreRecordNotFoundError: false,       // ⭐ ปิด error "record not found" (รก Log)
+			IgnoreRecordNotFoundError: true,        // ⭐ ปิด error "record not found" (รก Log)
 			Colorful:                  true,        // สีสันสดใส
 		},
 	)
@@ -177,7 +177,7 @@ func Connect() *gorm.DB {
 	s.SeedStatusData(db)
 	// s.SeedPRSystem(db)
 	s.SeedReviewSystem(db)
-	s.SeedPollSystem(db)
+	// s.SeedPollSystem(db)
 
 	log.Println("Master data seeding completed.")
 	//hello

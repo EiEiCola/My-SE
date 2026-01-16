@@ -15,6 +15,13 @@ func NewFriendRepository(db *gorm.DB) *FriendRepository {
 	return &FriendRepository{DB: db}
 }
 
+// Helper: ดึงข้อมูลสมาชิก (ใช้สำหรับ Chat Service System Messages)
+func (r *FriendRepository) GetMemberProfile(id int) (*entity.Member, error) {
+	var m entity.Member
+	err := r.DB.First(&m, id).Error
+	return &m, err
+}
+
 // ----------------- Friend Requests -----------------
 
 func (r *FriendRepository) CreateRequest(req *entity.RequesFriend) error {
