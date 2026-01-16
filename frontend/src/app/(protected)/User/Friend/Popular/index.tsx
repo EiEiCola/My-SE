@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { App } from "antd";
 import dayjs from "dayjs";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
+import { memberRewardAPI } from "../../../../../services/http/member_reward"; // ✅ Import Member Reward API
+
 
 // Icons
 import { ArrowLeft, Image as ImageIcon, Search, Edit } from "lucide-react";
@@ -27,6 +30,7 @@ import {
 // Config Dayjs
 dayjs.extend(buddhistEra);
 dayjs.locale("th");
+import ProfilePopup from "../../../../../components/ProfilePopup";
 
 // --- Interfaces ---
 interface MemberItem {
@@ -54,6 +58,7 @@ interface MemberItem {
 const FriendPopular: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const API_URL = "/api";
   const token = localStorage.getItem("token");
 
@@ -67,7 +72,21 @@ const FriendPopular: React.FC = () => {
   const [selectedProfile, setSelectedProfile] = useState<MemberItem | null>(null);
   const [activeTab, setActiveTab] = useState("post");
 
+  const [stickerItems, setStickerItems] = useState<any[]>([]);
+  const [loadingStickers, setLoadingStickers] = useState(false);
+
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Popup
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
+
+  const handleOpenPopup = (tab: 'friends' | 'followers' | 'following') => {
+    if (selectedProfile) {
+      setPopupTab(tab);
+      setPopupOpen(true);
+    }
+  };
 
   const headers = {
     "Authorization": `Bearer ${token}`,
@@ -85,6 +104,28 @@ const FriendPopular: React.FC = () => {
     if (!token) { navigate("/login"); return; }
     fetchInitialData();
   }, []);
+
+  // ✅ Fetch stickers for the selected profile
+  useEffect(() => {
+    if (selectedProfile?.id) {
+      fetchStickers(selectedProfile.id);
+    } else {
+      setStickerItems([]);
+    }
+  }, [selectedProfile]);
+
+  const fetchStickers = async (id: number) => {
+    setLoadingStickers(true);
+    try {
+      const res = await memberRewardAPI.getMemberStickers(id);
+      if (res.data) setStickerItems(res.data);
+      else setStickerItems([]);
+    } catch (err) {
+      console.error("Fetch Sticker Error:", err);
+      setStickerItems([]);
+    }
+    finally { setLoadingStickers(false); }
+  };
 
   useEffect(() => {
     setShowMoreMenu(false);
@@ -138,7 +179,8 @@ const FriendPopular: React.FC = () => {
       if (sentData.data) {
         sentData.data.forEach((req: any) => {
           const targetId = Number(req.receive_member_id || req.receive_mem_id);
-          if (targetId) sentMap.set(targetId, req.rf_id);
+          const reqId = Number(req.rf_id || req.ID || req.id);
+          if (targetId && reqId) sentMap.set(targetId, reqId);
         });
       }
 
@@ -267,7 +309,12 @@ const FriendPopular: React.FC = () => {
         method: "POST", headers, body: JSON.stringify({ receiver_id: targetId })
       });
       if (res.ok) {
-        updateLocalState(targetId, { status: 'pending' });
+        const data = await res.json();
+        // Try to find the ID from various possible fields in the response
+        const newReqId = Number(data.data?.ID || data.data?.id || data.data?.rf_id || 0);
+
+        updateLocalState(targetId, { status: 'pending', requestId: newReqId });
+        // Still fetch initial data to be sure, but UI is now immediately functional
         fetchInitialData();
       } else {
         const err = await res.json();
@@ -276,14 +323,26 @@ const FriendPopular: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleCancelRequest = async (reqId: number | undefined, targetId: number) => {
-    if (!reqId || !window.confirm("ต้องการยกเลิกคำขอ?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, { method: "PUT", headers });
-      if (res.ok) {
-        updateLocalState(targetId, { status: 'none', requestId: undefined });
+  const handleCancelRequest = (reqId: number | undefined, targetId: number) => {
+    if (!reqId) return;
+    modal.confirm({
+      title: "ต้องการยกเลิกคำขอ?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/friend-requests/${reqId}/cancel`, { method: "PUT", headers });
+          if (res.ok) {
+            updateLocalState(targetId, { status: 'none', requestId: undefined });
+            message.success("ยกเลิกคำขอเรียบร้อย");
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleFollowToggle = async () => {
@@ -304,21 +363,32 @@ const FriendPopular: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleBlockUser = async () => {
-    if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await fetch(`${API_URL}/member/blocks`, {
-        method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
-      });
-      if (res.ok) {
-        alert("บล็อกเรียบร้อย");
-        const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
-        setDisplayList(prev => filterList(prev));
-        setPopulars(prev => filterList(prev));
-        setAllMembers(prev => filterList(prev));
-        setSelectedProfile(null);
+  const handleBlockUser = () => {
+    if (!selectedProfile) return;
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await fetch(`${API_URL}/member/blocks`, {
+            method: "POST", headers, body: JSON.stringify({ blocked_id: selectedProfile.id })
+          });
+          if (res.ok) {
+            message.success("บล็อกเรียบร้อย");
+            const filterList = (list: MemberItem[]) => list.filter(m => m.id !== selectedProfile.id);
+            setDisplayList(prev => filterList(prev));
+            setPopulars(prev => filterList(prev));
+            setAllMembers(prev => filterList(prev));
+            setSelectedProfile(null);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleMessageClick = async () => {
@@ -497,19 +567,19 @@ const FriendPopular: React.FC = () => {
                   </div>
 
                   <div className="flex mt-[15px] gap-[150px] ">
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.friendCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">friends</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('followers')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followerCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">followers</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('following')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followingCount}
                       </h4>
@@ -640,31 +710,38 @@ const FriendPopular: React.FC = () => {
               )}
             </div>
 
-            {/* TABS CARD */}
+            {/* TABS */}
             <div className="bg-white rounded-[28px] p-[25px_30px] shadow-[0px_8px_20px_rgba(0,0,0,0.05)] min-h-[400px]">
               <div className="flex justify-center border-b border-slate-100 mb-6">
-                {[
-                  { id: "post", label: "My Post", icon: DescriptionIcon },
-                  { id: "fav", label: "My Fav", icon: FavoriteIcon },
-                  { id: "sticker", label: "My Sticker", icon: CrueltyFreeIcon },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-8 py-3 text-[16px] font-[600] transition-all relative
-                                ${activeTab === tab.id ? "text-[#C42E0A]" : "text-[#8E8E8E] hover:text-slate-600"}`}
-                  >
-                    <tab.icon style={{ color: activeTab === tab.id ? "#C42E0A" : "#8E8E8E", fontSize: 20 }} />
-                    {tab.label}
-                    {activeTab === tab.id && (
-                      <span className="absolute bottom-0 left-0 w-full h-[3px] bg-[#C42E0A] rounded-t-md"></span>
-                    )}
+                {[{ id: "post", label: "My Post", icon: DescriptionIcon }, { id: "fav", label: "My Fav", icon: FavoriteIcon }, { id: "sticker", label: "My Sticker", icon: CrueltyFreeIcon }].map((tab) => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-8 py-3 text-[16px] font-[600] transition-all relative ${activeTab === tab.id ? "text-[#C42E0A]" : "text-[#8E8E8E] hover:text-slate-600"}`}>
+                    <tab.icon style={{ color: activeTab === tab.id ? "#C42E0A" : "#8E8E8E", fontSize: 20 }} />{tab.label}
+                    {activeTab === tab.id && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-[#C42E0A] rounded-t-md"></span>}
                   </button>
                 ))}
               </div>
-
-              <div className="mt-5 flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
-                No content available in {activeTab}
+              <div className="mt-5">
+                {activeTab === 'sticker' ? (
+                  loadingStickers ? <div className="text-center text-gray-400 py-10">กำลังโหลด...</div> :
+                    stickerItems.length === 0 ? <div className="text-center text-gray-400 py-10">ไม่มีสติ๊กเกอร์</div> :
+                      <div className="grid grid-cols-3 gap-4">
+                        {stickerItems.map((s) => {
+                          const rw = s.reward ?? s.Reward;
+                          const img = s.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
+                          const name = s.reward_name ?? rw?.reward_name ?? rw?.RewardName ?? "Sticker";
+                          return (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                              {img ? <img src={img} alt={name} className="w-20 h-20 object-contain" onError={(e) => (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/90?text=Sticker"} /> : <div className="w-20 h-20 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-400">No Image</div>}
+                              <span className="text-xs font-semibold text-[#C42E0A] text-center">{name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                ) : (
+                  <div className="flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
+                    No content available in {activeTab}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -679,6 +756,16 @@ const FriendPopular: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Profile Popup */}
+      {selectedProfile && (
+        <ProfilePopup
+          isOpen={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          userId={selectedProfile.id}
+          initialTab={popupTab}
+        />
+      )}
       <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }`}</style>
     </div>
   );

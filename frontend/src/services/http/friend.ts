@@ -63,6 +63,16 @@ export const friendAPI = {
     return await api.post("/member/friend-requests", { receiver_id: receiverId });
   },
 
+  getMemberFriends: async (id: number) => {
+    return await api.get(`/member/members/${id}/friends`);
+  },
+  getMemberFollowers: async (id: number) => {
+    return await api.get(`/member/members/${id}/followers`);
+  },
+  getMemberFollowing: async (id: number) => {
+    return await api.get(`/member/members/${id}/following`);
+  },
+
   respondRequest: async (requestId: number, accept: boolean) => {
     return await api.put(`/member/friend-requests/${requestId}/respond`, { accept });
   },
@@ -89,5 +99,9 @@ export const friendAPI = {
 
   unfollowUser: async (targetId: number) => {
     return await api.put(`/member/follows/${targetId}/unfollow`);
+  },
+
+  removeFollower: async (targetId: number) => {
+    return await api.put(`/member/followers/${targetId}/remove`);
   }
 };

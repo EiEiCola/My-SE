@@ -76,6 +76,28 @@ func (c *FollowController) Unfollow(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Unfollowed successfully"})
 }
 
+// RemoveFollower: ลบผู้ติดตาม (เจ้าของโปรไฟล์ลบคนอื่นออกจาก follower)
+func (c *FollowController) RemoveFollower(ctx *gin.Context) {
+	targetIDStr := ctx.Param("target_id")
+	followerID, err := strconv.Atoi(targetIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target ID"})
+		return
+	}
+
+	memberID, err := c.getMemberID(ctx) // เราคือ followed (คนถูกตาม)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Member profile not found"})
+		return
+	}
+
+	if err := c.Service.RemoveFollower(memberID, followerID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Follower removed successfully"})
+}
+
 // Mute
 func (c *FollowController) Mute(ctx *gin.Context) {
 	targetIDStr := ctx.Param("target_id")

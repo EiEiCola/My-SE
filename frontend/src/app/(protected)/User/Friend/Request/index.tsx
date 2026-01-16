@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { App } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import buddhistEra from "dayjs/plugin/buddhistEra";
@@ -29,10 +30,13 @@ import {
   getImageUrl
 } from "../../../../../services/http/friend";
 import { chatService } from "../../../../../services/http/chat"; // ✅ Import Chat Service
+import { memberRewardAPI } from "../../../../../services/http/member_reward"; // ✅ Import Member Reward API
+
 
 // Config Dayjs
 dayjs.extend(buddhistEra);
 dayjs.locale("th");
+import ProfilePopup from "../../../../../components/ProfilePopup";
 
 // --- Interfaces (เฉพาะหน้านี้ เพราะมี field พิเศษที่ไม่ได้อยู่ใน Service กลาง) ---
 interface FriendRequestItem {
@@ -59,6 +63,7 @@ interface FriendRequestItem {
 const FriendRequest: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { message, modal } = App.useApp();
   const token = localStorage.getItem("token");
 
   // Data State
@@ -71,9 +76,23 @@ const FriendRequest: React.FC = () => {
   const [selectedProfile, setSelectedProfile] = useState<FriendRequestItem | null>(null);
   const [activeTab, setActiveTab] = useState("post");
 
+  const [stickerItems, setStickerItems] = useState<any[]>([]);
+  const [loadingStickers, setLoadingStickers] = useState(false);
+
   // Menus
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Popup
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
+
+  const handleOpenPopup = (tab: 'friends' | 'followers' | 'following') => {
+    if (selectedProfile) {
+      setPopupTab(tab);
+      setPopupOpen(true);
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -82,6 +101,28 @@ const FriendRequest: React.FC = () => {
     }
     fetchData();
   }, []);
+
+  // ✅ Fetch stickers for the selected profile
+  useEffect(() => {
+    if (selectedProfile?.member_id) {
+      fetchStickers(selectedProfile.member_id);
+    } else {
+      setStickerItems([]);
+    }
+  }, [selectedProfile]);
+
+  const fetchStickers = async (id: number) => {
+    setLoadingStickers(true);
+    try {
+      const res = await memberRewardAPI.getMemberStickers(id);
+      if (res.data) setStickerItems(res.data);
+      else setStickerItems([]);
+    } catch (err) {
+      console.error("Fetch Sticker Error:", err);
+      setStickerItems([]);
+    }
+    finally { setLoadingStickers(false); }
+  };
 
   // Reset Menus when profile changes
   useEffect(() => {
@@ -227,14 +268,25 @@ const FriendRequest: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleCancelRequest = async (reqId: number) => {
-    if (!window.confirm("ต้องการยกเลิกคำขอ?")) return;
-    try {
-      const res = await friendAPI.cancelRequest(reqId);
-      if (res.status === 200 || res.status === 201) {
-        setSentRequests((prev) => prev.filter((req) => req.id !== reqId));
+  const handleCancelRequest = (reqId: number) => {
+    modal.confirm({
+      title: "ต้องการยกเลิกคำขอ?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await friendAPI.cancelRequest(reqId);
+          if (res.status === 200 || res.status === 201) {
+            setSentRequests((prev) => prev.filter((req) => req.id !== reqId));
+            message.success("ยกเลิกคำขอเรียบร้อย");
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   const handleFollowToggle = async () => {
@@ -261,16 +313,27 @@ const FriendRequest: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleBlockUser = async () => {
-    if (!selectedProfile || !window.confirm("คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?")) return;
-    try {
-      const res = await friendAPI.blockUser(selectedProfile.member_id);
-      if (res.status === 200 || res.status === 201) {
-        alert("บล็อกเรียบร้อย");
-        setReceivedRequests(prev => prev.filter(r => r.member_id !== selectedProfile.member_id));
-        setSelectedProfile(null);
+  const handleBlockUser = () => {
+    if (!selectedProfile) return;
+    modal.confirm({
+      title: "คุณแน่ใจหรือไม่ว่าจะบล็อกผู้ใช้นี้?",
+      centered: true,
+      okText: "ตกลง",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          const res = await friendAPI.blockUser(selectedProfile.member_id);
+          if (res.status === 200 || res.status === 201) {
+            message.success("บล็อกเรียบร้อย");
+            setReceivedRequests(prev => prev.filter(r => r.member_id !== selectedProfile.member_id));
+            setSelectedProfile(null);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("เกิดข้อผิดพลาด");
+        }
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
   return (
@@ -398,19 +461,19 @@ const FriendRequest: React.FC = () => {
 
                   {/* Stats */}
                   <div className="flex mt-[15px] gap-[150px] ">
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('friends')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.friendCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">friends</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('followers')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followerCount}
                       </h4>
                       <span className="font-[500] text-[#5c5c5c]">followers</span>
                     </div>
-                    <div className="cursor-pointer group">
+                    <div className="cursor-pointer group" onClick={() => handleOpenPopup('following')}>
                       <h4 className="m-0 text-black font-bold text-[18px] group-hover:text-[#C42E0A] transition-colors">
                         {selectedProfile.followingCount}
                       </h4>
@@ -565,8 +628,28 @@ const FriendRequest: React.FC = () => {
                 ))}
               </div>
 
-              <div className="mt-5 flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
-                No content available in {activeTab}
+              <div className="mt-5">
+                {activeTab === 'sticker' ? (
+                  loadingStickers ? <div className="text-center text-gray-400 py-10">กำลังโหลด...</div> :
+                    stickerItems.length === 0 ? <div className="text-center text-gray-400 py-10">ไม่มีสติ๊กเกอร์</div> :
+                      <div className="grid grid-cols-3 gap-4">
+                        {stickerItems.map((s) => {
+                          const rw = s.reward ?? s.Reward;
+                          const img = s.reward_picture ?? rw?.reward_picture ?? rw?.RewardPicture ?? "";
+                          const name = s.reward_name ?? rw?.reward_name ?? rw?.RewardName ?? "Sticker";
+                          return (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                              {img ? <img src={img} alt={name} className="w-20 h-20 object-contain" onError={(e) => (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/90?text=Sticker"} /> : <div className="w-20 h-20 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-400">No Image</div>}
+                              <span className="text-xs font-semibold text-[#C42E0A] text-center">{name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                ) : (
+                  <div className="flex justify-center items-center h-40 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50">
+                    No content available in {activeTab}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -581,6 +664,16 @@ const FriendRequest: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Profile Popup */}
+      {selectedProfile && (
+        <ProfilePopup
+          isOpen={popupOpen}
+          onClose={() => setPopupOpen(false)}
+          userId={selectedProfile.member_id}
+          initialTab={popupTab}
+        />
+      )}
 
       {/* MODAL SENT REQUESTS */}
       {showSentModal && (
