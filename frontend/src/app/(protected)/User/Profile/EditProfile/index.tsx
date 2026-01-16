@@ -337,7 +337,6 @@ function EditProfile() {
               }}
               onClick={handleSave}
             >
-              <CheckIcon style={{ color: "white", fontSize: 18 }} />
               SAVE
             </Button>
           </div>

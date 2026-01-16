@@ -27,6 +27,7 @@ func SeedRewards(db *gorm.DB) {
 		"Murv Murv",  // Remove cloud
 		"Saddy Star", // Remove star
 		"Koala",      // Remove Koala
+		"Phoenix",    // Remove Phoenix and replace with Dinosaur
 	}
 	// Hard delete or Soft delete depending on preference. Using Delete (Soft Delete) is safer but keeps them in DB.
 	// User said "Cut out", Unscoped().Delete() effectively removes them (or soft delete if model has deleted_at).
@@ -139,6 +140,42 @@ func SeedRewards(db *gorm.DB) {
 			RewardName:    "Hamster",
 			PointRequired: 45,
 			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616446.png", // Hamster
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Peacock",
+			PointRequired: 40,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616568.png", // Peacock
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Unicorn",
+			PointRequired: 50,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616558.png", // Unicorn
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Mermaid",
+			PointRequired: 55,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/826/826958.png", // Mermaid
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Dragon",
+			PointRequired: 60,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616524.png", // Dragon
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Dinosaur",
+			PointRequired: 65,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616552.png", // Dinosaur/T-Rex
+			AdminID:       adminAccount.ID,
+		},
+		{
+			RewardName:    "Pegasus",
+			PointRequired: 70,
+			RewardPicture: "https://cdn-icons-png.flaticon.com/512/616/616550.png", // Pegasus
 			AdminID:       adminAccount.ID,
 		},
 	}
