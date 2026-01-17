@@ -113,21 +113,24 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 		}
 
 		// Broadcast ห้องใหม่ไปหาสมาชิกทุกคน (Real-time)
+		// ⚠️ ไม่ส่งให้คนสร้าง เพราะเขาได้จาก API response แล้ว
 		var targetIDs []uint
-		targetIDs = append(targetIDs, createdBy) // เจ้าของกลุ่ม
 		for _, memberID := range req.MemberIDs {
 			if memberID != createdBy {
 				targetIDs = append(targetIDs, memberID)
 			}
 		}
 
-		s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
-			TargetIDs: targetIDs,
-			Msg: websocket.WSMessage{
-				Type:    "room_created",
-				Payload: fullRoom,
-				RoomID:  newRoom.ID,
-			},
+		// Broadcast เฉพาะถ้ามีสมาชิกอื่นนอกจากคนสร้าง
+		if len(targetIDs) > 0 {
+			s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+				TargetIDs: targetIDs,
+				Msg: websocket.WSMessage{
+					Type:    "room_created",
+					Payload: fullRoom,
+					RoomID:  newRoom.ID,
+				},
+			}
 		}
 
 		return fullRoom, nil
