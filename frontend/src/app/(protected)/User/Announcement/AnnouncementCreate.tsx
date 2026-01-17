@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./AnnouncementCreate.css";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
 
 const AnnouncementCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -10,16 +12,8 @@ const AnnouncementCreate: React.FC = () => {
   const [image, setImage] = useState("");
   const [categories, setCategories] = useState<{ id: number; title: string }[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
-  const [date, setDate] = useState<string>(() => {
-    // default to today in yyyy-mm-dd for input[type=date]
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
-  const [endDate, setEndDate] = useState<string>(() => {
-    // default end date to today
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
+  const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(dayjs());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,13 +52,13 @@ const AnnouncementCreate: React.FC = () => {
     setSubmitting(true);
     try {
       // Validate end date is not before start date
-      if (endDate && endDate < date) {
+      if (endDate && date && endDate.isBefore(date, 'day')) {
         throw new Error("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น");
       }
 
       // Convert dates to ISO string for backend
-      const reqStart = date ? new Date(date).toISOString() : null;
-      const reqEnd = endDate ? new Date(endDate).toISOString() : null;
+      const reqStart = date ? date.toISOString() : null;
+      const reqEnd = endDate ? endDate.toISOString() : null;
 
       const payload = {
         title: sanitizedTitle,
@@ -181,23 +175,29 @@ const AnnouncementCreate: React.FC = () => {
           </div>
 
           <label className="form-label">วันที่ต้องการให้แสดง <span style={{ color: "red" }}>*</span></label>
-          <input
-            id="start-date"
-            type="date"
+          <DatePicker
             className="form-input"
             value={date}
-            min={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(d) => setDate(d)}
+            disabledDate={(current) => current && current < dayjs().startOf('day')}
+            format="DD/MM/YYYY"
+            style={{ width: '100%', height: '40px' }} // Match input height
           />
 
           <label className="form-label">วันที่สิ้นสุด <span style={{ color: "red" }}>*</span></label>
-          <input
-            id="end-date"
-            type="date"
+          <DatePicker
             className="form-input"
             value={endDate}
-            min={date}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(d) => setEndDate(d)}
+            disabledDate={(current) => {
+              // Can't select before today
+              if (current && current < dayjs().startOf('day')) return true;
+              // Can't select before start date
+              if (date && current && current < date.startOf('day')) return true;
+              return false;
+            }}
+            format="DD/MM/YYYY"
+            style={{ width: '100%', height: '40px' }}
           />
 
           <label className="form-label">เนื้อหาประกาศ <span style={{ color: "red" }}>*</span></label>

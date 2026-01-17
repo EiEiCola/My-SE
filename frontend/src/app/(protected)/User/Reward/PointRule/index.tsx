@@ -125,6 +125,7 @@ const PointRuleModal: React.FC<Props> = ({ open, onClose }) => {
               { value: "asc", label: "แต้ม: น้อย → มาก" },
               { value: "desc", label: "แต้ม: มาก → น้อย" },
             ]}
+            getPopupContainer={(triggerNode) => triggerNode.parentNode}
           />
         </Space>
       </Space>

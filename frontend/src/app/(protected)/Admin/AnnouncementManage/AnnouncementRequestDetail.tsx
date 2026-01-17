@@ -6,6 +6,8 @@ import "./AnnouncementManage.css";
 const AnnouncementRequestDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage(); // Use message hook
+
   const [data, setData] = useState<any>(null); // Use proper interface based on backend entity
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +16,7 @@ const AnnouncementRequestDetail: React.FC = () => {
   const [processing, setProcessing] = useState(false);
 
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false); // Controlled modal state
   const [rejectReason, setRejectReason] = useState("");
 
   const [title, setTitle] = useState("");
@@ -58,6 +61,7 @@ const AnnouncementRequestDetail: React.FC = () => {
         else setStatus('pending');
 
       } catch (err) {
+        console.error("Fetch error:", err);
         setError(err instanceof Error ? err.message : "Error");
       } finally {
         setLoading(false);
@@ -66,45 +70,44 @@ const AnnouncementRequestDetail: React.FC = () => {
     if (id) fetchData();
   }, [id]);
 
-  const handleApprove = async () => {
-    Modal.confirm({
-      title: "ยืนยันการอนุมัติ",
-      content: "คุณต้องการอนุมัติคำขอนี้ใช่หรือไม่?",
-      okText: "ยืนยัน",
-      cancelText: "ยกเลิก",
-      onOk: async () => {
-        setProcessing(true);
-        try {
-          const token = localStorage.getItem("token");
-          const headers: HeadersInit = { "Content-Type": "application/json" };
-          if (token) {
-            headers.Authorization = `Bearer ${token}`;
-          }
+  const handleApproveClick = () => {
+    setShowApproveModal(true);
+  };
 
-          const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
-          });
-          if (!res.ok) throw new Error("Failed to approve");
-          setStatus('approved');
-          message.success("อนุมัติเรียบร้อย");
-        } catch (err) {
-          message.error("เกิดข้อผิดพลาดในการอนุมัติ");
-        } finally {
-          setProcessing(false);
-        }
+  const confirmApprove = async () => {
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
-    });
+
+      const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+      setStatus('approved');
+      messageApi.success("อนุมัติเรียบร้อย");
+      setShowApproveModal(false);
+    } catch (err) {
+      console.error("Approve error:", err);
+      messageApi.error("เกิดข้อผิดพลาดในการอนุมัติ");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleRejectClick = () => {
+    console.log("Reject clicked");
     setShowRejectInput(true);
   };
 
   const confirmReject = async () => {
     if (!rejectReason.trim()) {
-      message.warning("กรุณาระบุเหตุผลการปฏิเสธ");
+      messageApi.warning("กรุณาระบุเหตุผลการปฏิเสธ");
       return;
     }
     setProcessing(true);
@@ -123,27 +126,42 @@ const AnnouncementRequestDetail: React.FC = () => {
       if (!res.ok) throw new Error("Failed to reject");
       setStatus('rejected');
       setShowRejectInput(false);
-      message.success("ปฏิเสธคำขอเรียบร้อย");
+      messageApi.success("ปฏิเสธคำขอเรียบร้อย");
     } catch (err) {
-      message.error("เกิดข้อผิดพลาดในการปฏิเสธ");
+      console.error("Reject error:", err);
+      messageApi.error("เกิดข้อผิดพลาดในการปฏิเสธ");
     } finally {
       setProcessing(false);
     }
   };
 
   const handleSave = async () => {
+    console.log("Save clicked");
     if (!title.trim() || !content.trim()) {
-      message.warning("กรุณากรอกข้อมูลให้ครบ");
+      messageApi.warning("กรุณากรอกข้อมูลให้ครบ");
       return;
     }
     setProcessing(true);
     try {
+      // Safe date parsing
+      let reqStart = null;
+      let reqEnd = null;
+
+      if (date) {
+        reqStart = new Date(date).toISOString();
+      }
+      if (endDate) {
+        reqEnd = new Date(endDate).toISOString();
+      }
+
       const payload = {
         title,
         content,
-        req_start_at: date ? new Date(date).toISOString() : null,
-        req_end_at: endDate ? new Date(endDate).toISOString() : null,
+        req_start_at: reqStart,
+        req_end_at: reqEnd,
       };
+
+      console.log("Sending update payload:", payload);
 
       const token = localStorage.getItem("token");
       const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -157,11 +175,13 @@ const AnnouncementRequestDetail: React.FC = () => {
         body: JSON.stringify(payload),
       });
 
+
       if (!res.ok) throw new Error("Failed to update");
       const json = await res.json();
-      message.success("บันทึกการแก้ไขเรียบร้อย");
+      messageApi.success("บันทึกการแก้ไขเรียบร้อย");
     } catch (err) {
-      message.error("เกิดข้อผิดพลาดในการบันทึก");
+      console.error("Save error:", err);
+      messageApi.error("เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setProcessing(false);
     }
@@ -172,6 +192,7 @@ const AnnouncementRequestDetail: React.FC = () => {
 
   return (
     <main className="flex-1 bg-transparent p-6">
+      {contextHolder}
       <div className="detail-minimal">
         <div className="detail-header">
           <button className="back-link" onClick={() => navigate('/Admin/AnnouncementManage')}>← ย้อนกลับ</button>
@@ -220,11 +241,23 @@ const AnnouncementRequestDetail: React.FC = () => {
           <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
             <div style={{ flex: 1 }}>
               <label className="form-label">วันที่ที่ต้องการให้แสดง</label>
-              <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input
+                type="date"
+                className="form-input"
+                value={date}
+                min={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setDate(e.target.value)}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <label className="form-label">วันที่สิ้นสุด</label>
-              <input type="date" className="form-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <input
+                type="date"
+                className="form-input"
+                value={endDate}
+                min={date}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
           </div>
 
@@ -251,15 +284,48 @@ const AnnouncementRequestDetail: React.FC = () => {
             />
           </Modal>
 
+          {/* Approve Modal - Added because Modal.confirm static method fails in some contexts */}
+          <Modal
+            title="ยืนยันการอนุมัติ"
+            open={showApproveModal}
+            onOk={confirmApprove}
+            onCancel={() => setShowApproveModal(false)}
+            okText="ยืนยัน"
+            cancelText="ยกเลิก"
+            confirmLoading={processing}
+          >
+            <p>คุณต้องการอนุมัติคำขอนี้ใช่หรือไม่?</p>
+          </Modal>
+
           {/* Action Buttons */}
           <div className="detail-actions" style={{ marginTop: 30, borderTop: '1px solid #eee', paddingTop: 20 }}>
-            <button className="btn btn-primary small" onClick={handleSave} disabled={processing} style={{ backgroundColor: '#faad14', borderColor: '#faad14', marginRight: 8 }}>บันทึกการแก้ไข</button>
+            <button
+              type="button"
+              className="btn btn-primary small"
+              onClick={handleSave}
+              disabled={processing}
+              style={{ backgroundColor: '#faad14', borderColor: '#faad14', marginRight: 8, cursor: processing ? 'not-allowed' : 'pointer' }}
+            >
+              บันทึกการแก้ไข
+            </button>
 
-            <button className="btn btn-primary small" onClick={handleApprove} disabled={processing || status === 'approved' || status === 'rejected'}>
+            <button
+              type="button"
+              className="btn btn-primary small"
+              onClick={handleApproveClick}
+              disabled={processing || status === 'approved' || status === 'rejected'}
+              style={{ cursor: (processing || status === 'approved' || status === 'rejected') ? 'not-allowed' : 'pointer' }}
+            >
               {status === 'approved' ? 'อนุมัติแล้ว' : 'อนุมัติคำขอ'}
             </button>
 
-            <button className="btn small" onClick={handleRejectClick} disabled={processing || status === 'rejected' || status === 'approved'} style={{ background: status === 'rejected' ? '#ccc' : '#ff4d4f', color: 'white', border: 'none' }}>
+            <button
+              type="button"
+              className="btn small"
+              onClick={handleRejectClick}
+              disabled={processing || status === 'rejected' || status === 'approved'}
+              style={{ background: status === 'rejected' ? '#ccc' : '#ff4d4f', color: 'white', border: 'none', cursor: (processing || status === 'rejected' || status === 'approved') ? 'not-allowed' : 'pointer' }}
+            >
               {status === 'rejected' ? 'ปฏิเสธแล้ว' : 'ปฏิเสธคำขอ'}
             </button>
 
