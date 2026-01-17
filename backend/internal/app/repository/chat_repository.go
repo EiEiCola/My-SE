@@ -19,6 +19,7 @@ type ChatRepository interface {
 	UpdateMemberRole(roomID, memberID uint, role string) error
 	IsRoomAdmin(roomID, userID uint) (bool, error)
 	IsRoomMember(roomID, userID uint) (bool, error) // เช็คว่าเป็นสมาชิกไหม
+	DeleteRoom(roomID uint) error                   // ลบห้อง
 
 	// Member Management
 	AddRoomMember(roomMember *entity.RoomMember) error
@@ -32,6 +33,7 @@ type ChatRepository interface {
 	GetMessageByID(msgID uint) (*entity.Message, error)
 	UnsendMessage(msg *entity.Message) error
 	ClearChatHistory(memberID, roomID uint) error
+	DeleteRoomMessages(roomID uint) error // ✅ Delete all messages in a room
 
 	// Utils (Sticker Ownership)
 	// Utils (Sticker Ownership)
@@ -319,6 +321,11 @@ func (r *chatRepository) GetOwnedRewards(memberID uint) ([]entity.MemberReward, 
 					Where("member_id = ?", memberID).
 					Find(&rewards).Error
 	return rewards, err
+}
+
+// ลบข้อความทั้งหมดในห้อง
+func (r *chatRepository) DeleteRoomMessages(roomID uint) error {
+	return r.db.Where("room_id = ?", roomID).Delete(&entity.Message{}).Error
 }
 
 // ลบห้อง (Soft Delete หรือ Hard Delete แล้วแต่ Design)

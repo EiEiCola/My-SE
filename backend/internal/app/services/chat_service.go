@@ -106,7 +106,31 @@ func (s *ChatService) CreateRoom(req dto.CreateRoomRequest, createdBy uint) (*en
 			})
 		}
 
-		return s.repo.GetRoomByID(newRoom.ID)
+		// ดึงข้อมูลห้องพร้อมสมาชิก
+		fullRoom, err := s.repo.GetRoomByID(newRoom.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Broadcast ห้องใหม่ไปหาสมาชิกทุกคน (Real-time)
+		var targetIDs []uint
+		targetIDs = append(targetIDs, createdBy) // เจ้าของกลุ่ม
+		for _, memberID := range req.MemberIDs {
+			if memberID != createdBy {
+				targetIDs = append(targetIDs, memberID)
+			}
+		}
+
+		s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+			TargetIDs: targetIDs,
+			Msg: websocket.WSMessage{
+				Type:    "room_created",
+				Payload: fullRoom,
+				RoomID:  newRoom.ID,
+			},
+		}
+
+		return fullRoom, nil
 	}
 
 	return nil, errors.New("invalid room type")
@@ -574,4 +598,68 @@ func (s *ChatService) broadcastSystemMessage(roomID uint, msg *entity.Message) {
 			RoomID:  roomID,
 		},
 	}
+}
+
+// ----------------------------------------------------------------
+// DeleteGroup: ลบกลุ่มแชท (Admin Only)
+// ----------------------------------------------------------------
+func (s *ChatService) DeleteGroup(adminID, roomID uint) error {
+	// 1. ตรวจสอบว่าเป็น Group Chat
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return errors.New("room not found")
+	}
+
+	if room.Type != "group" {
+		return errors.New("cannot delete private chat")
+	}
+
+	// 2. ตรวจสอบว่า user เป็น admin
+	isAdmin, err := s.repo.IsRoomAdmin(roomID, adminID)
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		return errors.New("only admins can delete group")
+	}
+
+	// 3. ลบข้อความทั้งหมดในห้อง (Cascade Delete Messages)
+	if err := s.repo.DeleteRoomMessages(roomID); err != nil {
+		return errors.New("failed to delete messages: " + err.Error())
+	}
+
+	// 4. Broadcast WebSocket ให้สมาชิกทุกคนรู้ว่ากลุ่มถูกลบ (ก่อนลบ members)
+	members, err := s.repo.GetRoomMembers(roomID)
+	if err != nil {
+		return err
+	}
+
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	// Broadcast room deletion event
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type:    "room_deleted",
+			Payload: map[string]interface{}{"room_id": roomID},
+			RoomID:  roomID,
+		},
+	}
+
+	// 5. ลบสมาชิกทั้งหมดในกลุ่ม (Cascade Delete Members)
+	for _, member := range members {
+		if err := s.repo.RemoveRoomMember(roomID, member.MemberID); err != nil {
+			return err
+		}
+	}
+
+	// 6. ลบกลุ่ม
+	if err := s.repo.DeleteRoom(roomID); err != nil {
+		return err
+	}
+
+	return nil
 }
