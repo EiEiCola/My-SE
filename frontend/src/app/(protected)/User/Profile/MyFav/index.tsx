@@ -45,7 +45,7 @@ const MyFav: React.FC<MyFavProps> = ({ userId }) => {
     };
 
     fetchBookmarkedPosts();
-  }, []);
+  }, [userId]); // ✅ Added userId dependency for real-time updates
 
   if (loading) {
     return (

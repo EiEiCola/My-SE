@@ -110,7 +110,7 @@ const FriendRelation: React.FC = () => {
     } else {
       setStickerItems([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile?.id]); // ✅ Use specific ID for reliable change detection
 
   const fetchStickers = async (id: number) => {
     setLoadingStickers(true);

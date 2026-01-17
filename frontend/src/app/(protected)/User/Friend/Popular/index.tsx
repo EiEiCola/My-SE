@@ -114,7 +114,7 @@ const FriendPopular: React.FC = () => {
     } else {
       setStickerItems([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile?.id]); // ✅ Use specific ID for reliable change detection
 
   const fetchStickers = async (id: number) => {
     setLoadingStickers(true);
@@ -451,7 +451,7 @@ const FriendPopular: React.FC = () => {
               {searchTerm ? `ไม่พบ "${searchTerm}"` : "ไม่มีรายชื่อแนะนำ"}
             </div>
           ) : (
-            displayList.map((person) => (
+            displayList.slice(0, 30).map((person) => (
               <div
                 key={person.id}
                 onClick={() => setSelectedProfile(person)}
