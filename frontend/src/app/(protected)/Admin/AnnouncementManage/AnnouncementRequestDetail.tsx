@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Modal, message } from "antd";
 import "./AnnouncementManage.css";
 
 const AnnouncementRequestDetail: React.FC = () => {
@@ -66,28 +67,35 @@ const AnnouncementRequestDetail: React.FC = () => {
   }, [id]);
 
   const handleApprove = async () => {
-    if (!window.confirm("ยืนยันการอนุมัติ?")) return;
-    setProcessing(true);
-    try {
-      const token = localStorage.getItem("token");
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
+    Modal.confirm({
+      title: "ยืนยันการอนุมัติ",
+      content: "คุณต้องการอนุมัติคำขอนี้ใช่หรือไม่?",
+      okText: "ยืนยัน",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        setProcessing(true);
+        try {
+          const token = localStorage.getItem("token");
+          const headers: HeadersInit = { "Content-Type": "application/json" };
+          if (token) {
+            headers.Authorization = `Bearer ${token}`;
+          }
 
-      const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
-      });
-      if (!res.ok) throw new Error("Failed to approve");
-      setStatus('approved');
-      alert("อนุมัติเรียบร้อย");
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการอนุมัติ");
-    } finally {
-      setProcessing(false);
-    }
+          const res = await fetch(`/api/admin/pr-submissions/${id}/review`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ status_id: 2, create_announcement: true, comment: "Approved via Admin UI" }),
+          });
+          if (!res.ok) throw new Error("Failed to approve");
+          setStatus('approved');
+          message.success("อนุมัติเรียบร้อย");
+        } catch (err) {
+          message.error("เกิดข้อผิดพลาดในการอนุมัติ");
+        } finally {
+          setProcessing(false);
+        }
+      }
+    });
   };
 
   const handleRejectClick = () => {
@@ -96,7 +104,7 @@ const AnnouncementRequestDetail: React.FC = () => {
 
   const confirmReject = async () => {
     if (!rejectReason.trim()) {
-      alert("กรุณาระบุเหตุผลการปฏิเสธ");
+      message.warning("กรุณาระบุเหตุผลการปฏิเสธ");
       return;
     }
     setProcessing(true);
@@ -115,9 +123,9 @@ const AnnouncementRequestDetail: React.FC = () => {
       if (!res.ok) throw new Error("Failed to reject");
       setStatus('rejected');
       setShowRejectInput(false);
-      alert("ปฏิเสธคำขอเรียบร้อย");
+      message.success("ปฏิเสธคำขอเรียบร้อย");
     } catch (err) {
-      alert("เกิดข้อผิดพลาดในการปฏิเสธ");
+      message.error("เกิดข้อผิดพลาดในการปฏิเสธ");
     } finally {
       setProcessing(false);
     }
@@ -125,7 +133,7 @@ const AnnouncementRequestDetail: React.FC = () => {
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
-      alert("กรุณากรอกข้อมูลให้ครบ");
+      message.warning("กรุณากรอกข้อมูลให้ครบ");
       return;
     }
     setProcessing(true);
@@ -151,9 +159,9 @@ const AnnouncementRequestDetail: React.FC = () => {
 
       if (!res.ok) throw new Error("Failed to update");
       const json = await res.json();
-      alert("บันทึกการแก้ไขเรียบร้อย");
+      message.success("บันทึกการแก้ไขเรียบร้อย");
     } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึก");
+      message.error("เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setProcessing(false);
     }
@@ -223,50 +231,49 @@ const AnnouncementRequestDetail: React.FC = () => {
           <label className="form-label" style={{ marginTop: 20 }}>เนื้อหาประกาศ</label>
           <textarea className="form-textarea" rows={8} value={content} onChange={(e) => setContent(e.target.value)} />
 
-          {/* Rejection Reason Input Section */}
-          {showRejectInput && status !== 'rejected' && (
-            <div style={{ marginTop: 20, padding: 16, background: '#fff1f0', borderRadius: 8, border: '1px solid #ffccc7' }}>
-              <label className="form-label" style={{ color: '#cf1322' }}>ระบุเหตุผลที่ปฏิเสธ *</label>
-              <textarea
-                className="form-textarea"
-                rows={3}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="เช่น เนื้อหาไม่เหมาะสม, ข้อมูลไม่ครบถ้วน..."
-                autoFocus
-              />
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button className="btn small btn-secondary" onClick={() => setShowRejectInput(false)}>ยกเลิก</button>
-                <button className="btn small" style={{ background: '#cf1322', color: '#fff' }} onClick={confirmReject}>ยืนยันการปฏิเสธ</button>
-              </div>
-            </div>
-          )}
+          {/* Rejection Modal */}
+          <Modal
+            title="ระบุเหตุผลที่ปฏิเสธ"
+            open={showRejectInput}
+            onOk={confirmReject}
+            onCancel={() => setShowRejectInput(false)}
+            okText="ยืนยันการปฏิเสธ"
+            cancelText="ยกเลิก"
+            okButtonProps={{ danger: true, loading: processing }}
+          >
+            <textarea
+              className="form-textarea"
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="เช่น เนื้อหาไม่เหมาะสม, ข้อมูลไม่ครบถ้วน..."
+              style={{ width: '100%', marginTop: 10 }}
+            />
+          </Modal>
 
           {/* Action Buttons */}
-          {!showRejectInput && (
-            <div className="detail-actions" style={{ marginTop: 30, borderTop: '1px solid #eee', paddingTop: 20 }}>
-              <button className="btn btn-primary small" onClick={handleSave} disabled={processing} style={{ backgroundColor: '#faad14', borderColor: '#faad14', marginRight: 8 }}>บันทึกการแก้ไข</button>
+          <div className="detail-actions" style={{ marginTop: 30, borderTop: '1px solid #eee', paddingTop: 20 }}>
+            <button className="btn btn-primary small" onClick={handleSave} disabled={processing} style={{ backgroundColor: '#faad14', borderColor: '#faad14', marginRight: 8 }}>บันทึกการแก้ไข</button>
 
-              <button className="btn btn-primary small" onClick={handleApprove} disabled={processing || status === 'approved' || status === 'rejected'}>
-                {status === 'approved' ? 'อนุมัติแล้ว' : 'อนุมัติคำขอ'}
-              </button>
+            <button className="btn btn-primary small" onClick={handleApprove} disabled={processing || status === 'approved' || status === 'rejected'}>
+              {status === 'approved' ? 'อนุมัติแล้ว' : 'อนุมัติคำขอ'}
+            </button>
 
-              <button className="btn small" onClick={handleRejectClick} disabled={processing || status === 'rejected' || status === 'approved'} style={{ background: status === 'rejected' ? '#ccc' : '#ff4d4f', color: 'white', border: 'none' }}>
-                {status === 'rejected' ? 'ปฏิเสธแล้ว' : 'ปฏิเสธคำขอ'}
-              </button>
+            <button className="btn small" onClick={handleRejectClick} disabled={processing || status === 'rejected' || status === 'approved'} style={{ background: status === 'rejected' ? '#ccc' : '#ff4d4f', color: 'white', border: 'none' }}>
+              {status === 'rejected' ? 'ปฏิเสธแล้ว' : 'ปฏิเสธคำขอ'}
+            </button>
 
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className={`status-badge status-${status}`} style={{
-                  padding: '4px 12px', borderRadius: 12, fontSize: '0.9em',
-                  background: status === 'approved' ? '#f6ffed' : status === 'rejected' ? '#fff1f0' : '#e6f7ff',
-                  color: status === 'approved' ? '#52c41a' : status === 'rejected' ? '#cf1322' : '#1890ff',
-                  border: `1px solid ${status === 'approved' ? '#b7eb8f' : status === 'rejected' ? '#ffa39e' : '#91d5ff'}`
-                }}>
-                  {status.toUpperCase()}
-                </span>
-              </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className={`status-badge status-${status}`} style={{
+                padding: '4px 12px', borderRadius: 12, fontSize: '0.9em',
+                background: status === 'approved' ? '#f6ffed' : status === 'rejected' ? '#fff1f0' : '#e6f7ff',
+                color: status === 'approved' ? '#52c41a' : status === 'rejected' ? '#cf1322' : '#1890ff',
+                border: `1px solid ${status === 'approved' ? '#b7eb8f' : status === 'rejected' ? '#ffa39e' : '#91d5ff'}`
+              }}>
+                {status.toUpperCase()}
+              </span>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </main>
