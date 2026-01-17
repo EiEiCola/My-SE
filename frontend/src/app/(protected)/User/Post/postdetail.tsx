@@ -393,18 +393,18 @@ const PostDetail: React.FC = () => {
         try {
             const res = await fetch("/api/categories/report");
             const json = await res.json();
-            
+
             let reasons: Array<{ id: number; title: string }> = [];
             // Structure: { data: { data: [...] } } or { data: [...] }
             const dataArray = json.data?.data || json.data;
-            
+
             if (Array.isArray(dataArray)) {
                 reasons = dataArray.map((c: any) => ({
                     id: c.ID || c.id,
                     title: c.title || c.Title,
                 }));
             }
-            
+
             setReportReasons(reasons);
         } catch (e) {
             console.error("Failed to fetch report reasons", e);

@@ -25,6 +25,7 @@ import {
   TeamOutlined,
   MessageOutlined,
   LikeOutlined,
+  DislikeOutlined,
   PlusCircleOutlined,
   ArrowLeftOutlined,
   LoadingOutlined,
@@ -36,6 +37,8 @@ import {
   type SubCategoryL2,
 } from "../../../../services/http/admin_category";
 import postService from "../../../../services/http/post_service";
+import { pollAPI } from "../../../../services/http/poll";
+import { fetchReviews } from "../../../../services/http/reviewApi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const { Search } = Input;
@@ -118,6 +121,7 @@ type PostItem = {
   authorAvatar: string;
   createdAt: string;
   likes: number;
+  dislikes: number;
   comments: number;
   excerpt: string;
 };
@@ -139,72 +143,159 @@ const Group: React.FC = () => {
   const [selectedSubSubKey, setSelectedSubSubKey] = useState<string | "all">("all");
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentType | "all">("all");
 
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string): string => {
+    const createdDate = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - createdDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) {
+      return `${diffMins} นาทีที่แล้ว`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ชั่วโมงที่แล้ว`;
+    } else if (diffDays === 0) {
+      return "วันนี้";
+    } else if (diffDays === 1) {
+      return "เมื่อวานนี้";
+    } else {
+      return createdDate.toLocaleDateString("th-TH");
+    }
+  };
+
   // ---------- Fetch Categories ----------
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
-      const [mainRes, sub1Res, sub2Res, postsRes] = await Promise.all([
+      const [mainRes, sub1Res, sub2Res, postsRes, pollsRes, reviewsData] = await Promise.all([
         publicCategoryAPI.listMain(),
         publicCategoryAPI.listSub1(),
         publicCategoryAPI.listSub2(),
         postService.getAll(),
+        pollAPI.listPublished(),
+        fetchReviews(),
       ]);
 
       const mainCategories = mainRes.data.data || [];
       const sub1Categories = sub1Res.data.data || [];
       const sub2Categories = sub2Res.data.data || [];
       const allPostsData = postsRes.data.data || [];
+      const allPollsData = (pollsRes as any).data || [];
+      const allReviewsData = reviewsData || [];
 
       // Transform posts to PostItem format
-      const transformedPosts: PostItem[] = allPostsData.map((post) => {
-        const createdDate = new Date(post.created_at);
-        const now = new Date();
-        const diffMs = now.getTime() - createdDate.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+      const transformedPosts: PostItem[] = allPostsData.map((post: any) => ({
+        id: post.ID,
+        categoryKey: post.main_category_id ? String(post.main_category_id) : "",
+        subKey: post.sub_category1_id ? String(post.sub_category1_id) : "",
+        subSubKey: post.sub_category2_id ? String(post.sub_category2_id) : undefined,
+        type: "post" as ContentType,
+        title: post.title,
+        authorName: post.is_anonymous
+          ? "ไม่เปิดเผยชื่อ"
+          : (post.author?.username || post.author?.first_name || `User #${post.author_id}`),
+        authorAvatar: post.is_anonymous
+          ? `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+          : (post.author?.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`),
+        createdAt: formatRelativeTime(post.created_at),
+        likes: post.like_count || 0,
+        dislikes: 0,
+        comments: post.comment_count || 0,
+        excerpt: post.content?.substring(0, 100) + (post.content?.length > 100 ? "..." : "") || "",
+      }));
 
-        let createdAt = "";
-        if (diffMins < 60) {
-          createdAt = `${diffMins} นาทีที่แล้ว`;
-        } else if (diffHours < 24) {
-          createdAt = `${diffHours} ชั่วโมงที่แล้ว`;
-        } else if (diffDays === 0) {
-          createdAt = "วันนี้";
-        } else if (diffDays === 1) {
-          createdAt = "เมื่อวานนี้";
-        } else {
-          createdAt = createdDate.toLocaleDateString("th-TH");
-        }
-
+      // Transform polls to PostItem format
+      const transformedPolls: PostItem[] = allPollsData.map((poll: any) => {
+        const description = poll.description?.trim();
         return {
-          id: post.ID,
-          categoryKey: post.main_category_id ? String(post.main_category_id) : "",
-          subKey: post.sub_category1_id ? String(post.sub_category1_id) : "",
-          subSubKey: post.sub_category2_id ? String(post.sub_category2_id) : undefined,
-          type: "post" as ContentType,
-          title: post.title,
-          authorName: post.is_anonymous
+          id: poll.id,
+          categoryKey: poll.main_category_id ? String(poll.main_category_id) : "",
+          subKey: poll.sub_category_l1_id ? String(poll.sub_category_l1_id) : "",
+          subSubKey: poll.sub_category_l2_id ? String(poll.sub_category_l2_id) : undefined,
+          type: "poll" as ContentType,
+          title: poll.question,
+          authorName: poll.is_anonymous
             ? "ไม่เปิดเผยชื่อ"
-            : (post.author?.username || post.author?.first_name || `User #${post.author_id}`),
-          authorAvatar: post.is_anonymous
+            : (poll.author_name || `User #${poll.member_id}`),
+          authorAvatar: poll.is_anonymous
             ? `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
-            : (post.author?.member_picture || `https://api.dicebear.com/7.x/thumbs/svg?seed=${post.author_id}`),
-          createdAt,
-          likes: post.like_count,
-          comments: post.comment_count,
-          excerpt: post.content.substring(0, 100) + (post.content.length > 100 ? "..." : ""),
+            : (poll.author_avatar_url || `https://api.dicebear.com/7.x/thumbs/svg?seed=${poll.member_id}`),
+          createdAt: poll.created_at ? formatRelativeTime(poll.created_at) : "",
+          likes: 0,
+          dislikes: 0,
+          comments: 0,
+          excerpt: description && description.length > 0
+            ? (description.length > 100 ? description.substring(0, 100) + "..." : description)
+            : `โพล ${poll.options?.length || 0} ตัวเลือก`,
         };
       });
 
-      setAllPosts(transformedPosts);
+      // Transform reviews to PostItem format
+      const transformedReviews: PostItem[] = allReviewsData.map((review: any) => {
+        const memberId = review.member_id ?? review.MemberID ?? review.memberId ?? review.Member?.id ?? review.Member?.ID;
+        const isAnonymous = review.is_anonymous ?? review.IsAnonymous ?? false;
+        const realName = review.Member?.username || review.username || "ผู้ใช้";
+        const username = isAnonymous ? "ไม่เปิดเผยชื่อ" : realName;
 
-      // Count posts per main category
+        const rawPic = review.Member?.member_picture ?? review.Member?.MemberPicture ??
+          review.Member?.avatar_url ?? review.Member?.AvatarURL ??
+          review.member_picture ?? review.MemberPicture ??
+          review.avatar_url ?? review.AvatarURL ?? "";
+        const avatarUrl = isAnonymous
+          ? `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+          : (rawPic || `https://api.dicebear.com/7.x/thumbs/svg?seed=${memberId}`);
+
+        const content = review.content || review.Content || "";
+        const excerpt = content && content.length > 0
+          ? (content.length > 100 ? content.substring(0, 100) + "..." : content)
+          : "";
+
+        return {
+          id: review.ID || review.id,
+          categoryKey: review.main_category_id ? String(review.main_category_id) : "",
+          subKey: review.sub_category_l1_id ? String(review.sub_category_l1_id) : "",
+          subSubKey: review.sub_category_l2_id ? String(review.sub_category_l2_id) : undefined,
+          type: "review" as ContentType,
+          title: review.Title || review.title || "รีวิว",
+          authorName: username,
+          authorAvatar: avatarUrl,
+          createdAt: (review.CreatedAt || review.created_at) ? formatRelativeTime(review.CreatedAt || review.created_at) : "",
+          likes: review.helpful_count ?? review.HelpfulCount ?? 0,
+          dislikes: review.not_helpful_count ?? review.NotHelpfulCount ?? 0,
+          comments: 0,
+          excerpt,
+        };
+      });
+
+      // Combine all content types
+      const allContent = [...transformedPosts, ...transformedPolls, ...transformedReviews];
+      setAllPosts(allContent);
+
+      // Count all content per main category
       const postCountByCategory = new Map<number, number>();
-      allPostsData.forEach((post) => {
+      const reviewCountByCategory = new Map<number, number>();
+      const pollCountByCategory = new Map<number, number>();
+
+      allPostsData.forEach((post: any) => {
         if (post.main_category_id) {
           const count = postCountByCategory.get(post.main_category_id) || 0;
           postCountByCategory.set(post.main_category_id, count + 1);
+        }
+      });
+
+      allPollsData.forEach((poll: any) => {
+        if (poll.main_category_id) {
+          const count = pollCountByCategory.get(poll.main_category_id) || 0;
+          pollCountByCategory.set(poll.main_category_id, count + 1);
+        }
+      });
+
+      allReviewsData.forEach((review: any) => {
+        if (review.main_category_id) {
+          const count = reviewCountByCategory.get(review.main_category_id) || 0;
+          reviewCountByCategory.set(review.main_category_id, count + 1);
         }
       });
 
@@ -228,7 +319,7 @@ const Group: React.FC = () => {
       });
 
       // Transform to UserCategory
-      const transformed: UserCategory[] = mainCategories.map((main) => ({
+      const transformed: UserCategory[] = mainCategories.map((main: any) => ({
         id: main.ID,
         key: String(main.ID),
         icon: main.icon ? null : getIconForCategory(main.title),
@@ -238,8 +329,8 @@ const Group: React.FC = () => {
         description: main.description || "หมวดหมู่ " + main.title,
         stats: {
           posts: postCountByCategory.get(main.ID) || 0,
-          reviews: 0,
-          polls: 0
+          reviews: reviewCountByCategory.get(main.ID) || 0,
+          polls: pollCountByCategory.get(main.ID) || 0
         },
         subcategories: sub1ByParent.get(main.ID) || [],
       }));
@@ -589,8 +680,16 @@ const Group: React.FC = () => {
                   itemLayout="vertical"
                   renderItem={(item) => (
                     <List.Item
-                      key={item.id}
-                      onClick={() => navigate(`/User/Post/detail/${item.id}`)}
+                      key={`${item.type}-${item.id}`}
+                      onClick={() => {
+                        if (item.type === "post") {
+                          navigate(`/User/Post/detail/${item.id}`);
+                        } else if (item.type === "poll") {
+                          navigate(`/User/Polls/${item.id}`);
+                        } else if (item.type === "review") {
+                          navigate(`/User/Review`);
+                        }
+                      }}
                       style={{
                         padding: "14px 20px",
                         borderBottom: "1px solid #FFF1E0",
@@ -626,29 +725,55 @@ const Group: React.FC = () => {
                               />
                             )}
 
-                            <p className="mt-1 text-gray-600 text-sm">
-                              {item.excerpt}
-                            </p>
+                            {item.excerpt && (
+                              <p className="mt-1 text-gray-600 text-sm">
+                                {item.excerpt}
+                              </p>
+                            )}
                           </div>
                         }
                       />
 
-                      <div
-                        style={{
-                          marginTop: 6,
-                          display: "flex",
-                          gap: 12,
-                          fontSize: 12,
-                          color: ACCENT_COLOR_HEX,
-                        }}
-                      >
-                        <span>
-                          <LikeOutlined /> {item.likes} ถูกใจ
-                        </span>
-                        <span>
-                          <MessageOutlined /> {item.comments} ความเห็น
-                        </span>
-                      </div>
+                      {/* Show different stats based on content type */}
+                      {item.type === "post" && (
+                        <div
+                          style={{
+                            marginTop: 6,
+                            display: "flex",
+                            gap: 12,
+                            fontSize: 12,
+                            color: ACCENT_COLOR_HEX,
+                          }}
+                        >
+                          <span>
+                            <LikeOutlined /> {item.likes} ถูกใจ
+                          </span>
+                          <span>
+                            <MessageOutlined /> {item.comments} ความเห็น
+                          </span>
+                        </div>
+                      )}
+
+                      {item.type === "review" && (
+                        <div
+                          style={{
+                            marginTop: 6,
+                            display: "flex",
+                            gap: 12,
+                            fontSize: 12,
+                            color: ACCENT_COLOR_HEX,
+                          }}
+                        >
+                          <span>
+                            <LikeOutlined /> {item.likes} 
+                          </span>
+                          <span>
+                            <DislikeOutlined /> {item.dislikes} 
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Polls show no icons */}
                     </List.Item>
                   )}
                 />
