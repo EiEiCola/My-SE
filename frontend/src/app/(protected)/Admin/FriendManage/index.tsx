@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { message, Avatar, Empty, Spin, Popconfirm, Input, Tag, Select, Button, Card } from "antd";
+import { message, Avatar, Empty, Spin, Popconfirm, Input, Tag, Select, Button, Card, Pagination } from "antd";
 import {
   DeleteOutlined,
   UserOutlined,
@@ -66,6 +66,10 @@ const FriendManage: React.FC = () => {
   const [searchTarget, setSearchTarget] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // Fixed at 20 items per page
+
   // --- Helper: Format Date ---
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
@@ -123,6 +127,7 @@ const FriendManage: React.FC = () => {
     setSearchSource("");
     setSearchTarget("");
     setFilterStatus("all");
+    setCurrentPage(1); // ✅ Reset pagination
     fetchData();
   }, [activeTab]);
 
@@ -176,7 +181,13 @@ const FriendManage: React.FC = () => {
     return [];
   };
 
-  const displayData = getFilteredData();
+  const filteredData = getFilteredData();
+
+  // ✅ Pagination Logic
+  const totalItems = filteredData.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const displayData = filteredData.slice(startIndex, endIndex);
 
   // --- Labels ---
   const getLabels = () => {
@@ -422,6 +433,24 @@ const FriendManage: React.FC = () => {
                   <span className="text-gray-400 text-sm mt-2">ไม่พบข้อมูลที่ค้นหา</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ✅ Pagination */}
+          {!loading && totalItems > 0 && (
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between">
+              <div className="text-sm text-white-500">
+                แสดง {startIndex + 1} - {Math.min(endIndex, totalItems)} จากทั้งหมด {totalItems} รายการ
+              </div>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalItems}
+                onChange={(page) => setCurrentPage(page)}
+                showSizeChanger={false}
+                showQuickJumper={totalItems > 100}
+                className="[&_.ant-pagination-item-active]:bg-blue-200 [&_.ant-pagination-item-active]:border-blue-600"
+              />
             </div>
           )}
         </div>
