@@ -339,6 +339,35 @@ const ChatPage: React.FC = () => {
                   setCurrentRoom(null);
                   setMessages([]);
                }
+            } else if (msg.type === 'member_role_update') { // ✅ Handle Member Role Update (Real-time)
+               const payload = msg.payload as { room_id: number; member_id: number; new_role: string };
+               console.log("👑 Member Role Updated:", payload);
+
+               // อัปเดต currentRoom ถ้ากำลังอยู่ในห้องนั้น
+               if (activeRoomIdRef.current === payload.room_id) {
+                  setCurrentRoom(prev => {
+                     if (!prev) return null;
+                     const updatedMembers = prev.member?.map(m =>
+                        Number(m.member_id) === payload.member_id
+                           ? { ...m, rm_role: payload.new_role }
+                           : m
+                     );
+                     return { ...prev, member: updatedMembers };
+                  });
+               }
+
+               // อัปเดต rooms state เพื่อซิงค์ข้อมูล
+               setRooms(prev => prev.map(room => {
+                  if (room.room_id === payload.room_id && room.member) {
+                     const updatedMembers = room.member.map(m =>
+                        Number(m.member_id) === payload.member_id
+                           ? { ...m, rm_role: payload.new_role }
+                           : m
+                     );
+                     return { ...room, member: updatedMembers };
+                  }
+                  return room;
+               }));
             }
          } catch (error) { console.error("WS Error:", error); }
       };
@@ -1134,6 +1163,7 @@ const ChatPage: React.FC = () => {
                            const user = m.member;
                            const isMe = Number(m.member_id) === myUserID;
                            const isAdmin = m.rm_role === 'admin';
+                           const isCreator = Number(m.member_id) === currentRoom!.created_by;
 
                            return (
                               <div key={m.member_id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl group transition-colors">
@@ -1160,7 +1190,7 @@ const ChatPage: React.FC = () => {
                                  </div>
 
                                  <div className="flex items-center gap-2">
-                                    {amIAdmin && !isMe && (
+                                    {amIAdmin && !isMe && !isCreator && (
                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                                           <button
                                              title={isAdmin ? "ลดสถานะ" : "ตั้งเป็นแอดมิน"}
@@ -1173,14 +1203,23 @@ const ChatPage: React.FC = () => {
                                           <button
                                              title="เตะออกจากกลุ่ม"
                                              onClick={async () => {
-                                                if (confirm(`ต้องการลบ ${user?.first_name} ออกจากกลุ่มหรือไม่?`)) {
-                                                   try {
-                                                      await chatService.removeMember(currentRoom.room_id, Number(m.member_id));
-                                                      // Refresh happens via WebSocket System Message
-                                                   } catch (err) {
-                                                      alert("ลบสมาชิกไม่สำเร็จ");
+                                                modal.confirm({
+                                                   title: "ต้องการลบสมาชิกออกจากกลุ่ม?",
+                                                   content: `ต้องการลบ ${user?.first_name} ออกจากกลุ่มหรือไม่?`,
+                                                   centered: true,
+                                                   okText: "ลบ",
+                                                   okType: "danger",
+                                                   cancelText: "ยกเลิก",
+                                                   zIndex: 3100,
+                                                   onOk: async () => {
+                                                      try {
+                                                         await chatService.removeMember(currentRoom!.room_id, Number(m.member_id));
+                                                         modal.success({ title: "สำเร็จ", content: "ลบสมาชิกออกจากกลุ่มเรียบร้อย", centered: true, okText: "ตกลง" });
+                                                      } catch (err) {
+                                                         modal.error({ title: "ข้อผิดพลาด", content: "ลบสมาชิกไม่สำเร็จ", centered: true, okText: "ตกลง" });
+                                                      }
                                                    }
-                                                }
+                                                });
                                              }}
                                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
                                           >
@@ -1350,9 +1389,9 @@ const ChatPage: React.FC = () => {
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-6 bg-slate-50 flex flex-col">
                      {(() => {
-                        const info = getChatInfo(currentRoom);
-                        const partner = currentRoom.rc_type === 'private'
-                           ? currentRoom.member?.find((m) => Number(m.member_id) !== Number(myUserID))
+                        const info = getChatInfo(currentRoom!);
+                        const partner = currentRoom!.rc_type === 'private'
+                           ? currentRoom!.member?.find((m) => Number(m.member_id) !== Number(myUserID))
                            : null;
                         const user = partner?.member;
 

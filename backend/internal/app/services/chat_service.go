@@ -489,8 +489,42 @@ func (s *ChatService) UpdateMemberRole(adminID, roomID, targetMemberID uint, new
 		return errors.New("cannot change your own role via this endpoint")
 	}
 
-	// 3. อัปเดต
-	return s.repo.UpdateMemberRole(roomID, targetMemberID, newRole)
+	// 3. ห้ามลดบทบาทแอดมินของผู้สร้างกลุ่ม
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return err
+	}
+
+	if uint(room.CreatedBy) == targetMemberID && newRole != "admin" {
+		return errors.New("cannot demote the group creator from admin role")
+	}
+
+	// 4. อัปเดต
+	if err := s.repo.UpdateMemberRole(roomID, targetMemberID, newRole); err != nil {
+		return err
+	}
+
+	// 4. Broadcast Member Role Update (Real-time)
+	members, _ := s.repo.GetRoomMembers(roomID)
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type: "member_role_update",
+			Payload: map[string]interface{}{
+				"room_id":   roomID,
+				"member_id": targetMemberID,
+				"new_role":  newRole,
+			},
+			RoomID: roomID,
+		},
+	}
+
+	return nil
 }
 
 // Kick Member (Admin Only)
