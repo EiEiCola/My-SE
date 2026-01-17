@@ -30,33 +30,44 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const [profileImage, setProfileImage] = useState("");
 
   // Fetch profile data
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        if (role === "user") {
-          const res = await memberAPI.getMe();
-          const data: any = res.data;
-          const user = data.data || data;
+  const fetchProfile = useCallback(async () => {
+    try {
+      if (role === "user") {
+        const res = await memberAPI.getMe();
+        const data: any = res.data;
+        const user = data.data || data;
 
-          if (user) {
-            setProfileName(user.username || user.first_name || "User");
-            setProfileImage(user.member_picture || "");
-          }
-
-        } else if (role === "admin") {
-          const res = await adminProfileAPI.getMe();
-          const data = res.data.data;
-          if (data) {
-            setProfileName(data.username || "Admin");
-            setProfileImage(data.profile_picture || "");
-          }
+        if (user) {
+          setProfileName(user.username || user.first_name || "User");
+          setProfileImage(user.member_picture || "");
         }
-      } catch (error) {
-        console.error("Failed to fetch profile in Header", error);
+
+      } else if (role === "admin") {
+        const res = await adminProfileAPI.getMe();
+        const data = res.data.data;
+        if (data) {
+          setProfileName(data.username || "Admin");
+          setProfileImage(data.profile_picture || "");
+        }
       }
-    };
-    fetchProfile();
+    } catch (error) {
+      console.error("Failed to fetch profile in Header", error);
+    }
   }, [role]);
+
+  useEffect(() => {
+    fetchProfile();
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    window.addEventListener("PROFILE_UPDATED", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("PROFILE_UPDATED", handleProfileUpdate);
+    };
+  }, [fetchProfile]);
 
   /*
   // Fetch Notifications function

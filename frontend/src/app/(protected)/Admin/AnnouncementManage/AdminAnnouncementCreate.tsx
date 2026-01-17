@@ -187,6 +187,7 @@ const AdminAnnouncementCreate: React.FC = () => {
                         type="date"
                         className="form-input"
                         value={date}
+                        min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => setDate(e.target.value)}
                     />
 
@@ -196,6 +197,7 @@ const AdminAnnouncementCreate: React.FC = () => {
                         type="date"
                         className="form-input"
                         value={endDate}
+                        min={date}
                         onChange={(e) => setEndDate(e.target.value)}
                     />
 
