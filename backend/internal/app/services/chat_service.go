@@ -501,12 +501,32 @@ func (s *ChatService) KickMember(adminID, roomID, targetMemberID uint) error {
 		return errors.New("permission denied: you are not an admin")
 	}
 
-	// 2. Remove Member
+	// 2. ดึงข้อมูลกลุ่มเพื่อส่งไปในแจ้งเตือน
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return err
+	}
+
+	// 3. Broadcast "kicked_from_room" event ให้คนที่โดนเตะเท่านั้น
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: []uint{targetMemberID},
+		Msg: websocket.WSMessage{
+			Type: "kicked_from_room",
+			Payload: map[string]interface{}{
+				"room_id":   roomID,
+				"room_name": room.Name,
+				"kicked_by": adminID,
+			},
+			RoomID: roomID,
+		},
+	}
+
+	// 4. Remove Member
 	if err := s.repo.RemoveRoomMember(roomID, targetMemberID); err != nil {
 		return err
 	}
 
-	// 3. Create System Message
+	// 5. Create System Message
 	adminName := "Admin"
 	if admin, err := s.friendRepo.GetMemberProfile(int(adminID)); err == nil {
 		adminName = admin.FirstName
@@ -526,7 +546,7 @@ func (s *ChatService) KickMember(adminID, roomID, targetMemberID uint) error {
 	}
 	s.repo.CreateMessage(&sysMsg)
 
-	// 4. Broadcast
+	// 6. Broadcast ให้สมาชิกที่เหลือในกลุ่ม (ไม่รวมคนที่โดนเตะ)
 	s.broadcastSystemMessage(roomID, &sysMsg)
 
 	return nil

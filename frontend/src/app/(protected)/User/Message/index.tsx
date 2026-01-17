@@ -319,6 +319,26 @@ const ChatPage: React.FC = () => {
                   if (exists) return prev; // มีอยู่แล้ว ไม่เพิ่มซ้ำ
                   return [newRoom, ...prev]; // เพิ่มที่ด้านบนสุด
                });
+            } else if (msg.type === 'kicked_from_room') { // ✅ Handle Kicked from Room
+               const payload = msg.payload as { room_id: number; room_name: string };
+               console.log("👢 Kicked from room:", payload.room_id);
+
+               // แสดงข้อความแจ้งเตือน
+               modal.warning({
+                  title: "คุณถูกเตะออกจากกลุ่ม",
+                  content: `คุณถูกเตะออกจากกลุ่ม "${payload.room_name}"`,
+                  centered: true,
+                  okText: "ตกลง"
+               });
+
+               // ลบกลุ่มออกจาก UI ทันที
+               setRooms(prev => prev.filter(r => r.room_id !== payload.room_id));
+
+               // ถ้ากำลังอยู่ในห้องนั้น ให้ปิด
+               if (activeRoomIdRef.current === payload.room_id) {
+                  setCurrentRoom(null);
+                  setMessages([]);
+               }
             }
          } catch (error) { console.error("WS Error:", error); }
       };
@@ -443,7 +463,12 @@ const ChatPage: React.FC = () => {
       const isLastAdmin = amIAdmin && admins.length === 1 && (currentRoom.member?.length || 0) > 1;
 
       if (isLastAdmin) {
-         message.warning("⚠️ คุณเป็น Admin เพียงคนเดียวในกลุ่ม\nกรุณาตั้งสมาชิกอื่นเป็น Admin ก่อนออกจากกลุ่ม");
+         modal.warning({
+            title: "ไม่สามารถออกจากกลุ่มได้",
+            content: "คุณเป็น Admin เพียงคนเดียวในกลุ่ม กรุณาตั้งสมาชิกอื่นเป็น Admin ก่อนออกจากกลุ่ม",
+            centered: true,
+            okText: "ตกลง"
+         });
          setShowGroupInfoModal(true);
          return;
       }
@@ -459,8 +484,10 @@ const ChatPage: React.FC = () => {
                setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
                setCurrentRoom(null);
                setShowGroupInfoModal(false);
-               message.success("ออกจากกลุ่มเรียบร้อย");
-            } catch (err: any) { message.error(err.response?.data?.error || "ไม่สามารถออกจากกลุ่มได้"); }
+               modal.success({ title: "สำเร็จ", content: "ออกจากกลุ่มเรียบร้อย", centered: true, okText: "ตกลง" });
+            } catch (err: any) {
+               modal.error({ title: "ข้อผิดพลาด", content: err.response?.data?.error || "ไม่สามารถออกจากกลุ่มได้", centered: true, okText: "ตกลง" });
+            }
          }
       });
    };
@@ -489,8 +516,11 @@ const ChatPage: React.FC = () => {
                // Remove the room from the list immediately
                setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
                setCurrentRoom(null);
-               message.success("บล็อกผู้ใช้เรียบร้อย");
-            } catch (err) { console.error(err); message.error("เกิดข้อผิดพลาด"); }
+               modal.success({ title: "สำเร็จ", content: "บล็อกผู้ใช้เรียบร้อย", centered: true, okText: "ตกลง" });
+            } catch (err) {
+               console.error(err);
+               modal.error({ title: "ข้อผิดพลาด", content: "เกิดข้อผิดพลาด", centered: true, okText: "ตกลง" });
+            }
          }
       });
    };
@@ -516,9 +546,9 @@ const ChatPage: React.FC = () => {
                setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
                setCurrentRoom(null);
                setShowGroupInfoModal(false);
-               message.success("ลบกลุ่มเรียบร้อย");
+               modal.success({ title: "สำเร็จ", content: "ลบกลุ่มเรียบร้อย", centered: true, okText: "ตกลง" });
             } catch (err: any) {
-               message.error(err.response?.data?.error || "ไม่สามารถลบกลุ่มได้");
+               modal.error({ title: "ข้อผิดพลาด", content: err.response?.data?.error || "ไม่สามารถลบกลุ่มได้", centered: true, okText: "ตกลง" });
             } finally {
                setIsDeletingGroup(false);
             }
@@ -622,7 +652,7 @@ const ChatPage: React.FC = () => {
       if (!currentRoom || selectedMembers.length === 0) return;
       try {
          await chatService.inviteMembers(currentRoom.room_id, selectedMembers);
-         alert(`เชิญสมาชิกเพิ่มเรียบร้อย`);
+         message.success(`เชิญสมาชิกเพิ่มเรียบร้อย`);
          setShowInviteModal(false); setSelectedMembers([]);
          loadRooms(); // Reload to get updated member list (or optimistically update)
          // Optimistic update for member count display
@@ -630,7 +660,7 @@ const ChatPage: React.FC = () => {
          const updatedRoom = await chatService.getRooms().then(r => r.data.find(rm => rm.room_id === currentRoom.room_id));
          if (updatedRoom) setCurrentRoom(updatedRoom);
 
-      } catch (err) { alert('เชิญไม่สำเร็จ'); }
+      } catch (err) { message.error('เชิญไม่สำเร็จ'); }
    }
 
    const handleGroupImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -691,8 +721,10 @@ const ChatPage: React.FC = () => {
                   Number(m.member_id) === targetId ? { ...m, rm_role: newRole } : m
                );
                setCurrentRoom(prev => prev ? { ...prev, member: updatedMembers } : null);
-               message.success(`${action}สำเร็จ`);
-            } catch (err) { message.error('ดำเนินการไม่สำเร็จ'); }
+               modal.success({ title: "สำเร็จ", content: `${action}สำเร็จ`, centered: true, okText: "ตกลง" });
+            } catch (err) {
+               modal.error({ title: "ข้อผิดพลาด", content: "ดำเนินการไม่สำเร็จ", centered: true, okText: "ตกลง" });
+            }
          }
       });
    };
