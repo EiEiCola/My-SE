@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   Search, Settings, Help, DarkMode, ChatBubble, ExitToApp, Person,
@@ -6,9 +6,8 @@ import {
 } from '@mui/icons-material';
 import { memberAPI } from "../../services/http/member_profile";
 import { adminProfileAPI } from "../../services/http/admin_profile";
-import { useWebSocket } from "../../contexts/WebSocketContext";
-import type { Notification } from "../../services/http/notification";
-import { Badge } from "antd";
+import { notificationAPI, type Notification } from "../../services/http/notification";
+import { Badge } from "antd"; // Use Ant Design Badge if available, or custom css
 
 interface HeaderProps {
   role: "admin" | "user";
@@ -22,8 +21,8 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Notification from WebSocket Context (real-time)
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteReadNotifications } = useWebSocket();
+  // Notification State
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -85,12 +84,23 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
     }
   }, [role]);
   */
+  // Memoize unread count
+  const unreadCount = useMemo(
+    () => notifications.filter(n => !n.is_read).length,
+    [notifications]
+  );
+
   // Memoized callback for marking notification as read
   const handleRead = useCallback(async (n: Notification) => {
     if (!n.is_read) {
-      await markAsRead(n.ID);
+      try {
+        await notificationAPI.markAsRead(n.ID);
+        setNotifications(prev => prev.map(item => item.ID === n.ID ? { ...item, is_read: true } : item));
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }, [markAsRead]);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -210,56 +220,24 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
             {/* Notification Dropdown */}
             {isNotifOpen && (
               <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-                {/* Header */}
-                <div className="p-3 border-b border-gray-700 bg-[#242526]">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold">แจ้งเตือน</h4>
-                    {unreadCount > 0 && <span className="text-xs bg-red-500 px-2 py-0.5 rounded-full">{unreadCount} ใหม่</span>}
-                  </div>
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => markAllAsRead()}
-                      disabled={unreadCount === 0}
-                      className="flex-1 text-xs px-2 py-1 rounded bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      อ่านทั้งหมด
-                    </button>
-                    <button
-                      onClick={() => deleteReadNotifications()}
-                      disabled={notifications.filter(n => n.is_read).length === 0}
-                      className="flex-1 text-xs px-2 py-1 rounded bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      ลบที่อ่านแล้ว
-                    </button>
-                  </div>
+                <div className="p-3 border-b border-gray-700 flex justify-between items-center bg-[#242526]">
+                  <h4 className="font-semibold">Notifications</h4>
+                  {unreadCount > 0 && <span className="text-xs bg-red-500 px-2 py-0.5 rounded-full">{unreadCount} new</span>}
                 </div>
 
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-gray-400">ไม่มีการแจ้งเตือน</div>
+                    <div className="p-4 text-center text-gray-400">No notifications</div>
                   ) : (
                     notifications.map(n => (
                       <div
                         key={n.ID}
                         onClick={() => handleRead(n)}
-                        className={`p-3 border-b border-gray-700/50 hover:bg-[#3a3b3c] cursor-pointer transition-colors relative
-                          ${!n.is_read ? 'bg-[#2d4a5e] border-l-4 border-l-orange-500' : 'bg-[#242526] opacity-70'}`}
+                        className={`p-3 border-b border-gray-700/50 hover:bg-[#3a3b3c] cursor-pointer transition-colors ${!n.is_read ? 'bg-[#2a3b4c]' : ''}`}
                       >
-                        {/* Unread indicator dot */}
-                        {!n.is_read && (
-                          <div className="absolute right-3 top-3 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                        )}
-                        <div className={`text-sm font-semibold mb-1 ${!n.is_read ? 'text-orange-400' : 'text-gray-400'}`}>
-                          {n.title}
-                        </div>
-                        <div className={`text-sm line-clamp-2 ${!n.is_read ? 'text-gray-200' : 'text-gray-500'}`}>
-                          {n.message}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
-                          {new Date(n.CreatedAt).toLocaleString('th-TH')}
-                          {n.is_read && <span className="text-green-500">✓ อ่านแล้ว</span>}
-                        </div>
+                        <div className="text-sm font-semibold text-orange-400 mb-1">{n.title}</div>
+                        <div className="text-sm text-gray-300 line-clamp-2">{n.message}</div>
+                        <div className="text-xs text-gray-500 mt-2">{new Date(n.CreatedAt).toLocaleString('th-TH')}</div>
                       </div>
                     ))
                   )}

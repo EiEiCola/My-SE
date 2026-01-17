@@ -29,7 +29,6 @@ import {
   FilterOutlined,
   SearchOutlined,
   MoreOutlined,
-  EyeOutlined,
 } from "@ant-design/icons";
 import adminPostService from "../../../../services/http/admin_post_service";
 import { ReportService } from "../../../../services/http/report";
@@ -76,7 +75,7 @@ const PostManage: React.FC = () => {
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [reportCounts, setReportCounts] = useState<Record<number, number>>({});
   const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | PostStatus | "online">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | PostStatus>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -190,8 +189,7 @@ const PostManage: React.FC = () => {
   // ---------- สถิติ ----------
   const totalReported = posts.filter((p) => p.status === "reported").length;
   const totalDeleted = posts.filter((p) => p.status === "deleted").length;
-  // โพสต์ออนไลน์ = active + reported (ทั้งคู่ยังแสดงบน Community อยู่)
-  const totalOnline = posts.filter((p) => p.status === "active" || p.status === "reported").length;
+  const totalActive = posts.filter((p) => p.status === "active").length;
 
   const categories = useMemo(
     () => Array.from(new Set(posts.map((p) => p.category))),
@@ -207,13 +205,8 @@ const PostManage: React.FC = () => {
         p.authorName.toLowerCase().includes(searchText.toLowerCase()) ||
         p.category.toLowerCase().includes(searchText.toLowerCase());
 
-      // online = active + reported (ยังแสดงบน Community)
       const matchStatus =
-        statusFilter === "all"
-          ? true
-          : statusFilter === "online"
-            ? (p.status === "active" || p.status === "reported")
-            : p.status === statusFilter;
+        statusFilter === "all" ? true : p.status === statusFilter;
 
       const matchCategory =
         categoryFilter === "all" ? true : p.category === categoryFilter;
@@ -397,18 +390,15 @@ const PostManage: React.FC = () => {
       align: "right",
       render: (_, record) => {
         const isDeleted = record.status === "deleted";
-        const items: MenuProps["items"] = [];
-
-        // แสดง "ดูรายละเอียด" เฉพาะเมื่อโพสต์ยังไม่ถูกลบ
-        if (!isDeleted) {
-          items.push({
+        const items: MenuProps["items"] = [
+          {
             key: "view",
             label: "ดูรายละเอียด",
-            icon: <EyeOutlined />,
-          });
-        }
+            icon: <SearchOutlined />, // หรือ EyeOutlined ถ้ามี
+          },
+        ];
 
-        // เพิ่มเมนู "ลบ" ถ้ายังไม่ถูกลบ
+        // เพิ่มเมนูถ้ายังไม่ถูกลบ
         if (!isDeleted) {
           items.push({
             key: "delete",
@@ -433,24 +423,22 @@ const PostManage: React.FC = () => {
               </Tooltip>
             )}
 
-            {!isDeleted && (
-              <Dropdown
-                menu={{
-                  items,
-                  onClick: ({ key }) => {
-                    if (key === "delete") openDeleteModal(record);
-                    if (key === "view") navigate(`/User/Post/detail/${record.id}`);
-                  },
-                }}
-                trigger={["click"]}
-              >
-                <Button
-                  type="text"
-                  icon={<MoreOutlined />}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </Dropdown>
-            )}
+            <Dropdown
+              menu={{
+                items,
+                onClick: ({ key }) => {
+                  if (key === "delete") openDeleteModal(record);
+                  if (key === "view") navigate(`/User/Post/detail/${record.id}`);
+                },
+              }}
+              trigger={["click"]}
+            >
+              <Button
+                type="text"
+                icon={<MoreOutlined />}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Dropdown>
 
             {/* Optional: Show info icon or something for deleted posts? or just empty */}
             {isDeleted && <span style={{ color: '#ccc', fontSize: 12 }}></span>}
@@ -561,19 +549,19 @@ const PostManage: React.FC = () => {
           <Col xs={24} md={8}>
             <Card
               hoverable
-              onClick={() => setStatusFilter((prev) => (prev === "online" ? "all" : "online"))}
+              onClick={() => handleStatusCardClick("active")}
               bordered={false}
               bodyStyle={{ padding: 18 }}
               style={{
                 borderRadius: 18,
                 background: "linear-gradient(135deg, #e0f2fe, #bfdbfe)",
                 boxShadow:
-                  statusFilter === "online"
+                  statusFilter === "active"
                     ? "0 18px 40px rgba(37, 99, 235, 0.35)"
                     : "0 18px 35px rgba(37, 99, 235, 0.25)",
                 cursor: "pointer",
                 transform:
-                  statusFilter === "online" ? "translateY(-2px)" : "none",
+                  statusFilter === "active" ? "translateY(-2px)" : "none",
                 transition: "all 0.15s ease",
               }}
             >
@@ -583,7 +571,7 @@ const PostManage: React.FC = () => {
               <div
                 style={{ fontSize: 34, fontWeight: 800, color: "#1e3a8a" }}
               >
-                {totalOnline}
+                {totalActive}
               </div>
               <div style={{ fontSize: 11, color: "#1d4ed8", marginTop: 4 }}>
                 โพสต์ที่ยังแสดงใน Community ตอนนี้
@@ -617,7 +605,6 @@ const PostManage: React.FC = () => {
                 suffixIcon={<FilterOutlined />}
               >
                 <Select.Option value="all">ทุกสถานะ</Select.Option>
-                <Select.Option value="online">ออนไลน์</Select.Option>
                 <Select.Option value="active">เผยแพร่</Select.Option>
                 <Select.Option value="reported">ถูกรายงาน</Select.Option>
                 <Select.Option value="deleted">ถูกลบแล้ว</Select.Option>

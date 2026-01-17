@@ -231,7 +231,7 @@ func (s *CategoryService) getMainCategoryStats() ([]dto.CategoryCountStat, error
 	var postRows []categoryCountRow
 	s.DB.Model(&entity.Post{}).
 		Select("main_category_id as category_id, COUNT(*) as count").
-		Where("main_category_id IS NOT NULL AND deleted_at IS NULL AND status != 'deleted'").
+		Where("main_category_id IS NOT NULL AND deleted_at IS NULL").
 		Group("main_category_id").
 		Scan(&postRows)
 	for _, row := range postRows {
@@ -243,7 +243,7 @@ func (s *CategoryService) getMainCategoryStats() ([]dto.CategoryCountStat, error
 	var reviewRows []categoryCountRow
 	s.DB.Model(&entity.Review{}).
 		Select("main_category_id as category_id, COUNT(*) as count").
-		Where("main_category_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("main_category_id IS NOT NULL AND deleted_at IS NULL").
 		Group("main_category_id").
 		Scan(&reviewRows)
 	for _, row := range reviewRows {
@@ -255,7 +255,7 @@ func (s *CategoryService) getMainCategoryStats() ([]dto.CategoryCountStat, error
 	var pollRows []categoryCountRow
 	s.DB.Model(&entity.Poll{}).
 		Select("main_category_id as category_id, COUNT(*) as count").
-		Where("main_category_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("main_category_id IS NOT NULL AND deleted_at IS NULL").
 		Group("main_category_id").
 		Scan(&pollRows)
 	for _, row := range pollRows {
@@ -288,7 +288,7 @@ func (s *CategoryService) getSub1CategoryStats() ([]dto.CategoryCountStat, error
 	var postRows []categoryCountRow
 	s.DB.Model(&entity.Post{}).
 		Select("sub_category1_id as category_id, COUNT(*) as count").
-		Where("sub_category1_id IS NOT NULL AND deleted_at IS NULL AND status != 'deleted'").
+		Where("sub_category1_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category1_id").
 		Scan(&postRows)
 	for _, row := range postRows {
@@ -300,7 +300,7 @@ func (s *CategoryService) getSub1CategoryStats() ([]dto.CategoryCountStat, error
 	var reviewRows []categoryCountRow
 	s.DB.Model(&entity.Review{}).
 		Select("sub_category_l1_id as category_id, COUNT(*) as count").
-		Where("sub_category_l1_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("sub_category_l1_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category_l1_id").
 		Scan(&reviewRows)
 	for _, row := range reviewRows {
@@ -312,7 +312,7 @@ func (s *CategoryService) getSub1CategoryStats() ([]dto.CategoryCountStat, error
 	var pollRows []categoryCountRow
 	s.DB.Model(&entity.Poll{}).
 		Select("sub_category_l1_id as category_id, COUNT(*) as count").
-		Where("sub_category_l1_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("sub_category_l1_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category_l1_id").
 		Scan(&pollRows)
 	for _, row := range pollRows {
@@ -345,7 +345,7 @@ func (s *CategoryService) getSub2CategoryStats() ([]dto.CategoryCountStat, error
 	var postRows []categoryCountRow
 	s.DB.Model(&entity.Post{}).
 		Select("sub_category2_id as category_id, COUNT(*) as count").
-		Where("sub_category2_id IS NOT NULL AND deleted_at IS NULL AND status != 'deleted'").
+		Where("sub_category2_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category2_id").
 		Scan(&postRows)
 	for _, row := range postRows {
@@ -357,7 +357,7 @@ func (s *CategoryService) getSub2CategoryStats() ([]dto.CategoryCountStat, error
 	var reviewRows []categoryCountRow
 	s.DB.Model(&entity.Review{}).
 		Select("sub_category_l2_id as category_id, COUNT(*) as count").
-		Where("sub_category_l2_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("sub_category_l2_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category_l2_id").
 		Scan(&reviewRows)
 	for _, row := range reviewRows {
@@ -369,7 +369,7 @@ func (s *CategoryService) getSub2CategoryStats() ([]dto.CategoryCountStat, error
 	var pollRows []categoryCountRow
 	s.DB.Model(&entity.Poll{}).
 		Select("sub_category_l2_id as category_id, COUNT(*) as count").
-		Where("sub_category_l2_id IS NOT NULL AND deleted_at IS NULL AND (deleted_by_type = '' OR deleted_by_type IS NULL)").
+		Where("sub_category_l2_id IS NOT NULL AND deleted_at IS NULL").
 		Group("sub_category_l2_id").
 		Scan(&pollRows)
 	for _, row := range pollRows {
