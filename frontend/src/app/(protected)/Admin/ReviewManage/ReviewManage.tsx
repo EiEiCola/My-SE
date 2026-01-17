@@ -405,6 +405,7 @@ const ReviewManage: React.FC = () => {
           locale={{ emptyText: <Empty description="ไม่พบรีวิว" /> }}
           onRow={(record) => ({
             onClick: () => handleViewDetail(record),
+            className: record.deleted_at ? "row-deleted" : "",
             style: { cursor: 'pointer' },
           })}
         />
