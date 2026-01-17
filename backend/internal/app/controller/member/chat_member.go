@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -163,12 +164,20 @@ func (c *ChatController) UnsendMessage(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	msgId, err := parseUintParam(ctx, "message_id")
+
+	// Parse message_id from path parameter
+	msgIdStr := ctx.Param("message_id")
+	msgIdUint64, err := strconv.ParseUint(msgIdStr, 10, 64)
 	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID format"})
 		return
 	}
+	msgId := uint(msgIdUint64)
 
-	if err := c.service.UnsendMessage(userId, msgId); err != nil {
+	err = c.service.UnsendMessage(userId, msgId)
+	if err != nil {
+		// Log the actual error for debugging
+		println("❌ UnsendMessage Error:", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
