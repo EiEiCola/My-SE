@@ -279,6 +279,22 @@ const ChatPage: React.FC = () => {
                if (activeRoomIdRef.current === updatedRoom.room_id) {
                   setCurrentRoom(prev => prev ? { ...prev, ...updatedRoom } : null);
                }
+            } else if (msg.type === 'message_update') { // ✅ Handle Message Update (Unsend/Delete)
+               const updatedMsg = msg.payload as Message;
+               console.log("🔄 Message Update Received:", updatedMsg);
+
+               // Update message in current room if it's the active room
+               if (activeRoomIdRef.current === updatedMsg.room_id) {
+                  console.log("✅ Updating message in active room:", updatedMsg.message_id);
+                  setMessages(prev => prev.map(m =>
+                     m.message_id === updatedMsg.message_id ? { ...m, ...updatedMsg } : m
+                  ));
+               }
+
+               // Update last message preview in room list if this was the last message
+               if (updatedMsg.is_deleted) {
+                  updateLastMessage(updatedMsg.room_id, "ยกเลิกข้อความแล้ว", updatedMsg.sender_id, updatedMsg.sender?.first_name);
+               }
             }
          } catch (error) { console.error("WS Error:", error); }
       };
@@ -817,17 +833,6 @@ const ChatPage: React.FC = () => {
    };
 
    // --- Other Handlers ---
-   const handleUnsend = (msgId: number) => {
-      modal.confirm({
-         title: "ยกเลิกข้อความ?",
-         centered: true,
-         okText: "ตกลง",
-         cancelText: "ยกเลิก",
-         onOk: async () => {
-            try { await chatService.unsendMessage(msgId); } catch (err) { }
-         }
-      });
-   };
 
    const handleClearHistory = () => {
       if (!currentRoom) return;
@@ -1373,7 +1378,6 @@ const ChatPage: React.FC = () => {
                                              )}
 
                                              <div className="text-[10px] text-gray-400 mt-1 flex gap-2 items-center">
-                                                {isMe && !msg.is_deleted && <button onClick={() => handleUnsend(msg.message_id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition font-medium">ยกเลิก</button>}
                                                 <span>{new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                              </div>
                                           </div>
@@ -1481,11 +1485,15 @@ const ChatPage: React.FC = () => {
                               </button>
                               <input id="fileInput" type="file" multiple className="hidden" onChange={handleFileSelect} />
 
-                              {/* Image */}
                               <button onClick={() => document.getElementById('imageInput')?.click()} className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-300 transition-colors shadow-sm">
                                  <ImageIcon size={20} />
                               </button>
                               <input id="imageInput" type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
+
+                              {/* Sticker Button */}
+                              <button onClick={() => setShowStickerPicker(!showStickerPicker)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${showStickerPicker ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                 <StickyNote size={20} />
+                              </button>
 
                               {/* Input Box */}
                               <div className="flex-1 relative">
@@ -1502,12 +1510,6 @@ const ChatPage: React.FC = () => {
                                     <Smile size={20} />
                                  </button>
                               </div>
-
-                              {/* Sticker (hidden in reference but useful to keep, styling consistent) */}
-                              {/* Sticker Button */}
-                              <button onClick={() => setShowStickerPicker(!showStickerPicker)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${showStickerPicker ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                                 <StickyNote size={20} />
-                              </button>
 
                               {/* Send Button */}
                               <button
