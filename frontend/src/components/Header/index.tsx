@@ -197,6 +197,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
         {/* RIGHT: Notification Bell + Profile Dropdown */}
         <div className="flex items-center gap-4">
           {/* Notification Bell */}
+          {/*
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => {
@@ -213,7 +214,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
               </Badge>
             </button>
 
-            {/* Notification Dropdown */}
+            {/* Notification Dropdown * /}
             {isNotifOpen && (
               <div className="absolute right-0 mt-3 w-80 bg-[#242526] text-white rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-3 border-b border-gray-700 flex justify-between items-center bg-[#242526]">
@@ -241,6 +242,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
               </div>
             )}
           </div>
+          */}
 
           {/* Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>
