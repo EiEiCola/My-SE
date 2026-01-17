@@ -88,6 +88,24 @@ func (c *ChatController) LeaveRoom(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Left room successfully"})
 }
 
+// DeleteGroup: ลบกลุ่ม (Admin Only)
+func (c *ChatController) DeleteGroup(ctx *gin.Context) {
+	userId, err := c.getMemberID(ctx)
+	if err != nil {
+		return
+	}
+	roomId, err := parseUintParam(ctx, "id")
+	if err != nil {
+		return
+	}
+
+	if err := c.service.DeleteGroup(userId, roomId); err != nil {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Group deleted successfully"})
+}
+
 // ----------------------------------------------------------------
 // 2. Messaging
 // ----------------------------------------------------------------

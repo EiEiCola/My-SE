@@ -70,6 +70,8 @@ const ChatPage: React.FC = () => {
    const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
    const [showInviteModal, setShowInviteModal] = useState(false);
    const [showUnblockModal, setShowUnblockModal] = useState(false);
+   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
    // --- Search/Group Data ---
    const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
@@ -295,6 +297,28 @@ const ChatPage: React.FC = () => {
                if (updatedMsg.is_deleted) {
                   updateLastMessage(updatedMsg.room_id, "ยกเลิกข้อความแล้ว", updatedMsg.sender_id, updatedMsg.sender?.first_name);
                }
+            } else if (msg.type === 'room_deleted') { // ✅ Handle Room Deletion (Real-time)
+               const payload = msg.payload as { room_id: number };
+               console.log("🗑️ Room Deleted:", payload.room_id);
+
+               // ลบกลุ่มออกจาก UI ทันที
+               setRooms(prev => prev.filter(r => r.room_id !== payload.room_id));
+
+               // ถ้ากำลังอยู่ในห้องนั้น ให้ปิด
+               if (activeRoomIdRef.current === payload.room_id) {
+                  setCurrentRoom(null);
+                  setMessages([]);
+               }
+            } else if (msg.type === 'room_created') { // ✅ Handle Room Creation (Real-time)
+               const newRoom = msg.payload as Room;
+               console.log("✨ New Room Created:", newRoom.room_id);
+
+               // เพิ่มกลุ่มใหม่เข้า UI ทันที (เฉพาะถ้ายังไม่มี)
+               setRooms(prev => {
+                  const exists = prev.find(r => r.room_id === newRoom.room_id);
+                  if (exists) return prev; // มีอยู่แล้ว ไม่เพิ่มซ้ำ
+                  return [newRoom, ...prev]; // เพิ่มที่ด้านบนสุด
+               });
             }
          } catch (error) { console.error("WS Error:", error); }
       };
@@ -471,6 +495,37 @@ const ChatPage: React.FC = () => {
       });
    };
 
+   const handleDeleteGroup = () => {
+      if (!currentRoom) return;
+
+      modal.confirm({
+         title: "ต้องการลบกลุ่มนี้ใช่หรือไม่?",
+         content: "การลบกลุ่มจะลบข้อมูลทั้งหมดและไม่สามารถกู้คืนได้",
+         centered: true,
+         okText: "ลบกลุ่ม",
+         okType: "danger",
+         cancelText: "ยกเลิก",
+         zIndex: 3000,
+         onOk: async () => {
+            if (isDeletingGroup) return;
+            setIsDeletingGroup(true);
+
+            try {
+               await chatService.deleteGroup(currentRoom.room_id);
+               // ลบกลุ่มออกจาก UI
+               setRooms(prev => prev.filter(r => r.room_id !== currentRoom.room_id));
+               setCurrentRoom(null);
+               setShowGroupInfoModal(false);
+               message.success("ลบกลุ่มเรียบร้อย");
+            } catch (err: any) {
+               message.error(err.response?.data?.error || "ไม่สามารถลบกลุ่มได้");
+            } finally {
+               setIsDeletingGroup(false);
+            }
+         }
+      });
+   };
+
    // --- Search & Create Logic ---
    const loadAllUsers = async () => {
       try {
@@ -526,6 +581,12 @@ const ChatPage: React.FC = () => {
 
    const handleCreateGroup = async () => {
       if (!groupName.trim() || selectedMembers.length === 0) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+
+      // ✅ ป้องกันการคลิกซ้ำ
+      if (isCreatingGroup) return;
+
+      setIsCreatingGroup(true); // 🔒 Lock button
+
       try {
          // 1. Create Room (Backend doesn't support image in create, so we update later)
          const res = await chatService.createRoom({ type: 'group', group_name: groupName, member_ids: selectedMembers });
@@ -550,7 +611,11 @@ const ChatPage: React.FC = () => {
             setShowCreateGroupModal(false);
             setGroupName(''); setGroupImage(null); setGroupImageFile(null); setSelectedMembers([]);
          }
-      } catch (err) { alert('สร้างกลุ่มไม่สำเร็จ'); }
+      } catch (err) {
+         alert('สร้างกลุ่มไม่สำเร็จ');
+      } finally {
+         setIsCreatingGroup(false); // 🔓 Unlock button
+      }
    };
 
    const handleInviteMembers = async () => {
@@ -1101,12 +1166,33 @@ const ChatPage: React.FC = () => {
                </div >
 
                <div className="p-4 border-t bg-gray-50">
-                  <button
-                     onClick={handleLeaveRoom}
-                     className="w-full py-3 text-red-600 font-medium bg-red-50 rounded-xl hover:bg-red-100 transition flex items-center justify-center gap-2"
-                  >
-                     <LogOut size={18} /> ออกจากกลุ่ม
-                  </button>
+                  {!amIAdmin ? (
+                     <button
+                        onClick={handleLeaveRoom}
+                        className="w-full py-3 text-red-600 font-medium bg-red-50 rounded-xl hover:bg-red-100 transition flex items-center justify-center gap-2"
+                     >
+                        <LogOut size={18} /> ออกจากกลุ่ม
+                     </button>
+                  ) : (
+                     <div className="space-y-2">
+                        <button
+                           onClick={handleLeaveRoom}
+                           className="w-full py-3 text-orange-600 font-medium bg-orange-50 rounded-xl hover:bg-orange-100 transition flex items-center justify-center gap-2"
+                        >
+                           <LogOut size={18} /> ออกจากกลุ่ม
+                        </button>
+                        <button
+                           onClick={handleDeleteGroup}
+                           disabled={isDeletingGroup}
+                           className={`w-full py-3 font-medium rounded-xl transition flex items-center justify-center gap-2 ${isDeletingGroup
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-red-600 text-white hover:bg-red-700'
+                              }`}
+                        >
+                           <Trash2 size={18} /> {isDeletingGroup ? 'กำลังลบ...' : 'ลบกลุ่ม'}
+                        </button>
+                     </div>
+                  )}
                </div>
             </div >
          </div >
@@ -1671,7 +1757,79 @@ const ChatPage: React.FC = () => {
                </div>
             </div>
          )}
-         {showCreateGroupModal && (<div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"><div className="bg-white w-full max-w-md rounded-2xl p-6"><div className="flex justify-between items-center mb-6"><h3 className="font-bold text-lg text-gray-800">สร้างกลุ่มใหม่</h3><button onClick={() => setShowCreateGroupModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><div className="flex justify-center mb-6"><div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 relative border-2 border-dashed border-gray-300">{groupImage ? <img src={groupImage} className="w-full h-full rounded-full object-cover" /> : <ImageIcon size={32} />}<label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full text-white cursor-pointer hover:bg-blue-600 shadow-md"><Paperclip size={14} /><input type="file" className="hidden" accept="image/*" onChange={handleGroupImageUpload} /></label></div></div><input className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 mb-4" placeholder="ชื่อกลุ่ม" value={groupName} onChange={e => setGroupName(e.target.value)} /><div className="max-h-48 overflow-y-auto border rounded-xl p-2 mb-4">{allUsers.map(u => (<div key={u.id} onClick={() => toggleMemberSelection(u.id)} className={`p-2 flex justify-between items-center rounded-lg cursor-pointer ${selectedMembers.includes(u.id) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">{u.avatar && <img src={u.avatar} className="w-full h-full object-cover" />}</div><span>{u.first_name} {u.last_name}</span></div>{selectedMembers.includes(u.id) && <Check size={16} className="text-blue-500" />}</div>))}</div><button onClick={handleCreateGroup} className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">สร้างกลุ่ม</button></div></div>)}
+         {showCreateGroupModal && (
+            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+               <div className="bg-white w-full max-w-md rounded-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                     <h3 className="font-bold text-lg text-gray-800">สร้างกลุ่มใหม่</h3>
+                     <button
+                        onClick={() => setShowCreateGroupModal(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                        disabled={isCreatingGroup}
+                     >
+                        <X size={20} />
+                     </button>
+                  </div>
+
+                  <div className="flex justify-center mb-6">
+                     <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 relative border-2 border-dashed border-gray-300">
+                        {groupImage ? (
+                           <img src={groupImage} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                           <ImageIcon size={32} />
+                        )}
+                        <label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full text-white cursor-pointer hover:bg-blue-600 shadow-md">
+                           <Paperclip size={14} />
+                           <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={handleGroupImageUpload}
+                              disabled={isCreatingGroup}
+                           />
+                        </label>
+                     </div>
+                  </div>
+
+                  <input
+                     className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 mb-4"
+                     placeholder="ชื่อกลุ่ม"
+                     value={groupName}
+                     onChange={e => setGroupName(e.target.value)}
+                     disabled={isCreatingGroup}
+                  />
+
+                  <div className="max-h-48 overflow-y-auto border rounded-xl p-2 mb-4">
+                     {allUsers.map(u => (
+                        <div
+                           key={u.id}
+                           onClick={() => !isCreatingGroup && toggleMemberSelection(u.id)}
+                           className={`p-2 flex justify-between items-center rounded-lg ${isCreatingGroup ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${selectedMembers.includes(u.id) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}
+                        >
+                           <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                                 {u.avatar && <img src={u.avatar} className="w-full h-full object-cover" />}
+                              </div>
+                              <span>{u.first_name} {u.last_name}</span>
+                           </div>
+                           {selectedMembers.includes(u.id) && <Check size={16} className="text-blue-500" />}
+                        </div>
+                     ))}
+                  </div>
+
+                  <button
+                     onClick={handleCreateGroup}
+                     disabled={isCreatingGroup || !groupName.trim() || selectedMembers.length === 0}
+                     className={`w-full py-3 rounded-xl font-medium transition-all ${isCreatingGroup || !groupName.trim() || selectedMembers.length === 0
+                        ? 'bg-gray-300 cursor-not-allowed opacity-60 text-gray-500'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                  >
+                     {isCreatingGroup ? 'กำลังสร้าง...' : 'สร้างกลุ่ม'}
+                  </button>
+               </div>
+            </div>
+         )}
          {showInviteModal && (
             <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl flex flex-col max-h-[85vh]">

@@ -157,6 +157,14 @@ export const chatService = {
     return res.json();
   },
 
+  deleteGroup: async (roomId: number) => {
+    const res = await fetch(`${API_URL}/rooms/${roomId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
   getMyStickers: async () => {
     const res = await fetch(`${API_URL}/stickers`, { headers: getHeaders() });
     return res.json();
