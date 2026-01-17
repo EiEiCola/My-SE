@@ -13,6 +13,8 @@ import (
 )
 
 func SeedAll(db *gorm.DB) {
+	SeedGender(db)       // ✅ Seed Gender
+	SeedActiveStatus(db) // ✅ Seed ActiveStatus
 	seedAdmin(db)
 	SeedReviewSystem(db) // ✅ Enable Review/Member seeding
 	//seedPointRules(db)

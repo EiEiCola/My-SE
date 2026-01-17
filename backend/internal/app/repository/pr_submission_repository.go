@@ -53,7 +53,19 @@ func (r *PRSubmissionRepository) ListByMember(memberID uint, page, pageSize int,
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("Reviews").Order("pr_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+
+	// Fallback: Populate RejectReason from latest review if empty
+	for i := range items {
+		if items[i].RejectReason == "" && len(items[i].Reviews) > 0 {
+			// Reviews are not guaranteed order unless we sort them, but usually appended.
+			// Let's assume the last one is the latest or check CreatedAt if needed.
+			// Ideally latest review is the rejection reason.
+			lastReview := items[i].Reviews[len(items[i].Reviews)-1]
+			items[i].RejectReason = lastReview.Comment
+		}
+	}
+
 	return items, total, err
 }
 

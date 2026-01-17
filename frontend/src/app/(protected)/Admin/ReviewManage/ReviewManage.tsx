@@ -16,6 +16,7 @@ import {
   message,
   Select,
   Empty,
+  Statistic,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -28,6 +29,8 @@ import {
   FilterOutlined,
   EyeOutlined,
   ReloadOutlined,
+  FileTextOutlined,
+  FlagOutlined,
 } from "@ant-design/icons";
 import {
   fetchAdminReviews,
@@ -297,20 +300,44 @@ const ReviewManage: React.FC = () => {
       </div>
 
       {/* STATS */}
-      <div className="stats" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <div className="stat">
-          <div className="k">รีวิวทั้งหมด</div>
-          <div className="v">{stats.total}</div>
-        </div>
-        <div className="stat">
-          <div className="k" style={{ color: "#f97316" }}>ถูกรายงาน</div>
-          <div className="v">{stats.reported}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Total Deleted</div>
-          <div className="v">{stats.deleted}</div>
-        </div>
-      </div>
+      <Row gutter={[24, 24]} justify="center" style={{ marginBottom: 32 }}>
+        <Col xs={24} sm={12} md={8}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-blue-100 text-sm font-medium">รีวิวทั้งหมด</span>}
+                value={stats.total}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <FileTextOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-orange-500 to-amber-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-orange-100 text-sm font-medium">ถูกรายงาน</span>}
+                value={stats.reported}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <FlagOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-red-500 to-rose-600 relative overflow-hidden group rounded-xl border-0">
+            <div className="relative z-10">
+              <Statistic
+                title={<span className="text-red-100 text-sm font-medium">ถูกลบแล้ว</span>}
+                value={stats.deleted}
+                valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <DeleteOutlined className="absolute -right-6 -bottom-6 text-[100px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+          </Card>
+        </Col>
+      </Row>
 
       {/* TOOLBAR */}
       <div className="toolbar" style={{ marginBottom: 14 }}>

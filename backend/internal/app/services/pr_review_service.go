@@ -39,7 +39,11 @@ func (s *PRReviewService) ReviewSubmission(adminID int, submissionID int, status
 		}
 
 		log.Println("Reviewing PR:", submissionID, "Status:", statusID)
-		if err := tx.Model(&entity.PRSubmission{}).Where("pr_id = ?", submissionID).Update("StatusID", statusID).Error; err != nil {
+		updates := map[string]interface{}{
+			"StatusID":     statusID,
+			"RejectReason": comment,
+		}
+		if err := tx.Model(&entity.PRSubmission{}).Where("pr_id = ?", submissionID).Updates(updates).Error; err != nil {
 			log.Println("Update Status Error:", err)
 			return err
 		}

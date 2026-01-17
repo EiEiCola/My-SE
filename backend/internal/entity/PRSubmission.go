@@ -18,7 +18,7 @@ type PRSubmission struct {
 	StatusID               int                   `gorm:"column:status" json:"status_id"`
 	RejectReason           string                `gorm:"column:reject_reason" json:"reject_reason"`
 
-	Member Member             `gorm:"foreignKey:MemberID;references:ID;constraint:false" json:"member" valid:"-"`
+	Member Member             `gorm:"foreignKey:MemberID;references:MemberAccountID;constraint:false" json:"member" valid:"-"`
 	Status PRSubmissionStatus `gorm:"foreignKey:StatusID;references:ID;constraint:false" json:"status" valid:"-"`
 
 	Media   []PRSubmissionMedia `gorm:"foreignKey:PRID;references:ID;constraint:false" json:"media"`

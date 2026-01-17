@@ -130,6 +130,9 @@ function EditProfile() {
 
       await editProfileAPI.updateMe(payload);
 
+      // Notify Header to update profile picture
+      window.dispatchEvent(new Event("PROFILE_UPDATED"));
+
       // ✨ Custom Beautiful Modal with Animations
       const instance = modal.success({
         title: null,
@@ -281,7 +284,7 @@ function EditProfile() {
               }}
             >
               <Button icon={<UploadOutlined />} style={{ marginTop: 10, borderRadius: 8 }}>
-                
+
               </Button>
             </Upload>
           </div>

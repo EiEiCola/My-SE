@@ -30,33 +30,44 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
   const [profileImage, setProfileImage] = useState("");
 
   // Fetch profile data
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        if (role === "user") {
-          const res = await memberAPI.getMe();
-          const data: any = res.data;
-          const user = data.data || data;
+  const fetchProfile = useCallback(async () => {
+    try {
+      if (role === "user") {
+        const res = await memberAPI.getMe();
+        const data: any = res.data;
+        const user = data.data || data;
 
-          if (user) {
-            setProfileName(user.username || user.first_name || "User");
-            setProfileImage(user.member_picture || "");
-          }
-
-        } else if (role === "admin") {
-          const res = await adminProfileAPI.getMe();
-          const data = res.data.data;
-          if (data) {
-            setProfileName(data.username || "Admin");
-            setProfileImage(data.profile_picture || "");
-          }
+        if (user) {
+          setProfileName(user.username || user.first_name || "User");
+          setProfileImage(user.member_picture || "");
         }
-      } catch (error) {
-        console.error("Failed to fetch profile in Header", error);
+
+      } else if (role === "admin") {
+        const res = await adminProfileAPI.getMe();
+        const data = res.data.data;
+        if (data) {
+          setProfileName(data.username || "Admin");
+          setProfileImage(data.profile_picture || "");
+        }
       }
-    };
-    fetchProfile();
+    } catch (error) {
+      console.error("Failed to fetch profile in Header", error);
+    }
   }, [role]);
+
+  useEffect(() => {
+    fetchProfile();
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    window.addEventListener("PROFILE_UPDATED", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("PROFILE_UPDATED", handleProfileUpdate);
+    };
+  }, [fetchProfile]);
 
   /*
   // Fetch Notifications function
@@ -138,7 +149,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
 
         "/Admin/FriendsManage": "จัดการเพื่อน",
         "/Admin/PostManage": "จัดการโพสต์",
-        "/Admin/GroupManage": "จัดการกลุ่ม",
+        "/Admin/GroupManage": "จัดการหมวดหมู่",
         "/Admin/ReviewManage": "จัดการรีวิว",
         "/Admin/VotingManage": "จัดการโพล",
         "/Admin/AnnouncementManage": "จัดการประชาสัมพันธ์",
@@ -169,7 +180,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
 
   // Memoize page title
   const title = useMemo(() => getPageTitle(), [location.pathname, role]);
-  const subtitle = role === "admin" ? "Admin Panel" : "Welcome back";
+  const subtitle = role === "admin" ? "Admin Panel" : "SUT Community Platform";
 
   return (
     <div className="bg-gradient-to-r from-orange-500 to-orange-600 backdrop-blur-xl border-b border-orange-400/50 px-6 py-4 relative z-40 shadow-lg">
@@ -181,22 +192,7 @@ const Header: React.FC<HeaderProps> = ({ role, username: defaultUsername = "User
           <p className="text-sm text-white/70">{subtitle}</p>
         </div>
 
-        {/* CENTER: Search */}
-        <div className="flex-1 max-w-md mx-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/20
-              border border-white/30
-              rounded-full text-white
-              placeholder-white/60
-              focus:outline-none focus:ring-2
-              focus:ring-white/50 focus:border-transparent transition-all"
-            />
-          </div>
-        </div>
+
 
         {/* RIGHT: Notification Bell + Profile Dropdown */}
         <div className="flex items-center gap-4">

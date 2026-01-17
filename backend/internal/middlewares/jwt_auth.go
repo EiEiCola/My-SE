@@ -14,6 +14,12 @@ func JWTAuthMiddleware() gin.HandlerFunc { return JWTAuth() }
 // ✅ ชื่อเดิม
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// ✅ Allow OPTIONS requests (CORS preflight) to pass through
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
 		h := strings.TrimSpace(c.GetHeader("Authorization"))
 		if h == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "missing token"})
@@ -37,7 +43,7 @@ func JWTAuth() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("userID", claims.UserID)
 		c.Set("memberID", claims.UserID)
-		
+
 		c.Set("role", claims.Role)
 		c.Next()
 	}

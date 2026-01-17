@@ -110,7 +110,7 @@ const AdminAnnouncementCreate: React.FC = () => {
                 <h2 className="create-title">สร้างประกาศใหม่</h2>
 
                 <form className="create-form" onSubmit={handleSubmit}>
-                    <label className="form-label">หัวข้อประกาศ</label>
+                    <label className="form-label">หัวข้อประกาศ <span style={{ color: "red" }}>*</span></label>
                     <input
                         id="title"
                         className="form-input"
@@ -181,25 +181,27 @@ const AdminAnnouncementCreate: React.FC = () => {
                         {image && <img src={image} alt="Preview" className="image-preview" />}
                     </div>
 
-                    <label className="form-label">วันที่ต้องการให้แสดง</label>
+                    <label className="form-label">วันที่ต้องการให้แสดง <span style={{ color: "red" }}>*</span></label>
                     <input
                         id="start-date"
                         type="date"
                         className="form-input"
                         value={date}
+                        min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => setDate(e.target.value)}
                     />
 
-                    <label className="form-label">วันที่สิ้นสุด</label>
+                    <label className="form-label">วันที่สิ้นสุด <span style={{ color: "red" }}>*</span></label>
                     <input
                         id="end-date"
                         type="date"
                         className="form-input"
                         value={endDate}
+                        min={date}
                         onChange={(e) => setEndDate(e.target.value)}
                     />
 
-                    <label className="form-label">เนื้อหาประกาศ</label>
+                    <label className="form-label">เนื้อหาประกาศ <span style={{ color: "red" }}>*</span></label>
                     <textarea
                         id="content"
                         className="form-textarea"
