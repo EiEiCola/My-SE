@@ -18,6 +18,7 @@ func SetupChatHTTPRoutes(api *gin.RouterGroup, chatCtl *m.ChatController) {
 
 		chat.GET("/rooms/:id/members", chatCtl.GetRoomMembers)
 		chat.DELETE("/rooms/:id/leave", chatCtl.LeaveRoom)
+		chat.DELETE("/rooms/:id", chatCtl.DeleteGroup) // ✅ Delete Group (Admin Only)
 
 		// ใน routes.go
 		chat.PUT("/rooms/:id", chatCtl.UpdateGroup)
