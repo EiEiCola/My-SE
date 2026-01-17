@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Modal, message, Alert } from "antd";
 import { ReportService } from "../../../../services/http/report";
 import type { CreateReportInput as BaseCreateReportInput, Report as ReportType } from "../../../../services/http/report";
 import "./Report.css";
@@ -116,15 +117,24 @@ const ReportPage: React.FC = () => {
     setActiveTab("detail");
   };
 
-  const handleDeleteClick = async (id: number) => {
-    if (!window.confirm("คุณต้องการลบรายงานนี้ใช่หรือไม่?")) return;
-    try {
-      await ReportService.deleteReport(id);
-      setReports(reports.filter(r => r.id !== id));
-      setFormSuccess("ลบรายงานเรียบร้อยแล้ว");
-    } catch (err: any) {
-      setFormError("ไม่สามารถลบรายงานได้ (อาจได้รับการดำเนินการแล้ว)");
-    }
+  const handleDeleteClick = (id: number) => {
+    Modal.confirm({
+      title: "ยืนยันการลบ",
+      content: "คุณต้องการลบรายงานนี้ใช่หรือไม่?",
+      okText: "ลบ",
+      okType: "danger",
+      cancelText: "ยกเลิก",
+      onOk: async () => {
+        try {
+          await ReportService.deleteReport(id);
+          setReports(reports.filter(r => r.id !== id));
+          message.success("ลบรายงานเรียบร้อยแล้ว");
+          if (activeTab === 'detail') setActiveTab("list");
+        } catch (err: any) {
+          message.error("ไม่สามารถลบรายงานได้ (อาจได้รับการดำเนินการแล้ว)");
+        }
+      }
+    });
   };
 
   const resetForm = () => {
@@ -224,8 +234,8 @@ const ReportPage: React.FC = () => {
           <>
             <p className="report-subtitle">พบปัญหาการใช้งาน หรือต้องการแจ้งเบาะแสการกระทำผิด แจ้งเราได้ที่นี่</p>
 
-            {formSuccess && <div className="alert alert-success">{formSuccess}</div>}
-            {formError && <div className="alert alert-error">{formError}</div>}
+            {formSuccess && <Alert message={formSuccess} type="success" showIcon style={{ marginBottom: 16 }} />}
+            {formError && <Alert message={formError} type="error" showIcon style={{ marginBottom: 16 }} />}
 
             <form className="report-form" onSubmit={handleSubmit}>
               <div className="form-group">
@@ -409,7 +419,7 @@ const ReportPage: React.FC = () => {
               </div>
             </div>
 
-            {listError && <div className="alert alert-error">{listError}</div>}
+            {listError && <Alert message={listError} type="error" showIcon style={{ marginBottom: 16 }} />}
 
             {loading ? (
               <div className="loading-state">⏳ กำลังโหลดข้อมูล...</div>
@@ -542,9 +552,7 @@ const ReportPage: React.FC = () => {
                   <button
                     className="btn btn-danger"
                     onClick={() => {
-                      if (window.confirm("ยืนยันการลบรายงานนี้?")) {
-                        handleDeleteClick(selectedReport.id).then(() => setActiveTab("list"));
-                      }
+                      handleDeleteClick(selectedReport.id);
                     }}
                   >
                     🗑️ ลบ

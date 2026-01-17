@@ -311,6 +311,79 @@ const ReportManage: React.FC = () => {
   return (
     <main className="flex-1 overflow-y-auto bg-transparent p-6">
       <Card className="rounded-2xl shadow-sm" bodyStyle={{ padding: "40px" }}>
+        {/* Stats Section */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          {/* Total */}
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-blue-100 text-sm font-medium">ทั้งหมด</span>}
+                  value={stats.total}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <FileTextOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+
+          {/* Pending */}
+          <Col xs={24} sm={12} md={8} lg={5}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-orange-400 to-amber-500 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-orange-100 text-sm font-medium">รอดำเนินการ</span>}
+                  value={stats.pending}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <ClockCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+
+          {/* Processing */}
+          <Col xs={24} sm={12} md={8} lg={5}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-purple-500 to-indigo-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-purple-100 text-sm font-medium">กำลังดำเนินการ</span>}
+                  value={stats.processing}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <SyncOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+
+          {/* Finished */}
+          <Col xs={24} sm={12} md={8} lg={5}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-emerald-500 to-green-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-green-100 text-sm font-medium">เสร็จสิ้น</span>}
+                  value={stats.finished}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <CheckCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+
+          {/* Rejected */}
+          <Col xs={24} sm={12} md={8} lg={5}>
+            <Card bordered={false} className="transform hover:-translate-y-1 transition-all duration-300 shadow-md hover:shadow-xl bg-gradient-to-br from-red-500 to-rose-600 relative overflow-hidden group rounded-xl border-0">
+              <div className="relative z-10">
+                <Statistic
+                  title={<span className="text-red-100 text-sm font-medium">ปฏิเสธ</span>}
+                  value={stats.rejected}
+                  valueStyle={{ color: 'white', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                />
+              </div>
+              <CloseCircleOutlined className="absolute -right-6 -bottom-6 text-[80px] text-white opacity-20 group-hover:scale-110 transition-transform duration-500 rotate-12" />
+            </Card>
+          </Col>
+        </Row>
+
         <div style={{ marginBottom: 20 }}>
           <Row gutter={[16, 16]} align="middle">
 
