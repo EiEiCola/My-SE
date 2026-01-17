@@ -37,7 +37,7 @@ interface BackendAnnouncement {
   category?: string;
   category_name?: string;
   main_category?: { name: string };
-  AnnouncementCategory?: { id: number; title: string }; // New relation
+  announcement_category?: { id: number; title: string }; // Fixed: Matches Go struct tag json:"announcement_category"
 }
 
 interface BackendPRSubmission {
@@ -99,10 +99,10 @@ const Announcement: React.FC = () => {
           date: item.publish_start_at,
           status: item.status_id === 1 ? "active" : "archived",
           content: item.content,
-          // Use dynamic category if available
-          categoryObj: item.AnnouncementCategory ? { id: item.AnnouncementCategory.id, title: item.AnnouncementCategory.title } : undefined,
+          // Use dynamic category if available - Use correct key 'announcement_category'
+          categoryObj: item.announcement_category ? { id: item.announcement_category.id, title: item.announcement_category.title } : undefined,
           // Fallback string for legacy support
-          category: (item.AnnouncementCategory?.title || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
+          category: (item.announcement_category?.title || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
         }));
 
         setAnnouncements(mappedData);
