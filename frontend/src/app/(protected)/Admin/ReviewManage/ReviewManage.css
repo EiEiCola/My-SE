@@ -165,6 +165,12 @@
     transition: background .15s ease;
 }
 
+.premium-table .row-deleted {
+    opacity: 0.5;
+    filter: grayscale(1);
+    background: #f9f9f9;
+}
+
 /* ID & Badges */
 .id-tag {
     color: #94a3b8;
