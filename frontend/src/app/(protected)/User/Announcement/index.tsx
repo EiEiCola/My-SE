@@ -37,7 +37,7 @@ interface BackendAnnouncement {
   category?: string;
   category_name?: string;
   main_category?: { name: string };
-  announcement_category?: { id: number; title: string }; // Fixed: Matches Go struct tag json:"announcement_category"
+  announcement_category?: { ID: number; title: string }; // Fixed: gorm.Model uses ID (uppercase)
 }
 
 interface BackendPRSubmission {
@@ -99,8 +99,8 @@ const Announcement: React.FC = () => {
           date: item.publish_start_at,
           status: item.status_id === 1 ? "active" : "archived",
           content: item.content,
-          // Use dynamic category if available - Use correct key 'announcement_category'
-          categoryObj: item.announcement_category ? { id: item.announcement_category.id, title: item.announcement_category.title } : undefined,
+          // Use dynamic category if available - Use correct key 'announcement_category' and ID
+          categoryObj: item.announcement_category ? { id: item.announcement_category.ID, title: item.announcement_category.title } : undefined,
           // Fallback string for legacy support
           category: (item.announcement_category?.title || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
         }));
@@ -131,7 +131,7 @@ const Announcement: React.FC = () => {
     // Filter by Category ID if selected, matching against categoryObj.id
     // If filterCategory is a string/number ID
     const matchesCategory = !filterCategory ||
-      (item.categoryObj && item.categoryObj.id.toString() === filterCategory) ||
+      (item.categoryObj && item.categoryObj.id?.toString() === filterCategory) ||
       (item.category || "").toLowerCase() === filterCategory.toLowerCase(); // Legacy fallback
     return matchesSearch && matchesCategory;
   });
