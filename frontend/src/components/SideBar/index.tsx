@@ -76,7 +76,7 @@ const AdminItems: MenuItem[] = [
 
     { name: "จัดการเพื่อน", path: "/Admin/FriendsManage", icon: <Group /> },
     { name: "จัดการโพสต์", path: "/Admin/PostManage", icon: <BroadcastOnPersonal /> },
-    { name: "จัดการกลุ่ม", path: "/Admin/GroupManage", icon: <Groups /> },
+    { name: "จัดการหมวดหมู่", path: "/Admin/GroupManage", icon: <Groups /> },
     { name: "จัดการรีวิว", path: "/Admin/ReviewManage", icon: <Reviews /> },
     { name: "จัดการโพล", path: "/Admin/PollManage", icon: <InsertChartOutlined /> },
     { name: "จัดการประชาสัมพันธ์", path: "/Admin/AnnouncementManage", icon: <Campaign /> },
