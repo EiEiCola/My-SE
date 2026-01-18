@@ -67,7 +67,7 @@ func (r *AnnouncementRepository) ListPublished(page, pageSize int, now time.Time
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("publish_start_at desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("AnnouncementCategory").Order("publish_start_at desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
 
@@ -85,6 +85,6 @@ func (r *AnnouncementRepository) ListAll(page, pageSize int, prID *int) ([]entit
 		page = 1
 	}
 	offset := (page - 1) * pageSize
-	err := db.Preload("Media").Order("ann_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
+	err := db.Preload("Media").Preload("AnnouncementCategory").Order("ann_id desc").Limit(pageSize).Offset(offset).Find(&items).Error
 	return items, total, err
 }
