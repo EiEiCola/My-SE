@@ -30,17 +30,22 @@ const ReportManage: React.FC = () => {
   const [newStatus, setNewStatus] = useState<number>(0);
   const [reportStatuses, setReportStatuses] = useState<any[]>([]);
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
   // Filter States
   const [searchText, setSearchText] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<number | undefined>(undefined);
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
 
-  const fetchReports = async () => {
+  const fetchReports = async (p: number = page, ps: number = pageSize) => {
     setLoading(true);
     try {
       const res = await ReportService.getAdminReports({
-        page: 1,
-        page_size: 100,
+        page: p,
+        page_size: ps,
         q: searchText,
         status_id: filterStatus,
         target_type: filterType
@@ -50,6 +55,7 @@ const ReportManage: React.FC = () => {
       // So res.data.data is the array.
       if (res.data && Array.isArray(res.data.data)) {
         setReports(res.data.data);
+        setTotal(res.data.total || 0);
       } else {
         setReports([]);
       }
@@ -103,10 +109,13 @@ const ReportManage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchReports();
+    fetchReports(1, pageSize);
+  }, [searchText, filterStatus, filterType]);
+
+  useEffect(() => {
     fetchReportStatuses();
     fetchStatsCounts();
-  }, [searchText, filterStatus, filterType]);
+  }, []);
 
   const handleView = (report: Report) => {
     setCurrentReport(report);
@@ -125,7 +134,7 @@ const ReportManage: React.FC = () => {
       await ReportService.updateReportStatus(currentReport.id, newStatus);
       message.success("อัปเดตสถานะสำเร็จ");
       setStatusVisible(false);
-      fetchReports(); // Refresh list
+      fetchReports(1, pageSize); // Refresh list
     } catch (error) {
       console.error("Update status error:", error);
       message.error("อัปเดตสถานะไม่สำเร็จ");
@@ -192,7 +201,7 @@ const ReportManage: React.FC = () => {
 
       message.success("ลบรายงานสำเร็จ");
       setDeleteVisible(false);
-      await fetchReports(); // Refresh list
+      await fetchReports(1, pageSize); // Refresh list
     } catch (error) {
       console.error("Delete error:", error);
       message.error(`ไม่สามารถลบรายงานได้: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -419,7 +428,7 @@ const ReportManage: React.FC = () => {
               </Select>
             </Col>
             <Col xs={24} sm={8} md={4}>
-              <Button icon={<ReloadOutlined />} onClick={fetchReports}>
+              <Button icon={<ReloadOutlined />} onClick={() => { setPage(1); fetchReports(1, pageSize); }}>
                 รีโหลด
               </Button>
             </Col>
@@ -431,7 +440,17 @@ const ReportManage: React.FC = () => {
           dataSource={reports}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          pagination={{
+            current: page,
+            pageSize: pageSize,
+            total: total,
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+              fetchReports(p, ps);
+            },
+            showTotal: (total) => `ทั้งหมด ${total} รายการ`
+          }}
           scroll={{ x: 1200 }}
           onRow={(record) => ({
             onClick: () => handleView(record),

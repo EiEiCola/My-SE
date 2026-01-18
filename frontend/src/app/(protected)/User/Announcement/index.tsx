@@ -310,13 +310,21 @@ const Announcement: React.FC = () => {
                       src={item.image}
                       alt={item.title}
                       className="card-image"
+                      loading="lazy"
                       onError={(e) => {
                         e.currentTarget.src = "https://via.placeholder.com/300x200?text=No+Image";
                       }}
                     />
                   </div>
                   <div className="card-content">
-                    <h3 className="card-title">{item.title}</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                      <h3 className="card-title" style={{ margin: 0, flex: 1 }}>{item.title}</h3>
+                      {item.categoryObj && (
+                        <Tag color="blue" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          {item.categoryObj.title}
+                        </Tag>
+                      )}
+                    </div>
                     <p className="card-description">{item.description}</p>
                     <p className="card-date">{new Date(item.date).toLocaleDateString('th-TH')}</p>
                   </div>
