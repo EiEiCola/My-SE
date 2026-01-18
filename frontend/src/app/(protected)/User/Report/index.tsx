@@ -15,6 +15,7 @@ import {
   Space,
   Empty,
   Image,
+  Pagination,
 } from "antd";
 import type { UploadFile } from "antd";
 import {
@@ -42,18 +43,23 @@ const ReportPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [reports, setReports] = useState<ReportType[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [pageSize] = useState(10);
 
   // Edit State
   const [editId, setEditId] = useState<number | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
-  // Fetch History
-  const fetchReports = async () => {
+  // Fetch History with pagination
+  const fetchReports = async (page: number = 1) => {
     setLoadingHistory(true);
     try {
-      const res = await ReportService.getMyReports({ page: 1, page_size: 50 });
+      const res = await ReportService.getMyReports({ page, page_size: pageSize });
       if (res.data && Array.isArray(res.data.data)) {
         setReports(res.data.data);
+        setHistoryTotal(res.data.total || 0);
+        setHistoryPage(page);
       }
     } catch (err) {
       console.error(err);
@@ -65,7 +71,7 @@ const ReportPage: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === "history") {
-      fetchReports();
+      fetchReports(1);
     }
   }, [activeTab]);
 
@@ -318,6 +324,17 @@ const ReportPage: React.FC = () => {
                           </List.Item>
                         )}
                       />
+                      {historyTotal > pageSize && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+                          <Pagination
+                            current={historyPage}
+                            pageSize={pageSize}
+                            total={historyTotal}
+                            onChange={(page) => fetchReports(page)}
+                            showTotal={(total) => `ทั้งหมด ${total} รายการ`}
+                          />
+                        </div>
+                      )}
                     </div>
                   )
                 }

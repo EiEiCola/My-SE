@@ -16,5 +16,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'antd': ['antd'],
+          'lucide': ['lucide-react'],
+        }
+      }
+    }
+  }
 })
- //ยุ้ยเพิ่ม Updating vite.config.ts to include a proxy rule for /uploads, ensuring images served by the backend are accessible via the frontend dev server. 
+ //ยุ้ยเพิ่ม Updating vite.config.ts to include a proxy rule for /uploads, ensuring images served by the backend are accessible via the frontend dev server.
+ //✅ Performance optimization: Code splitting for better load performance 

@@ -100,7 +100,7 @@ const AnnouncementCreate: React.FC = () => {
   return (
     <main className="flex-1 overflow-y-auto bg-transparent p-8">
       <div className="announcement-create-container">
-        <h2 className="create-title">สร้างประกาศใหม่</h2>
+        <h2 className="create-title">สร้างคำขอประกาศใหม่</h2>
 
         <form className="create-form" onSubmit={handleSubmit}>
           <label className="form-label">หัวข้อประกาศ <span style={{ color: "red" }}>*</span></label>

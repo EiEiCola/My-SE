@@ -11,6 +11,7 @@ import {
   Image,
   Descriptions,
   Tooltip,
+  Select,
 } from "antd";
 import {
   DeleteOutlined,
@@ -23,6 +24,7 @@ import {
 } from "../../../../services/http/announcementAdmin";
 
 const { Title } = Typography;
+const { Option } = Select;
 const { confirm } = Modal;
 
 const AnnouncementsList: React.FC = () => {
@@ -31,10 +33,28 @@ const AnnouncementsList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [filterCategory, setFilterCategory] = useState<number | undefined>(undefined);
 
   // Detail Modal State
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] = useState<any>(null);
+
+  // Fetch Categories
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/categories/announcement");
+        const json = await res.json();
+        if (json.data) {
+          setCategories(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch categories", e);
+      }
+    };
+    fetchCats();
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -50,9 +70,34 @@ const AnnouncementsList: React.FC = () => {
     }
   };
 
+  const fetchDataWithFilter = async () => {
+    try {
+      setLoading(true);
+      const data = await listAdminAnnouncements({ page, page_size: pageSize });
+      let filteredItems = Array.isArray(data.data) ? data.data : [];
+      
+      // Filter by category if selected
+      if (filterCategory) {
+        filteredItems = filteredItems.filter((item: any) => {
+          const itemCategory = item.AnnouncementCategory?.ID || item.announcement_category?.ID;
+          return itemCategory === filterCategory;
+        });
+      }
+      
+      setItems(filteredItems);
+      setTotal(filteredItems.length);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e.message || "โหลดประกาศไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch when pagination or filter changes
   useEffect(() => {
-    fetchData();
-  }, [page, pageSize]);
+    fetchDataWithFilter();
+  }, [page, pageSize, filterCategory]);
 
   // Delete State
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -99,6 +144,16 @@ const AnnouncementsList: React.FC = () => {
       dataIndex: "title",
       key: "title",
       ellipsis: true,
+    },
+    {
+      title: "หมวดหมู่",
+      key: "category",
+      width: 120,
+      render: (_: any, record: any) => (
+        <Tag color="blue">
+          {record.AnnouncementCategory?.title || record.category || "ทั่วไป"}
+        </Tag>
+      ),
     },
     {
       title: "ช่วงเผยแพร่",
@@ -161,6 +216,22 @@ const AnnouncementsList: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={fetchData}>
             รีเฟรช
           </Button>
+        </div>
+        <div style={{ marginBottom: 20, display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <Select
+            placeholder="กรองตามหมวดหมู่"
+            style={{ width: 200 }}
+            allowClear
+            value={filterCategory}
+            onChange={(val) => {
+              setFilterCategory(val);
+              setPage(1);
+            }}
+          >
+            {categories.map((cat) => (
+              <Option key={cat.id} value={cat.id}>{cat.title}</Option>
+            ))}
+          </Select>
         </div>
 
         <Table
