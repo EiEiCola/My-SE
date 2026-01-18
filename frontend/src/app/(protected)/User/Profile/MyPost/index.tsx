@@ -55,7 +55,7 @@ const MyPost: React.FC<MyPostProps> = ({ userId }) => {
     };
 
     fetchMyPosts();
-  }, []);
+  }, [userId]); // ✅ Added userId dependency for real-time updates
 
   if (loading) {
     return (

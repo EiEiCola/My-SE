@@ -70,6 +70,10 @@ const FriendRelation: React.FC = () => {
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // 20 items per page
+
   // Popup State
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
@@ -110,7 +114,7 @@ const FriendRelation: React.FC = () => {
     } else {
       setStickerItems([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile?.id]); // ✅ Use specific ID for reliable change detection
 
   const fetchStickers = async (id: number) => {
     setLoadingStickers(true);
@@ -321,6 +325,11 @@ const FriendRelation: React.FC = () => {
 
   const filteredFriends = friends.filter(friend => friend.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  // Reset pagination when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   return (
     <div className="flex h-full bg-gray-100" onClick={() => setActiveMenu(null)}>
 
@@ -353,61 +362,91 @@ const FriendRelation: React.FC = () => {
 
         {/* Friend List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {filteredFriends.map((friend) => (
-            <div
-              key={friend.id}
-              onClick={() => setSelectedProfile(friend)}
-              className={`relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group border-b border-slate-50 last:border-0
+          {(() => {
+            // ✅ Pagination Logic
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const paginatedFriends = filteredFriends.slice(startIndex, endIndex);
+
+            return paginatedFriends.map((friend) => (
+              <div
+                key={friend.id}
+                onClick={() => setSelectedProfile(friend)}
+                className={`relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group border-b border-slate-50 last:border-0
                     ${selectedProfile?.id === friend.id ? 'bg-orange-50' : 'hover:bg-gray-50'}
                 `}
-            >
-              {/* Avatar */}
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
-                {friend.avatar ? <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}
+              >
+                {/* Avatar */}
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 border border-slate-100">
+                  {friend.avatar ? <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-gray-300 text-lg">👤</div>}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-800 truncate text-sm max-w-[150px]">{friend.name}</h3>
+                  <p className="text-xs text-gray-500">เพื่อน</p>
+                </div>
+                {/* Menu (3 Dots) */}
+                <div className="relative">
+                  <button onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === friend.id ? null : friend.id); }}
+                    className={`rounded-full p-2 transition-all ${activeMenu === friend.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100 group-hover:text-gray-600'}`}>
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {activeMenu === friend.id && (
+                    <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-64 z-50 animate-fadeIn origin-top-right">
+                      <button onClick={() => handleMessageClick(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                        <MessageCircle className="w-5 h-5 text-gray-700" /><p className="text-sm font-semibold text-gray-800">ส่งข้อความ</p>
+                      </button>
+
+                      {/* Follow Toggle */}
+                      <button onClick={() => handleFollowToggle(friend.id, friend.isFollowing)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                        {friend.isFollowing ? <EyeOff className="w-5 h-5 text-gray-700" /> : <UserPlus className="w-5 h-5 text-gray-700" />}
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{friend.isFollowing ? "เลิกติดตาม" : "ติดตาม"}</p>
+                          <p className="text-[10px] text-gray-500">{friend.isFollowing ? "หยุดดูเนื้อหาในฟีด" : "ดูเนื้อหาในฟีด"}</p>
+                        </div>
+                      </button>
+
+                      <button onClick={() => handleBlock(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
+                        <Ban className="w-5 h-5 text-gray-700" /><div><p className="text-sm font-semibold text-gray-800">บล็อก</p><p className="text-[10px] text-gray-500">ไม่เห็นเนื้อหาของคุณ</p></div>
+                      </button>
+
+                      <div className="h-px bg-gray-100 my-1 mx-4"></div>
+
+                      <button onClick={() => handleUnfriend(friend.id)} className="w-full px-4 py-3 hover:bg-red-50 flex items-center gap-3 transition-colors text-left group/delete">
+                        <UserMinus className="w-5 h-5 text-red-500 group-hover/delete:text-red-600" /><p className="text-sm font-semibold text-red-500 group-hover/delete:text-red-600">เลิกเป็นเพื่อน</p>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-800 truncate text-sm max-w-[150px]">{friend.name}</h3>
-                <p className="text-xs text-gray-500">เพื่อน</p>
-              </div>
-              {/* Menu (3 Dots) */}
-              <div className="relative">
-                <button onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === friend.id ? null : friend.id); }}
-                  className={`rounded-full p-2 transition-all ${activeMenu === friend.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100 group-hover:text-gray-600'}`}>
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {activeMenu === friend.id && (
-                  <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-64 z-50 animate-fadeIn origin-top-right">
-                    <button onClick={() => handleMessageClick(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                      <MessageCircle className="w-5 h-5 text-gray-700" /><p className="text-sm font-semibold text-gray-800">ส่งข้อความ</p>
-                    </button>
-
-                    {/* Follow Toggle */}
-                    <button onClick={() => handleFollowToggle(friend.id, friend.isFollowing)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                      {friend.isFollowing ? <EyeOff className="w-5 h-5 text-gray-700" /> : <UserPlus className="w-5 h-5 text-gray-700" />}
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">{friend.isFollowing ? "เลิกติดตาม" : "ติดตาม"}</p>
-                        <p className="text-[10px] text-gray-500">{friend.isFollowing ? "หยุดดูเนื้อหาในฟีด" : "ดูเนื้อหาในฟีด"}</p>
-                      </div>
-                    </button>
-
-                    <button onClick={() => handleBlock(friend.id)} className="w-full px-4 py-3 hover:bg-orange-50 flex items-center gap-3 transition-colors text-left">
-                      <Ban className="w-5 h-5 text-gray-700" /><div><p className="text-sm font-semibold text-gray-800">บล็อก</p><p className="text-[10px] text-gray-500">ไม่เห็นเนื้อหาของคุณ</p></div>
-                    </button>
-
-                    <div className="h-px bg-gray-100 my-1 mx-4"></div>
-
-                    <button onClick={() => handleUnfriend(friend.id)} className="w-full px-4 py-3 hover:bg-red-50 flex items-center gap-3 transition-colors text-left group/delete">
-                      <UserMinus className="w-5 h-5 text-red-500 group-hover/delete:text-red-600" /><p className="text-sm font-semibold text-red-500 group-hover/delete:text-red-600">เลิกเป็นเพื่อน</p>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
+
+        {/* ✅ Pagination */}
+        {filteredFriends.length > pageSize && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ← ก่อนหน้า
+            </button>
+            <span className="text-xs text-gray-500">
+              {currentPage} / {Math.ceil(filteredFriends.length / pageSize)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredFriends.length / pageSize), prev + 1))}
+              disabled={currentPage >= Math.ceil(filteredFriends.length / pageSize)}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ถัดไป →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ----------------- RIGHT PANEL ----------------- */}

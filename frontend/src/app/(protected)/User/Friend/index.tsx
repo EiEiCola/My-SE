@@ -453,7 +453,7 @@ const Friends: React.FC = () => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800">คำขอเป็นเพื่อน ({friendRequests.length})</h2>
-            {friendRequests.length > 5 && (
+            {friendRequests.length > 0 && (
               <button onClick={() => navigate('/User/Friends/Request')} className="text-orange-600 text-sm font-semibold hover:underline">ดูทั้งหมด</button>
             )}
           </div>
@@ -461,7 +461,7 @@ const Friends: React.FC = () => {
             {friendRequests.length === 0 ? (
               <div className="w-full p-8 bg-white rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">ไม่มีคำขอเป็นเพื่อนใหม่</div>
             ) : (
-              friendRequests.map(req => <div key={`req-${req.id}`} className="w-52 flex-shrink-0"><FriendCard person={req} type="request" /></div>)
+              friendRequests.slice(0, 10).map(req => <div key={`req-${req.id}`} className="w-52 flex-shrink-0"><FriendCard person={req} type="request" /></div>)
             )}
           </div>
         </section>
@@ -470,12 +470,15 @@ const Friends: React.FC = () => {
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800">แนะนำสำหรับคุณ</h2>
+            {suggestedFriends.length > 0 && (
+              <button onClick={() => navigate('/User/Friends/Popular')} className="text-orange-600 text-sm font-semibold hover:underline">ดูทั้งหมด</button>
+            )}
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
             {suggestedFriends.length === 0 ? (
               <div className="text-gray-400 text-sm p-4">ไม่มีรายชื่อแนะนำในขณะนี้</div>
             ) : (
-              suggestedFriends.map(friend => <div key={`sug-${friend.id}`} className="w-52 flex-shrink-0"><FriendCard person={friend} type="suggested" /></div>)
+              suggestedFriends.slice(0, 10).map(friend => <div key={`sug-${friend.id}`} className="w-52 flex-shrink-0"><FriendCard person={friend} type="suggested" /></div>)
             )}
           </div>
         </section>

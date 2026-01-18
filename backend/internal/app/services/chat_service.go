@@ -489,8 +489,42 @@ func (s *ChatService) UpdateMemberRole(adminID, roomID, targetMemberID uint, new
 		return errors.New("cannot change your own role via this endpoint")
 	}
 
-	// 3. อัปเดต
-	return s.repo.UpdateMemberRole(roomID, targetMemberID, newRole)
+	// 3. ห้ามลดบทบาทแอดมินของผู้สร้างกลุ่ม
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return err
+	}
+
+	if uint(room.CreatedBy) == targetMemberID && newRole != "admin" {
+		return errors.New("cannot demote the group creator from admin role")
+	}
+
+	// 4. อัปเดต
+	if err := s.repo.UpdateMemberRole(roomID, targetMemberID, newRole); err != nil {
+		return err
+	}
+
+	// 4. Broadcast Member Role Update (Real-time)
+	members, _ := s.repo.GetRoomMembers(roomID)
+	var targetIDs []uint
+	for _, m := range members {
+		targetIDs = append(targetIDs, uint(m.MemberID))
+	}
+
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: targetIDs,
+		Msg: websocket.WSMessage{
+			Type: "member_role_update",
+			Payload: map[string]interface{}{
+				"room_id":   roomID,
+				"member_id": targetMemberID,
+				"new_role":  newRole,
+			},
+			RoomID: roomID,
+		},
+	}
+
+	return nil
 }
 
 // Kick Member (Admin Only)
@@ -501,12 +535,32 @@ func (s *ChatService) KickMember(adminID, roomID, targetMemberID uint) error {
 		return errors.New("permission denied: you are not an admin")
 	}
 
-	// 2. Remove Member
+	// 2. ดึงข้อมูลกลุ่มเพื่อส่งไปในแจ้งเตือน
+	room, err := s.repo.GetRoomByID(roomID)
+	if err != nil {
+		return err
+	}
+
+	// 3. Broadcast "kicked_from_room" event ให้คนที่โดนเตะเท่านั้น
+	s.hub.TargetedBroadcast <- websocket.WSMessageWithTargets{
+		TargetIDs: []uint{targetMemberID},
+		Msg: websocket.WSMessage{
+			Type: "kicked_from_room",
+			Payload: map[string]interface{}{
+				"room_id":   roomID,
+				"room_name": room.Name,
+				"kicked_by": adminID,
+			},
+			RoomID: roomID,
+		},
+	}
+
+	// 4. Remove Member
 	if err := s.repo.RemoveRoomMember(roomID, targetMemberID); err != nil {
 		return err
 	}
 
-	// 3. Create System Message
+	// 5. Create System Message
 	adminName := "Admin"
 	if admin, err := s.friendRepo.GetMemberProfile(int(adminID)); err == nil {
 		adminName = admin.FirstName
@@ -526,7 +580,7 @@ func (s *ChatService) KickMember(adminID, roomID, targetMemberID uint) error {
 	}
 	s.repo.CreateMessage(&sysMsg)
 
-	// 4. Broadcast
+	// 6. Broadcast ให้สมาชิกที่เหลือในกลุ่ม (ไม่รวมคนที่โดนเตะ)
 	s.broadcastSystemMessage(roomID, &sysMsg)
 
 	return nil

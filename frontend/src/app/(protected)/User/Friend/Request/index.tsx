@@ -86,6 +86,10 @@ const FriendRequest: React.FC = () => {
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // 20 items per page
+
   // Popup
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
@@ -112,7 +116,7 @@ const FriendRequest: React.FC = () => {
     } else {
       setStickerItems([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile?.member_id]); // ✅ Use specific ID for reliable change detection
 
   const fetchStickers = async (id: number) => {
     setLoadingStickers(true);
@@ -371,67 +375,97 @@ const FriendRequest: React.FC = () => {
           {receivedRequests.length === 0 ? (
             <div className="text-center text-gray-400 mt-10">ไม่มีคำขอใหม่</div>
           ) : (
-            receivedRequests.map((request) => (
-              <div
-                key={request.id}
-                onClick={() => setSelectedProfile(request)}
-                className={`rounded-2xl p-4 border transition-all cursor-pointer flex items-start gap-3
-                    ${selectedProfile?.id === request.id
-                    ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
-                    : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
-                  }
-                    `}
-              >
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                  {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
-                  {request.avatar ? (
-                    <img src={request.avatar} alt={request.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                      <ImageIcon className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-semibold text-base text-gray-800 truncate pr-2 max-w-[180px]">
-                      {request.name}
-                    </h3>
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                      {request.date}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-3 truncate">
-                    {request.subText}
-                  </p>
+            (() => {
+              // ✅ Pagination Logic
+              const startIndex = (currentPage - 1) * pageSize;
+              const endIndex = startIndex + pageSize;
+              const paginatedRequests = receivedRequests.slice(startIndex, endIndex);
 
-                  {request.status === "pending" ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleAccept(request.id); }}
-                        className="flex-1 bg-gradient-to-r from-orange-400 to-orange-500 
+              return paginatedRequests.map((request) => (
+                <div
+                  key={request.id}
+                  onClick={() => setSelectedProfile(request)}
+                  className={`rounded-2xl p-4 border transition-all cursor-pointer flex items-start gap-3
+                    ${selectedProfile?.id === request.id
+                      ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
+                      : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
+                    }
+                    `}
+                >
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                    {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
+                    {request.avatar ? (
+                      <img src={request.avatar} alt={request.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                        <ImageIcon className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-semibold text-base text-gray-800 truncate pr-2 max-w-[180px]">
+                        {request.name}
+                      </h3>
+                      <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                        {request.date}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3 truncate">
+                      {request.subText}
+                    </p>
+
+                    {request.status === "pending" ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleAccept(request.id); }}
+                          className="flex-1 bg-gradient-to-r from-orange-400 to-orange-500 
                             text-white py-1.5 rounded-full font-medium text-sm hover:from-orange-500 hover:to-orange-600 shadow-sm"
-                      >
-                        ยืนยัน
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleReject(request.id); }}
-                        className="flex-1 bg-gray-100 text-gray-600 py-1.5 
+                        >
+                          ยืนยัน
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReject(request.id); }}
+                          className="flex-1 bg-gray-100 text-gray-600 py-1.5 
                             rounded-full font-medium text-sm hover:bg-gray-200"
-                      >
-                        ลบ
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-full bg-green-50 text-green-600 border border-green-200 py-1.5 rounded-full font-medium text-sm text-center">
-                      เป็นเพื่อนแล้ว
-                    </div>
-                  )}
+                        >
+                          ลบ
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-full bg-green-50 text-green-600 border border-green-200 py-1.5 rounded-full font-medium text-sm text-center">
+                        เป็นเพื่อนแล้ว
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ));
+            })()
           )}
         </div>
+
+        {/* ✅ Pagination */}
+        {receivedRequests.length > pageSize && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ← ก่อนหน้า
+            </button>
+            <span className="text-xs text-gray-500">
+              {currentPage} / {Math.ceil(receivedRequests.length / pageSize)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(receivedRequests.length / pageSize), prev + 1))}
+              disabled={currentPage >= Math.ceil(receivedRequests.length / pageSize)}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ถัดไป →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ----------------- RIGHT PANEL (Target UI) ----------------- */}

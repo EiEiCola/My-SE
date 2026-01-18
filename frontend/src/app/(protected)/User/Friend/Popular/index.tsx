@@ -79,6 +79,10 @@ const FriendPopular: React.FC = () => {
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // 20 items per page
+
   // Popup
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupTab, setPopupTab] = useState<'friends' | 'followers' | 'following'>('friends');
@@ -114,7 +118,7 @@ const FriendPopular: React.FC = () => {
     } else {
       setStickerItems([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfile?.id]); // ✅ Use specific ID for reliable change detection
 
   const fetchStickers = async (id: number) => {
     setLoadingStickers(true);
@@ -281,6 +285,7 @@ const FriendPopular: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
     setSearchTerm(term);
+    setCurrentPage(1); // ✅ Reset to page 1 on search
 
     if (term.trim() === "") {
       setDisplayList(populars);
@@ -451,94 +456,124 @@ const FriendPopular: React.FC = () => {
               {searchTerm ? `ไม่พบ "${searchTerm}"` : "ไม่มีรายชื่อแนะนำ"}
             </div>
           ) : (
-            displayList.map((person) => (
-              <div
-                key={person.id}
-                onClick={() => setSelectedProfile(person)}
-                className={`rounded-2xl p-4 border transition-all cursor-pointer 
+            (() => {
+              // ✅ Pagination Logic
+              const startIndex = (currentPage - 1) * pageSize;
+              const endIndex = startIndex + pageSize;
+              const paginatedList = displayList.slice(startIndex, endIndex);
+
+              return paginatedList.map((person) => (
+                <div
+                  key={person.id}
+                  onClick={() => setSelectedProfile(person)}
+                  className={`rounded-2xl p-4 border transition-all cursor-pointer 
                             ${selectedProfile?.id === person.id
-                    ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
-                    : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
-                  }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                    {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
-                    {person.avatar ? (
-                      <img src={person.avatar} alt={person.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                        <ImageIcon className="w-6 h-6 text-white" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-1">
-                      <h3 className="font-semibold text-base text-gray-800 truncate max-w-[180px]">{person.name}</h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        {person.status === 'self'
-                          ? 'คุณเอง'
-                          : (person.followerCount > 0 ? `${person.followerCount} ผู้ติดตาม` : 'สมาชิก')}
-                      </p>
-                    </div>
-
-                    {/* Mini Action Buttons */}
-                    <div className="mt-3">
-                      {/* ตัวเราเอง -> แก้ไข */}
-                      {person.status === 'self' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditProfile(); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-800 text-white rounded-lg font-medium text-xs hover:bg-slate-900 transition-all shadow-sm"
-                        >
-                          <Edit className="w-3 h-3" /> แก้ไขโปรไฟล์
-                        </button>
-                      )}
-
-                      {/* คนที่ส่งคำขอมา -> ตอบรับ */}
-                      {person.status === 'incoming' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate('/User/Friends/Request'); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-orange-100 text-orange-600 rounded-lg font-medium text-xs hover:bg-orange-200 transition-all"
-                        >
-                          <Check className="w-3 h-3" /> ตอบรับคำขอ
-                        </button>
-                      )}
-
-                      {/* เพื่อนแล้ว */}
-                      {person.status === 'friend' && (
-                        <div className="w-full py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-lg font-medium text-xs text-center">
-                          เป็นเพื่อนแล้ว
+                      ? "bg-orange-50 border-orange-200 shadow-md ring-1 ring-orange-200"
+                      : "bg-white border-slate-100 shadow-sm hover:shadow-md hover:border-orange-100"
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                      {/* ⭐ ใช้ URL ที่ผ่าน Helper แล้ว */}
+                      {person.avatar ? (
+                        <img src={person.avatar} alt={person.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                          <ImageIcon className="w-6 h-6 text-white" />
                         </div>
                       )}
+                    </div>
 
-                      {/* ส่งไปแล้ว */}
-                      {person.status === 'pending' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleCancelRequest(person.requestId, person.id); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-100 text-slate-500 rounded-lg font-medium text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-200 border border-transparent transition-all group"
-                        >
-                          <span className="group-hover:hidden">ส่งคำขอแล้ว</span>
-                          <span className="hidden group-hover:inline">ยกเลิกคำขอ</span>
-                        </button>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="mb-1">
+                        <h3 className="font-semibold text-base text-gray-800 truncate max-w-[180px]">{person.name}</h3>
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                          {person.status === 'self'
+                            ? 'คุณเอง'
+                            : (person.followerCount > 0 ? `${person.followerCount} ผู้ติดตาม` : 'สมาชิก')}
+                        </p>
+                      </div>
 
-                      {/* ยังไม่เป็นเพื่อน */}
-                      {person.status === 'none' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleAddFriend(person.id); }}
-                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium text-xs hover:from-orange-500 hover:to-orange-600 transition-all shadow-sm"
-                        >
-                          <UserPlus className="w-3 h-3" /> เพิ่มเพื่อน
-                        </button>
-                      )}
+                      {/* Mini Action Buttons */}
+                      <div className="mt-3">
+                        {/* ตัวเร าเอง -> แก้ไข */}
+                        {person.status === 'self' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEditProfile(); }}
+                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-800 text-white rounded-lg font-medium text-xs hover:bg-slate-900 transition-all shadow-sm"
+                          >
+                            <Edit className="w-3 h-3" /> แก้ไขโปรไฟล์
+                          </button>
+                        )}
+
+                        {/* คนที่ส่งคำขอมา -> ตอบรับ */}
+                        {person.status === 'incoming' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate('/User/Friends/Request'); }}
+                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-orange-100 text-orange-600 rounded-lg font-medium text-xs hover:bg-orange-200 transition-all"
+                          >
+                            <Check className="w-3 h-3" /> ตอบรับคำขอ
+                          </button>
+                        )}
+
+                        {/* เพื่อนแล้ว */}
+                        {person.status === 'friend' && (
+                          <div className="w-full py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-lg font-medium text-xs text-center">
+                            เป็นเพื่อนแล้ว
+                          </div>
+                        )}
+
+                        {/* ส่งไปแล้ว */}
+                        {person.status === 'pending' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleCancelRequest(person.requestId, person.id); }}
+                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-slate-100 text-slate-500 rounded-lg font-medium text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-200 border border-transparent transition-all group"
+                          >
+                            <span className="group-hover:hidden">ส่งคำขอแล้ว</span>
+                            <span className="hidden group-hover:inline">ยกเลิกคำขอ</span>
+                          </button>
+                        )}
+
+                        {/* ยังไม่เป็นเพื่อน */}
+                        {person.status === 'none' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAddFriend(person.id); }}
+                            className="w-full flex items-center justify-center gap-2 py-1.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium text-xs hover:from-orange-500 hover:to-orange-600 transition-all shadow-sm"
+                          >
+                            <UserPlus className="w-3 h-3" /> เพิ่มเพื่อน
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ));
+            })()
           )}
         </div>
+
+        {/* ✅ Pagination - Simple and Non-intrusive */}
+        {!loading && displayList.length > pageSize && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ← ก่อนหน้า
+            </button>
+            <span className="text-xs text-gray-500">
+              {currentPage} / {Math.ceil(displayList.length / pageSize)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(displayList.length / pageSize), prev + 1))}
+              disabled={currentPage >= Math.ceil(displayList.length / pageSize)}
+              className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              ถัดไป →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ----------------- RIGHT PANEL (Target UI) ----------------- */}
