@@ -89,21 +89,32 @@ const Announcement: React.FC = () => {
         if (!response.ok) throw new Error("Failed to fetch announcements");
         const json = await response.json();
 
+        // Debug: Log raw data to check category structure
+        console.log('Raw announcement data:', json.data?.[0]);
+
         // Map backend data to frontend
-        const mappedData = (json.data || []).map((item: BackendAnnouncement) => ({
-          id: item.id,
-          title: item.title,
-          description: item.content ? item.content.slice(0, 100) + (item.content.length > 100 ? "..." : "") : "",
-          // Use cover url if available
-          image: item.media?.find((m) => m.is_cover)?.url || item.media?.[0]?.url || "https://via.placeholder.com/300x200?text=No+Image",
-          date: item.publish_start_at,
-          status: item.status_id === 1 ? "active" : "archived",
-          content: item.content,
-          // Use dynamic category if available - Use correct key 'announcement_category' and ID
-          categoryObj: item.announcement_category ? { id: item.announcement_category.ID, title: item.announcement_category.title } : undefined,
-          // Fallback string for legacy support
-          category: (item.announcement_category?.title || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
-        }));
+        const mappedData = (json.data || []).map((item: BackendAnnouncement) => {
+          // Try multiple possible category key names from backend
+          const categoryData = item.announcement_category || (item as any).AnnouncementCategory;
+          const categoryId = categoryData?.ID || categoryData?.id;
+          const categoryTitle = categoryData?.title || categoryData?.name;
+
+          const mapped = {
+            id: item.id,
+            title: item.title,
+            description: item.content ? item.content.slice(0, 100) + (item.content.length > 100 ? "..." : "") : "",
+            image: item.media?.find((m) => m.is_cover)?.url || item.media?.[0]?.url || "https://via.placeholder.com/300x200?text=No+Image",
+            date: item.publish_start_at,
+            status: item.status_id === 1 ? "active" : "archived",
+            content: item.content,
+            categoryObj: categoryId && categoryTitle ? { id: categoryId, title: categoryTitle } : undefined,
+            category: (categoryTitle || item.category || item.category_name || item.main_category?.name || "general")?.toLowerCase(),
+          };
+
+          // Debug: Log mapped data
+          console.log('Mapped announcement:', { id: mapped.id, title: mapped.title, categoryObj: mapped.categoryObj });
+          return mapped;
+        });
 
         setAnnouncements(mappedData);
       } catch (err) {
@@ -128,11 +139,17 @@ const Announcement: React.FC = () => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Filter by Category ID if selected, matching against categoryObj.id
-    // If filterCategory is a string/number ID
-    const matchesCategory = !filterCategory ||
+    // Filter by Category ID if selected
+    // If no filter selected (empty string), show all announcements
+    if (!filterCategory) {
+      return matchesSearch;
+    }
+
+    // If filter is selected, only show announcements with matching category
+    const matchesCategory = 
       (item.categoryObj && item.categoryObj.id?.toString() === filterCategory) ||
-      (item.category || "").toLowerCase() === filterCategory.toLowerCase(); // Legacy fallback
+      (item.category || "").toLowerCase() === filterCategory.toLowerCase();
+    
     return matchesSearch && matchesCategory;
   });
 
@@ -254,7 +271,7 @@ const Announcement: React.FC = () => {
                 <option value="">ทั้งหมด</option>
                 {categories.length > 0 ? (
                   categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
+                    <option key={c.id} value={c.id.toString()}>{c.title}</option>
                   ))
                 ) : (
                   <>

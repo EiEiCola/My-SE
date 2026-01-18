@@ -40,12 +40,52 @@ const AnnouncementsList: React.FC = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] = useState<any>(null);
 
+  // Fetch Categories
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/categories/announcement");
+        const json = await res.json();
+        if (json.data) {
+          setCategories(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch categories", e);
+      }
+    };
+    fetchCats();
+  }, []);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const data = await listAdminAnnouncements({ page, page_size: pageSize });
       setItems(Array.isArray(data.data) ? data.data : []);
       setTotal(data.total || 0);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e.message || "โหลดประกาศไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDataWithFilter = async () => {
+    try {
+      setLoading(true);
+      const data = await listAdminAnnouncements({ page, page_size: pageSize });
+      let filteredItems = Array.isArray(data.data) ? data.data : [];
+      
+      // Filter by category if selected
+      if (filterCategory) {
+        filteredItems = filteredItems.filter((item: any) => {
+          const itemCategory = item.AnnouncementCategory?.ID || item.announcement_category?.ID;
+          return itemCategory === filterCategory;
+        });
+      }
+      
+      setItems(filteredItems);
+      setTotal(filteredItems.length);
     } catch (e: any) {
       console.error(e);
       message.error(e.message || "โหลดประกาศไม่สำเร็จ");
@@ -302,46 +342,3 @@ const AnnouncementsList: React.FC = () => {
 };
 
 export default AnnouncementsList;
-  // Fetch Categories
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const res = await fetch("/api/categories/announcement");
-        const json = await res.json();
-        if (json.data) {
-          setCategories(json.data.map((c: any) => ({ id: c.ID, title: c.title })));
-        }
-      } catch (e) {
-        console.error("Failed to fetch categories", e);
-      }
-    };
-    fetchCats();
-  }, []);
-
-  const fetchDataWithFilter = async () => {
-    try {
-      setLoading(true);
-      const data = await listAdminAnnouncements({ page, page_size: pageSize });
-      let filteredItems = Array.isArray(data.data) ? data.data : [];
-      
-      // Filter by category if selected
-      if (filterCategory) {
-        filteredItems = filteredItems.filter((item: any) => {
-          const itemCategory = item.AnnouncementCategory?.ID || item.announcement_category?.ID;
-          return itemCategory === filterCategory;
-        });
-      }
-      
-      setItems(filteredItems);
-      setTotal(filteredItems.length);
-    } catch (e: any) {
-      console.error(e);
-      message.error(e.message || "โหลดประกาศไม่สำเร็จ");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDataWithFilter();
-  }, [page, pageSize, filterCategory]);
